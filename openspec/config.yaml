@@ -1,0 +1,20 @@
+schema: spec-driven
+
+context: |
+  Repository: rezendesfelipe/agent-skills (public, MIT).
+  Purpose: a public collection of Agent Skills (SKILL.md files) that anyone can
+  install in Claude Code (and other agents that support the Agent Skills format).
+  Distribution: the repo is a Claude Code plugin marketplace
+  (.claude-plugin/marketplace.json); each plugin lives in plugins/<plugin>/ and
+  ships one or more skills under plugins/<plugin>/skills/<skill>/SKILL.md.
+  Skill format: YAML frontmatter with `name` (kebab-case, matches folder) and
+  `description` (what it does + when to use it, third person), then Markdown body.
+  Conventions: Conventional Commits; English for code/specs/skill content;
+  every new skill or structural change starts as an OpenSpec change.
+  Tooling: OpenSpec CLI for specs; GitHub Actions for validation.
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+  tasks:
+    - Every new skill change must include a task to validate frontmatter and update the marketplace manifest

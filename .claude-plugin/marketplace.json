@@ -1,0 +1,10 @@
+{
+  "name": "rezendesfelipe-agent-skills",
+  "owner": {
+    "name": "rezendesfelipe"
+  },
+  "metadata": {
+    "description": "Public collection of Agent Skills for Claude Code, built spec-first with OpenSpec."
+  },
+  "plugins": []
+}
