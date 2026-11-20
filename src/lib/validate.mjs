@@ -1,13 +1,16 @@
 // Repository checks for skills and the plugin marketplace manifest.
 import { existsSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { parseFrontmatter } from "./frontmatter.mjs";
 import { subdirs } from "./catalog.mjs";
+
+// Paths in messages always use "/" so output is the same on every OS.
+const relPath = (root, p) => relative(root, p).split(sep).join("/");
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export function validateSkill(skillDir, { root, expectedName = skillDir.split(/[\\/]/).pop() }) {
-  const rel = (p) => relative(root, p);
+  const rel = (p) => relPath(root, p);
   const file = join(skillDir, "SKILL.md");
   const out = [];
   if (!existsSync(file)) return [`${rel(skillDir)}: missing SKILL.md`];
@@ -27,7 +30,7 @@ export function validateSkill(skillDir, { root, expectedName = skillDir.split(/[
 
 /** @returns {{errors: string[], skillCount: number}} */
 export function validateRepo(root, { template = "skill-name" } = {}) {
-  const rel = (p) => relative(root, p);
+  const rel = (p) => relPath(root, p);
   const errors = [];
   const pluginsDir = join(root, "plugins");
 
