@@ -46,12 +46,12 @@ This keeps the existing `openspec/` folder and only adds the `/opsx:*` commands.
 - [ ] No secrets, personal data or machine-specific paths
 - [ ] Content is in English
 
-## Adding or fixing an agent in the CLI
+## Adding or fixing a tool in the CLI
 
-The folders the `agent-skills` CLI installs into are defined in one place: `src/lib/agents.mjs`. To add an agent or fix a path:
+The folders the `agent-skills` CLI installs into are defined in one place: `src/lib/tools.mjs`. To add a tool (Claude Code, Codex, ...) or fix a path:
 
-1. Edit its entry (`user` and `project` folders, the `detect` folders that show the agent is installed, `alsoReads` for other agents' folders it also loads, and a `source` link to the vendor's docs).
-2. Update the agents table in `README.md` and the path test in `test/cli.test.mjs`.
+1. Edit its entry (`user` and `project` folders, the `detect` folders that show the tool is installed, `alsoReads` for other tools' folders it also loads, and a `source` link to the vendor's docs).
+2. Update the tools table in `README.md` and the path test in `test/cli.test.mjs`.
 3. Because the supported paths are part of the `cli-installer` spec, open an OpenSpec change for it.
 
 ## Releasing the CLI

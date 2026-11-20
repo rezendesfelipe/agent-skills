@@ -1,9 +1,9 @@
-// agent-skills command line: list, add and remove skills for supported agents.
+// agent-skills command line: list, add and remove skills for supported tools.
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { AGENTS, AGENT_IDS, SCOPES, detectAgents, overlaps } from "../lib/agents.mjs";
+import { TOOLS, TOOL_IDS, SCOPES, detectTools, overlaps } from "../lib/tools.mjs";
 import { findSkills } from "../lib/catalog.mjs";
 import { OK_STATUSES, PACKAGE_NAME, install, installedSkills, planTargets, remove } from "../lib/install.mjs";
 import * as prompts from "./prompt.mjs";
@@ -18,11 +18,11 @@ const HELP = `Usage: npx ${PACKAGE_NAME} <command> [options]
 
 Commands:
   list                   Show every skill available in this repository
-  add [<skill>...]       Install skills into agents' skills folders
+  add [<skill>...]       Install skills into tools' skills folders
   remove [<skill>...]    Remove skills that agent-skills installed
 
 Options:
-  --agent <ids>          Comma-separated agents: ${AGENT_IDS.join(", ")}
+  --tool <ids>           Comma-separated tools: ${TOOL_IDS.join(", ")}
   --scope <scope>        user (default, home folder) or project (current folder)
   --force                add: replace a skill folder that already exists
   --yes, -y              Skip the confirmation summary
@@ -31,10 +31,10 @@ Options:
   --help, -h             Show this help
   --version, -v          Show the version
 
-In a terminal, add and remove ask for any skill, agent or scope not given.
+In a terminal, add and remove ask for any skill, tool or scope not given.
 
-Agents and folders (user scope | project scope):
-${AGENT_IDS.map((id) => `  ${id.padEnd(8)} ~/${AGENTS[id].user} | ./${AGENTS[id].project}`).join("\n")}
+Tools and folders (user scope | project scope):
+${TOOL_IDS.map((id) => `  ${id.padEnd(8)} ~/${TOOLS[id].user} | ./${TOOLS[id].project}`).join("\n")}
 `;
 
 /**
@@ -57,7 +57,7 @@ export async function main(argv, io = {}) {
       args: argv,
       allowPositionals: true,
       options: {
-        agent: { type: "string" },
+        tool: { type: "string" },
         scope: { type: "string" },
         force: { type: "boolean", default: false },
         yes: { type: "boolean", short: "y", default: false },
@@ -102,27 +102,27 @@ export async function main(argv, io = {}) {
     if (unknown.length)
       throw new UsageError(`Unknown skill: ${unknown.join(", ")}. Run "agent-skills list" to see the available skills.`);
 
-    // Agents
-    let agents = opts.agent ? [...new Set(opts.agent.split(",").map((a) => a.trim()).filter(Boolean))] : null;
-    if (agents) {
-      const bad = agents.filter((a) => !AGENTS[a]);
-      if (bad.length) throw new UsageError(`Unknown agent: ${bad.join(", ")}. Supported agents: ${AGENT_IDS.join(", ")}.`);
+    // Tools
+    let tools = opts.tool ? [...new Set(opts.tool.split(",").map((a) => a.trim()).filter(Boolean))] : null;
+    if (tools) {
+      const bad = tools.filter((a) => !TOOLS[a]);
+      if (bad.length) throw new UsageError(`Unknown tool: ${bad.join(", ")}. Supported tools: ${TOOL_IDS.join(", ")}.`);
     }
     if (opts.scope && !SCOPES.includes(opts.scope))
       throw new UsageError(`Unknown scope "${opts.scope}". Use "user" or "project".`);
 
-    const detected = detectAgents(env.home);
-    const askAgents = async () => {
-      if (agents) return agents;
+    const detected = detectTools(env.home);
+    const askTools = async () => {
+      if (tools) return tools;
       if (!interactive)
         throw new UsageError(
-          `Missing --agent. Detected agents: ${detected.join(", ") || "none"}. ` +
-            `Example: --agent ${detected[0] ?? "claude"}. Supported: ${AGENT_IDS.join(", ")}.`,
+          `Missing --tool. Detected tools: ${detected.join(", ") || "none"}. ` +
+            `Example: --tool ${detected[0] ?? "claude"}. Supported: ${TOOL_IDS.join(", ")}.`,
         );
       return prompts.checkbox({
         ...ask,
-        message: command === "add" ? "Install for which agents?" : "Remove from which agents?",
-        choices: AGENT_IDS.map((id) => ({ value: id, label: AGENTS[id].label, hint: id, checked: detected.includes(id) })),
+        message: command === "add" ? "Install for which tools?" : "Remove from which tools?",
+        choices: TOOL_IDS.map((id) => ({ value: id, label: TOOLS[id].label, hint: id, checked: detected.includes(id) })),
       });
     };
     const askScope = async () => {
@@ -156,17 +156,17 @@ export async function main(argv, io = {}) {
     if (command === "add") {
       skills = await askSkills(catalog, "No skills available yet.");
       if (skills === null || !skills.length) return cancelled(stderr, skills);
-      agents = await askAgents();
-      if (agents === null || !agents.length) return cancelled(stderr, agents);
+      tools = await askTools();
+      if (tools === null || !tools.length) return cancelled(stderr, tools);
       scope = await askScope();
       if (scope === null) return cancelled(stderr, null);
     } else {
-      agents = await askAgents();
-      if (agents === null || !agents.length) return cancelled(stderr, agents);
+      tools = await askTools();
+      if (tools === null || !tools.length) return cancelled(stderr, tools);
       scope = await askScope();
       if (scope === null) return cancelled(stderr, null);
-      const installed = installedSkills(catalog, agents, scope, env);
-      skills = await askSkills(installed, `No skills installed by agent-skills for ${agents.join(", ")} at ${scope} scope.`);
+      const installed = installedSkills(catalog, tools, scope, env);
+      skills = await askSkills(installed, `No skills installed by agent-skills for ${tools.join(", ")} at ${scope} scope.`);
       if (skills === null) return cancelled(stderr, null);
       if (!skills.length) {
         if (installed.length) return cancelled(stderr, []);
@@ -175,12 +175,12 @@ export async function main(argv, io = {}) {
       }
     }
 
-    const targets = planTargets(skills.map((n) => byName.get(n)), agents, scope, env);
+    const targets = planTargets(skills.map((n) => byName.get(n)), tools, scope, env);
     const dryRun = opts["dry-run"];
 
     if (interactive && !opts.yes && !dryRun) {
       const verb = command === "add" ? "Install" : "Remove";
-      stderr.write(`\n${verb} ${skills.length} skill(s) for ${agents.join(", ")} at ${scope} scope:\n`);
+      stderr.write(`\n${verb} ${skills.length} skill(s) for ${tools.join(", ")} at ${scope} scope:\n`);
       for (const t of targets) stderr.write(`  ${t.path}\n`);
       const ok = await prompts.confirm({ ...ask, message: "Continue?" });
       if (!ok) return cancelled(stderr, null);
@@ -188,15 +188,15 @@ export async function main(argv, io = {}) {
 
     const results = targets.map((t) => {
       const r = command === "add" ? install(t, { force: opts.force, dryRun, version }) : remove(t, { dryRun });
-      return { skill: t.skill.name, agents: t.agents, path: t.path, ...r };
+      return { skill: t.skill.name, tools: t.tools, path: t.path, ...r };
     });
     const ok = results.every((r) => OK_STATUSES.has(r.status));
 
     const notes = [];
     if (command === "add" && results.some((r) => OK_STATUSES.has(r.status))) {
-      for (const o of overlaps(agents, scope))
-        notes.push(`${AGENTS[o.reader].label} also reads ${o.path}, so it may list skills installed for ${o.other} twice.`);
-      for (const a of agents) if (AGENTS[a].note) notes.push(AGENTS[a].note);
+      for (const o of overlaps(tools, scope))
+        notes.push(`${TOOLS[o.reader].label} also reads ${o.path}, so it may list skills installed for ${o.other} twice.`);
+      for (const a of tools) if (TOOLS[a].note) notes.push(TOOLS[a].note);
     }
 
     if (json) stdout.write(JSON.stringify({ ok, results, notes }) + "\n");

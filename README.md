@@ -9,25 +9,25 @@ A public collection of [Agent Skills](https://docs.claude.com/en/docs/claude-cod
 
 Works with **Claude Code**, **OpenAI Codex**, **Gemini CLI**, **Cursor** and **GitHub Copilot**. Requires Node.js 20 or later.
 
-### With the CLI (any agent)
+### With the CLI (any tool)
 
 ```bash
 npx @frcloudsolutions/agent-skills add
 ```
 
-In a terminal, `add` shows every skill in this repository in a checkbox list (arrow keys to move, space to select, `a` for all, enter to confirm). It then asks which agents to install for, with the agents found on your machine already selected, and whether to install for your user or only for the current project. It shows a summary to confirm before writing anything.
+In a terminal, `add` shows every skill in this repository in a checkbox list (arrow keys to move, space to select, `a` for all, enter to confirm). It then asks which tools to install into, with the tools found on your machine already selected, and whether to install for your user or only for the current project. It shows a summary to confirm before writing anything.
 
 Pass flags to skip the questions, for example in scripts or when another agent runs the command:
 
 ```bash
 npx @frcloudsolutions/agent-skills list                                   # every available skill
-npx @frcloudsolutions/agent-skills add <skill> [<skill>...] --agent claude,codex [--scope user|project]
-npx @frcloudsolutions/agent-skills remove <skill> --agent claude          # only removes what the CLI installed
+npx @frcloudsolutions/agent-skills add <skill> [<skill>...] --tool claude,codex [--scope user|project]
+npx @frcloudsolutions/agent-skills remove <skill> --tool claude          # only removes what the CLI installed
 ```
 
 Other options: `--force` (replace a skill folder that already exists), `--yes` (skip the confirmation), `--dry-run` (show what would change), `--json` (machine-readable output). Run with `--help` for details.
 
-| Agent | `--agent` | User scope (default) | Project scope |
+| Tool | `--tool` | User scope (default) | Project scope |
 |-------|-----------|----------------------|---------------|
 | Claude Code | `claude` | `~/.claude/skills/` | `.claude/skills/` |
 | OpenAI Codex | `codex` | `~/.agents/skills/` | `.agents/skills/` |
@@ -54,7 +54,7 @@ Run `/plugin` to browse the plugins this marketplace offers.
 git clone https://github.com/rezendesfelipe/agent-skills.git
 skill=agent-skills/plugins/<plugin>/skills/<skill>
 
-# For your user (all projects): pick the line for your agent
+# For your user (all projects): pick the line for your tool
 cp -r "$skill" ~/.claude/skills/     # Claude Code
 cp -r "$skill" ~/.agents/skills/     # OpenAI Codex
 cp -r "$skill" ~/.gemini/skills/     # Gemini CLI

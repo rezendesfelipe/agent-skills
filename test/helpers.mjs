@@ -11,13 +11,13 @@ export const FIXTURE_ROOT = fileURLToPath(new URL("./fixtures/repo", import.meta
 export const BIN = join(REPO_ROOT, "bin", "agent-skills.mjs");
 
 /** Temporary home and project folders, removed by `cleanup`. */
-export function sandbox({ agents = [] } = {}) {
+export function sandbox({ tools = [] } = {}) {
   const base = mkdtempSync(join(tmpdir(), "agent-skills-test-"));
   const home = join(base, "home");
   const cwd = join(base, "project");
   mkdirSync(home, { recursive: true });
   mkdirSync(cwd, { recursive: true });
-  for (const dir of agents) mkdirSync(join(home, dir), { recursive: true });
+  for (const dir of tools) mkdirSync(join(home, dir), { recursive: true });
   return { home, cwd, cleanup: () => rmSync(base, { recursive: true, force: true }) };
 }
 
