@@ -1,6 +1,6 @@
 ## 1. Setup
 
-- [ ] 1.1 Confirm the npm scope `@frcloudsolutions` is available to the maintainer (`npm whoami`, `npm view @frcloudsolutions/agent-skills`)
+- [x] 1.1 Confirm the npm scope `@frcloudsolutions` is available to the maintainer (`npm whoami`, `npm view @frcloudsolutions/agent-skills`)
 - [x] 1.2 Add root `package.json` (name, version `0.1.0`, `type: module`, `bin.agent-skills`, `engines.node >=20`, `files` whitelist, `test` and `validate` scripts, MIT license)
 - [x] 1.3 Add `.playwright-mcp/` to `.gitignore`
 
