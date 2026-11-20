@@ -7,7 +7,39 @@ A public collection of [Agent Skills](https://docs.claude.com/en/docs/claude-cod
 
 ## Install
 
-### As a Claude Code plugin marketplace (recommended)
+Works with **Claude Code**, **OpenAI Codex**, **Gemini CLI**, **Cursor** and **GitHub Copilot**. Requires Node.js 20 or later.
+
+### With the CLI (any agent)
+
+```bash
+npx @frcloudsolutions/agent-skills add
+```
+
+In a terminal, `add` shows every skill in this repository in a checkbox list (arrow keys to move, space to select, `a` for all, enter to confirm). It then asks which agents to install for, with the agents found on your machine already selected, and whether to install for your user or only for the current project. It shows a summary to confirm before writing anything.
+
+Pass flags to skip the questions, for example in scripts or when another agent runs the command:
+
+```bash
+npx @frcloudsolutions/agent-skills list                                   # every available skill
+npx @frcloudsolutions/agent-skills add <skill> [<skill>...] --agent claude,codex [--scope user|project]
+npx @frcloudsolutions/agent-skills remove <skill> --agent claude          # only removes what the CLI installed
+```
+
+Other options: `--force` (replace a skill folder that already exists), `--yes` (skip the confirmation), `--dry-run` (show what would change), `--json` (machine-readable output). Run with `--help` for details.
+
+| Agent | `--agent` | User scope (default) | Project scope |
+|-------|-----------|----------------------|---------------|
+| Claude Code | `claude` | `~/.claude/skills/` | `.claude/skills/` |
+| OpenAI Codex | `codex` | `~/.agents/skills/` | `.agents/skills/` |
+| Gemini CLI | `gemini` | `~/.gemini/skills/` | `.gemini/skills/` |
+| Cursor | `cursor` | `~/.cursor/skills/` | `.cursor/skills/` |
+| GitHub Copilot | `copilot` | `~/.copilot/skills/` | `.github/skills/` |
+
+Notes:
+- Gemini CLI may need Agent Skills enabled in its settings ([docs](https://geminicli.com/docs/cli/skills/)).
+- Cursor also reads `.claude/skills/`, and Copilot also reads `.claude/skills/` and `.agents/skills/`. If you install the same skill for Claude Code and one of these, that agent may list it twice. Installing for just one of them is enough.
+
+### As a Claude Code plugin marketplace
 
 ```text
 /plugin marketplace add rezendesfelipe/agent-skills
@@ -16,15 +48,28 @@ A public collection of [Agent Skills](https://docs.claude.com/en/docs/claude-cod
 
 Run `/plugin` to browse the plugins this marketplace offers.
 
-### Copy a single skill by hand
+### Copy a skill by hand
 
 ```bash
 git clone https://github.com/rezendesfelipe/agent-skills.git
-# personal (all projects)
-cp -r agent-skills/plugins/<plugin>/skills/<skill> ~/.claude/skills/
-# or only for one project
-cp -r agent-skills/plugins/<plugin>/skills/<skill> <your-project>/.claude/skills/
+skill=agent-skills/plugins/<plugin>/skills/<skill>
+
+# For your user (all projects): pick the line for your agent
+cp -r "$skill" ~/.claude/skills/     # Claude Code
+cp -r "$skill" ~/.agents/skills/     # OpenAI Codex
+cp -r "$skill" ~/.gemini/skills/     # Gemini CLI
+cp -r "$skill" ~/.cursor/skills/     # Cursor
+cp -r "$skill" ~/.copilot/skills/    # GitHub Copilot
+
+# Or only for one project, from the project folder
+cp -r "$skill" .claude/skills/       # Claude Code
+cp -r "$skill" .agents/skills/       # OpenAI Codex
+cp -r "$skill" .gemini/skills/       # Gemini CLI
+cp -r "$skill" .cursor/skills/       # Cursor
+cp -r "$skill" .github/skills/       # GitHub Copilot
 ```
+
+Create the target folder first (`mkdir -p <folder>`) if it does not exist.
 
 ## Catalog
 
@@ -41,6 +86,8 @@ templates/skill/SKILL.md          # starting point for new skills
 openspec/specs/                   # current specs of this repository
 openspec/changes/                 # proposed changes being worked on
 scripts/validate-skills.mjs       # format and manifest checks (also run in CI)
+bin/, src/                        # the agent-skills CLI published to npm
+test/                             # CLI tests (npm test)
 ```
 
 ## Contributing

@@ -6,3 +6,6 @@ node_modules/
 # OpenSpec agent tooling, generated per contributor with `openspec init --tools <tool>`
 .claude/commands/opsx/
 .claude/skills/openspec-*/
+
+# Playwright MCP session output
+.playwright-mcp/

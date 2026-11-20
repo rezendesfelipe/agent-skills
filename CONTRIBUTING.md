@@ -31,6 +31,7 @@ This keeps the existing `openspec/` folder and only adds the `/opsx:*` commands.
 4. **Check locally.**
    ```bash
    node scripts/validate-skills.mjs
+   npm test
    openspec validate --all --strict
    ```
 5. **Open a pull request.** CI runs the same checks.
@@ -38,12 +39,25 @@ This keeps the existing `openspec/` folder and only adds the `/opsx:*` commands.
 
 ## Skill checklist
 
-- [ ] `name` is kebab-case, matches the folder, and is at most 64 characters
+- [ ] `name` is kebab-case, matches the folder, is at most 64 characters, and is not used by any other skill in any plugin (the CLI installs skills by name)
 - [ ] `description` is at most 1024 characters, written in third person, and says when to use the skill
 - [ ] Instructions are concrete steps, with examples
 - [ ] Supporting files (scripts, references) live inside the skill folder and are referenced by relative path
 - [ ] No secrets, personal data or machine-specific paths
 - [ ] Content is in English
+
+## Adding or fixing an agent in the CLI
+
+The folders the `agent-skills` CLI installs into are defined in one place: `src/lib/agents.mjs`. To add an agent or fix a path:
+
+1. Edit its entry (`user` and `project` folders, the `detect` folders that show the agent is installed, `alsoReads` for other agents' folders it also loads, and a `source` link to the vendor's docs).
+2. Update the agents table in `README.md` and the path test in `test/cli.test.mjs`.
+3. Because the supported paths are part of the `cli-installer` spec, open an OpenSpec change for it.
+
+## Releasing the CLI
+
+1. Bump `version` in `package.json` and commit.
+2. Push a tag `v<version>`. The `publish` workflow validates, tests and publishes to npm with provenance.
 
 ## Commits
 

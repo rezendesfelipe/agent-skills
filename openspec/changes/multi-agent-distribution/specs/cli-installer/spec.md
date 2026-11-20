@@ -110,6 +110,10 @@ The `remove [<skill>...]` command SHALL delete each chosen skill's folder from e
 - **WHEN** a user runs `agent-skills remove docs-generator --agent claude` after installing it with the CLI
 - **THEN** `~/.claude/skills/docs-generator/` is deleted
 
+#### Scenario: Skill not installed for an agent
+- **WHEN** a user runs `agent-skills remove docs-generator --agent claude,codex` and the skill is installed only for `claude`
+- **THEN** it is removed from `claude`, `codex` is reported as not found, and the exit code is 0, because removal is idempotent
+
 #### Scenario: Folder not installed by the CLI
 - **WHEN** the target folder exists but has no install marker
 - **THEN** the command leaves it in place, says it was not installed by `agent-skills`, and exits with a non-zero code

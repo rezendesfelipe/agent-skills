@@ -34,7 +34,7 @@ Skills folders per agent were checked against each vendor's docs on 2026-11-19:
 
 **5. Skill lookup by name.** At startup the CLI scans `plugins/*/skills/*/SKILL.md` relative to its own package root and reads the frontmatter with the same parser as the validator. To share it, the parser moves to `src/lib/frontmatter.mjs`, imported by both. Uniqueness is guaranteed by validation (spec `skill-catalog`), so the lookup is a plain map.
 
-**6. Output and exit codes.** Human-readable output goes to stdout by default. With `--json`, stdout holds one JSON object (`{ ok, results: [{ agent, path, status: "installed"|"skipped"|"removed"|"would-install"|..., message? }] }`) and all messages go to stderr. Exit code 0 means everything succeeded, 1 means an operation failed or was skipped, 2 means a usage error (unknown flag, agent or skill).
+**6. Output and exit codes.** Human-readable output goes to stdout by default. With `--json`, stdout holds one JSON object (`{ ok, results: [{ skill, agents, path, status: "installed"|"replaced"|"skipped"|"would-install"|"would-replace"|"removed"|"would-remove"|"not-found"|"not-managed", message? }], notes }`) and all messages go to stderr. Exit code 0 means everything succeeded, 1 means an operation failed or was skipped, 2 means a usage error (unknown flag, agent or skill).
 
 **7. Release.** Tag `vX.Y.Z` triggers `.github/workflows/publish.yml`: run validation and tests, check that the tag matches `package.json` `version`, then `npm publish --provenance --access public`. Use npm trusted publishing (OIDC) when available, otherwise an `NPM_TOKEN` secret.
 

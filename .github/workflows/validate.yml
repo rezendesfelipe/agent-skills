@@ -20,3 +20,18 @@ jobs:
         run: node scripts/validate-skills.mjs
       - name: Validate OpenSpec specs and changes
         run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test the agent-skills CLI
+        run: npm test
