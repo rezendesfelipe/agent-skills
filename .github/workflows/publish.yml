@@ -26,8 +26,9 @@ jobs:
           fi
       - run: node scripts/validate-skills.mjs
       - run: npm test
+      # Trusted publishing (OIDC) needs npm 11.5.1 or later. No token is used:
+      # npmjs.com trusts this repository and workflow file instead.
+      - name: Update npm
+        run: npm install -g npm@^11.5.1 && npm --version
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          # Not needed when npm trusted publishing is configured for this repository.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
