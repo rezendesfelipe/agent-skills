@@ -62,6 +62,12 @@ const decode = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&qu
 
 /** Text lines and link annotations of every page of a PDF, with pdf.js. */
 export async function readPdf(path) {
+  // pdf.js 6 (a test-only dependency) uses Promise.withResolvers, which Node 20 lacks.
+  Promise.withResolvers ??= function () {
+    let resolve, reject;
+    const promise = new this((res, rej) => ((resolve = res), (reject = rej)));
+    return { promise, resolve, reject };
+  };
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(path)), useSystemFonts: false, verbosity: 0 }).promise;
   const pages = [];
