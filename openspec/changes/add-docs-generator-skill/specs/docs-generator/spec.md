@@ -35,8 +35,16 @@ The Markdown body SHALL support headings, paragraphs, bold, italic, links, order
 - **THEN** `check` fails and reports the path relative to the source
 
 #### Scenario: Too many heading levels
-- **WHEN** the body or an annex uses a `####` (or deeper) heading
-- **THEN** `check` fails and reports the line, because documents are limited to 3 heading levels (`#`, `##`, `###`)
+- **WHEN** the body uses a `####` (or deeper) heading, or an annex uses a `###` (or deeper) heading
+- **THEN** `check` fails and reports the file and line, because documents are limited to 3 heading levels and an annex's title is its first level
+
+#### Scenario: Unsupported Markdown
+- **WHEN** the body contains raw HTML, footnotes, reference-style links or images, horizontal rules or strikethrough
+- **THEN** `check` fails and reports the line with the supported alternative, instead of dropping the content
+
+#### Scenario: Internal link
+- **WHEN** the body links to a heading with `[text](#s-<heading-id>)`
+- **THEN** the link jumps to that heading in both the PDF and the DOCX
 
 ### Requirement: Document structure
 Every generated PDF and DOCX SHALL contain, in this order: cover, table of contents, executive summary, body, sources, annexes, change log, back cover. The sources and annexes sections SHALL be omitted when their lists are empty; all others are always present.
@@ -58,6 +66,14 @@ Every generated PDF and DOCX SHALL contain, in this order: cover, table of conte
 - **WHEN** a reader clicks an entry in the PDF table of contents
 - **THEN** the viewer jumps to that section, and the page number shown in the entry is the page where the section starts
 
+#### Scenario: DOCX table of contents
+- **WHEN** a user opens the DOCX
+- **THEN** the table of contents is a Word table of contents over Heading 1–2 whose entries already show their page numbers, and Word can update it after edits
+
+#### Scenario: Table across pages
+- **WHEN** a table continues on the next page of the PDF
+- **THEN** its header row is repeated at the top of the continuation
+
 ### Requirement: Output formats
 The `build` command SHALL take the source path, `--format` (any of `pdf`, `docx`, default both) and an optional `--theme` and `--out` folder (default: the source's folder). Output files SHALL be named after the source file (`<name>.pdf`, `<name>.docx`). PDF and DOCX built from the same source and theme SHALL contain the same text, sections, tables and images.
 
@@ -77,16 +93,24 @@ The `build` command SHALL take the source path, `--format` (any of `pdf`, `docx`
 The look of every output SHALL come from a theme file in JSON (`docs-theme.json`) that follows a schema bundled with the skill. The theme SHALL define fonts (headings, body, monospace), colors (text, secondary text, accent, text on accent, background, table header background, borders), type sizes (body and heading levels 1–3), line height, page size (`A4` or `Letter`) and margins, and MAY define a logo, contact text and license text for the covers. The `theme check` command SHALL validate a theme file.
 
 #### Scenario: Invalid theme
-- **WHEN** a theme file is missing `colors.accent` or has a value that is not a color
+- **WHEN** a theme file has a value that is not a color, a value out of range, or an unknown field
 - **THEN** `theme check` and `build` fail and name the field
 
 #### Scenario: Contrast below WCAG AA
 - **WHEN** a theme's body text color on the background has a contrast ratio below 4.5:1, or a heading or large-text color is below 3:1
-- **THEN** `theme check` and `build` fail and report the color pair and its ratio
+- **THEN** `theme check` and `build` fail and report the color pair, its ratio and the nearest color that passes
+
+#### Scenario: Partial theme
+- **WHEN** a theme file sets only some fields, for example `colors.accent`
+- **THEN** the other fields are taken from the `clean-modern` theme, and `theme check` prints the complete resulting theme
 
 #### Scenario: Font not available
 - **WHEN** the theme names a font that is neither bundled nor given as a font file in the theme
 - **THEN** the engine warns that the font will fall back to the viewer's default and continues
+
+#### Scenario: Web font files only
+- **WHEN** a theme gives only `.woff` or `.woff2` files for a font
+- **THEN** the PDF uses them, and the engine warns that the DOCX cannot embed them and shows the font only where it is installed
 
 ### Requirement: Default theme
 The skill SHALL bundle a theme named `clean-modern`, used when no other theme is chosen, with these values: Public Sans for headings and body (bundled font files, tabular numerals in tables); body 11 pt with line height 1.4 and 6 pt between paragraphs; headings 20 / 14 / 12 pt bold with space above at least 1.5 times the space below; text `#1F2328`, secondary text `#57606A`, accent `#0B6E79`, table header background `#F6F8FA`; A4 pages with the body limited to about 66 characters per line; tables with thin horizontal rules only; cover with a left-aligned title and an accent color band, no photos.

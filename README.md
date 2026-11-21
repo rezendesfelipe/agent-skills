@@ -75,7 +75,7 @@ Create the target folder first (`mkdir -p <folder>`) if it does not exist.
 
 | Plugin | Skills | Description |
 |--------|--------|-------------|
-| _none yet_ | | The first skills are coming soon. |
+| [`docs-generator`](plugins/docs-generator/skills/docs-generator/SKILL.md) | `docs-generator` | Writes design documents and reports as structured Markdown and renders them to designed PDF and DOCX (cover, contents, executive summary, sources, annexes, change log), plus a matching Excel template and Office theme. Uses your Claude Design System or brand, or a research-based default theme. Needs Node.js 20+; PDF output also needs Chrome, Edge or Chromium. |
 
 ## Layout
 

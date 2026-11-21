@@ -9,3 +9,4 @@ node_modules/
 
 # Playwright MCP session output
 .playwright-mcp/
+plugins/*/skills/*/test/output/

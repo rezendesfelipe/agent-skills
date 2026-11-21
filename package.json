@@ -1,6 +1,6 @@
 {
   "name": "@frcloudsolutions/agent-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Install Agent Skills (SKILL.md) into Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot.",
   "type": "module",
   "bin": {
@@ -10,11 +10,13 @@
     "bin/",
     "src/",
     "plugins/*/skills/**",
+    "!plugins/*/skills/*/node_modules",
+    "!plugins/*/skills/*/test",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/cli.test.mjs test/pack.test.mjs test/prompt.test.mjs test/validate.test.mjs",
     "validate": "node scripts/validate-skills.mjs"
   },
   "engines": {
