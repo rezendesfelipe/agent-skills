@@ -19,9 +19,13 @@ The repository SHALL provide a plugin marketplace manifest at `.claude-plugin/ma
 - **THEN** validation fails and names the broken entry
 
 ### Requirement: Manual installation
-The README SHALL document how to use a skill without the marketplace, by copying its folder into `~/.claude/skills/` or a project's `.claude/skills/`.
+The README SHALL document how to install a skill for every tool supported by the `agent-skills` CLI: first with the CLI (`npx @frcloudsolutions/agent-skills add <skill> --tool <tool>`), then without it, by copying the skill folder into that tool's user or project skills folder. The README paths SHALL match the CLI's path map.
 
 #### Scenario: Manual copy instructions
 - **WHEN** a user reads the README
-- **THEN** they find the commands to copy a single skill folder into a skills directory
+- **THEN** they find the commands to copy a single skill folder into a skills directory for each of Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot
+
+#### Scenario: CLI instructions
+- **WHEN** a user reads the README install section
+- **THEN** they find the `npx @frcloudsolutions/agent-skills` commands to list, add and remove skills, and the list of supported tool ids
 

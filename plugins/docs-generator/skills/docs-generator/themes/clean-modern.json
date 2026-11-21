@@ -1,0 +1,36 @@
+{
+  "$schema": "./docs-theme.schema.json",
+  "name": "clean-modern",
+  "fonts": {
+    "heading": "Public Sans",
+    "body": "Public Sans",
+    "mono": "monospace"
+  },
+  "colors": {
+    "text": "#1F2328",
+    "textMuted": "#57606A",
+    "accent": "#0B6E79",
+    "onAccent": "#FFFFFF",
+    "background": "#FFFFFF",
+    "tableHeader": "#F6F8FA",
+    "border": "#D0D7DE"
+  },
+  "type": {
+    "body": 11,
+    "h1": 20,
+    "h2": 14,
+    "h3": 12,
+    "small": 9,
+    "title": 34,
+    "lineHeight": 1.4,
+    "paragraphSpacing": 6
+  },
+  "page": {
+    "size": "A4",
+    "margins": { "top": 28, "right": 36, "bottom": 28, "left": 36 }
+  },
+  "cover": {
+    "style": "accent-band"
+  },
+  "backCover": {}
+}

@@ -35,3 +35,22 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Test the agent-skills CLI
         run: npm test
+
+  docs-generator:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    defaults:
+      run:
+        working-directory: plugins/docs-generator/skills/docs-generator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # GitHub's Ubuntu runners include Google Chrome, which the PDF renderer uses.
+      - run: npm ci
+      - name: Test the docs-generator engine
+        run: npm test
