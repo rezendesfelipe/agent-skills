@@ -31,16 +31,18 @@ Usage: node scripts/docs.mjs <command> [options]
 
 Commands:
   check <source.md>                 Validate a source document
-  build <source.md>                 Build PDF and/or DOCX
+  build <source.md>                 Build PDF and/or DOCX (a theme is required)
       --format pdf,docx             Formats to build (default: pdf,docx)
-      --theme <file|name>           Theme file or bundled theme (default: docs-theme.json next to the source, else ${DEFAULT_THEME})
+      --theme <file|name>           Theme file or bundled theme; required unless a docs-theme.json is next to the source.
+                                    There is no default: ask the user which theme to use (--theme ${DEFAULT_THEME} is the bundled one)
       --out <folder>                Output folder (default: the source's folder)
       --preview <folder>            Also write one PNG per PDF page, for review
   theme check [<file|name>]         Validate a theme and print it with defaults filled in
   theme init [--from <name>] [--out <file>]
                                     Write an editable copy of a bundled theme (default: docs-theme.json)
-  office-theme [--theme <file|name>] [--out <folder>] [--lang pt-BR|en|es]
-                                    Write <theme>.xltx (Excel template) and <theme>.thmx (Office theme)
+  office-theme --theme <file|name> [--out <folder>] [--lang pt-BR|en|es]
+                                    Write <theme>.xltx (Excel template) and <theme>.thmx (Office theme);
+                                    --theme is required unless a docs-theme.json is in the current folder
 
 Every command accepts --json (result object on stdout, messages on stderr).
 Exit codes: 0 success, 1 validation or rendering failure, 2 usage error.
@@ -79,11 +81,29 @@ function report(kind, errors, warnings) {
   if (!errors.length) log(`✓ ${kind} is valid`);
 }
 
-/** Theme for a source: --theme, else docs-theme.json next to the source, else the default theme. */
+/** Theme for `check`: --theme, else docs-theme.json next to the source, else the default (checking only). */
 function resolveThemeRef(sourcePath) {
   if (opts.theme) return opts.theme;
   const local = join(dirname(resolve(sourcePath)), "docs-theme.json");
   return existsSync(local) ? local : DEFAULT_THEME;
+}
+
+const NO_THEME_MESSAGE =
+  "No theme was chosen, so nothing was written. Ask the user which theme to use (their design system, another " +
+  "design specification, the default, or a new theme made together); do not pick one yourself. Then pass " +
+  `--theme <name|file>, for example --theme ${DEFAULT_THEME} for the bundled default, or save a docs-theme.json ` +
+  "where this command looks for it. See SKILL.md, \"Choosing the theme\".";
+
+/**
+ * The theme a command must use: --theme, else docs-theme.json in `dir`. There is no fallback: the choice has
+ * to be made on purpose.
+ * @returns {{ ref: string, via: "flag"|"file" }}
+ */
+function requireTheme(dir) {
+  if (opts.theme) return { ref: opts.theme, via: "flag" };
+  const local = join(dir, "docs-theme.json");
+  if (existsSync(local)) return { ref: local, via: "file" };
+  throw new UsageError(NO_THEME_MESSAGE);
 }
 
 async function cmdCheck(source) {
@@ -104,8 +124,8 @@ async function cmdBuild(source) {
   const bad = formats.filter((f) => !["pdf", "docx"].includes(f));
   if (bad.length || !formats.length) throw new UsageError(`--format accepts pdf and docx (got: ${opts.format})`);
 
+  const { ref: themeRef, via } = requireTheme(dirname(resolve(source)));
   const { model, errors, warnings } = loadSource(source);
-  const themeRef = resolveThemeRef(source);
   const th = loadTheme(themeRef);
   const allErrors = [...errors, ...th.errors.map((m) => ({ where: `theme ${themeRef}`, message: m }))];
   const allWarnings = [...warnings, ...th.warnings.map((m) => ({ where: `theme ${themeRef}`, message: m }))];
@@ -117,11 +137,8 @@ async function cmdBuild(source) {
     return EXIT.FAILED;
   }
 
-  const usedDefault = !opts.theme && themeRef === DEFAULT_THEME;
-  log(`theme: ${th.theme.name} (${th.source})`);
-  if (usedDefault)
-    log(`note: no --theme and no docs-theme.json next to the source, so the bundled default "${DEFAULT_THEME}" was used. ` +
-      "If the user has a design system or brand, ask before building (see SKILL.md, \"Choosing the theme\").");
+  const themeSource = via === "flag" ? "--theme" : "docs-theme.json next to the source";
+  log(`theme: ${th.theme.name} (${th.source}; from ${themeSource})`);
 
   const outDir = resolve(opts.out ?? dirname(resolve(source)));
   mkdirSync(outDir, { recursive: true });
@@ -147,7 +164,7 @@ async function cmdBuild(source) {
       log(`error: ${format}: ${e.message}`);
     }
   }
-  emit({ ok: !failures.length, errors: failures, warnings: allWarnings, theme: th.source, themeName: th.theme.name, usedDefaultTheme: usedDefault, outputs });
+  emit({ ok: !failures.length, errors: failures, warnings: allWarnings, theme: th.source, themeName: th.theme.name, themeSource: via === "flag" ? "flag" : "file-next-to-source", outputs });
   return failures.length ? EXIT.FAILED : EXIT.OK;
 }
 
@@ -182,13 +199,15 @@ function cmdThemeInit() {
 async function cmdOfficeTheme() {
   const lang = opts.lang ?? "pt-BR";
   if (!LANGS.includes(lang)) throw new UsageError(`--lang must be one of: ${LANGS.join(", ")}`);
-  const th = loadTheme(opts.theme ?? DEFAULT_THEME);
+  const { ref, via } = requireTheme(process.cwd());
+  const th = loadTheme(ref);
   for (const w of th.warnings) log(`warning: ${w}`);
   if (th.errors.length) {
     for (const e of th.errors) log(`error: ${e}`);
     emit({ ok: false, errors: th.errors, outputs: [] });
     return EXIT.FAILED;
   }
+  log(`theme: ${th.theme.name} (${th.source}; from ${via === "flag" ? "--theme" : "docs-theme.json in the current folder"})`);
   const { buildThmx, buildXltx } = await import("./lib/office.mjs");
   const outDir = resolve(opts.out ?? ".");
   mkdirSync(outDir, { recursive: true });

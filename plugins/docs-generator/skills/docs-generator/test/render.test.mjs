@@ -19,7 +19,7 @@ const skipPdf = hasBrowser ? false : "no Chrome, Edge or Chromium available";
 
 let pdf, docx, model;
 before(async () => {
-  const r = runCli(["build", SAMPLE, "--out", out, "--format", hasBrowser ? "pdf,docx" : "docx", "--preview", preview, "--json"]);
+  const r = runCli(["build", SAMPLE, "--theme", "clean-modern", "--out", out, "--format", hasBrowser ? "pdf,docx" : "docx", "--preview", preview, "--json"]);
   assert.equal(r.code, 0, r.stderr);
   model = loadSource(SAMPLE).model;
   docx = unzipText(join(out, "sample.docx"));
