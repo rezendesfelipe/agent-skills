@@ -117,6 +117,12 @@ async function cmdBuild(source) {
     return EXIT.FAILED;
   }
 
+  const usedDefault = !opts.theme && themeRef === DEFAULT_THEME;
+  log(`theme: ${th.theme.name} (${th.source})`);
+  if (usedDefault)
+    log(`note: no --theme and no docs-theme.json next to the source, so the bundled default "${DEFAULT_THEME}" was used. ` +
+      "If the user has a design system or brand, ask before building (see SKILL.md, \"Choosing the theme\").");
+
   const outDir = resolve(opts.out ?? dirname(resolve(source)));
   mkdirSync(outDir, { recursive: true });
   const name = basename(source, extname(source));
@@ -141,7 +147,7 @@ async function cmdBuild(source) {
       log(`error: ${format}: ${e.message}`);
     }
   }
-  emit({ ok: !failures.length, errors: failures, warnings: allWarnings, theme: th.source, outputs });
+  emit({ ok: !failures.length, errors: failures, warnings: allWarnings, theme: th.source, themeName: th.theme.name, usedDefaultTheme: usedDefault, outputs });
   return failures.length ? EXIT.FAILED : EXIT.OK;
 }
 

@@ -18,25 +18,39 @@ Paths below are relative to this skill's folder (the folder that holds this file
 ## Workflow
 
 1. **Install the engine on first use.** If `node_modules/` does not exist in this skill's folder, run `npm ci --omit=dev` there. Node.js 20 or later is required. PDF output needs Chrome, Edge or Chromium; if none is installed, DOCX and Excel outputs still work (see Troubleshooting).
-2. **Choose the theme** (next section) and show the user what will be used before the first build.
-3. **Write the source** following `references/source-format.md`: YAML frontmatter with `title`, `author`, `date`, `version`, `summary`, `changes` (and optionally `subtitle`, `lang`, `sources`, `annexes`), then the body. Apply the writing rules below.
-4. **Check it:** `node scripts/docs.mjs check <source.md>`. Fix every error and rerun until it passes. Address warnings too (a vague change log entry is a warning).
-5. **Build:** `node scripts/docs.mjs build <source.md>` writes `<name>.pdf` and `<name>.docx` next to the source. Use `--format pdf` or `--format docx` for one format, `--out <folder>` for another folder, `--theme <file>` for a theme file elsewhere.
-6. **Report** the output paths to the user. Mention that Word may ask to update fields when the DOCX opens; answering yes refreshes the table of contents after edits.
+2. **Ask which theme to use, and wait for the answer** (next section). Do this before writing or building anything. Never build with a theme the user has not chosen or confirmed.
+3. **Tell the user what the formats include** if they asked for Excel: this skill does not put the document's content in a workbook (see below). Say so now, not after building.
+4. **Write the source** following `references/source-format.md`: YAML frontmatter with `title`, `author`, `date`, `version`, `summary`, `changes` (and optionally `subtitle`, `lang`, `sources`, `annexes`), then the body. Apply the writing rules below.
+5. **Check it:** `node scripts/docs.mjs check <source.md>`. Fix every error and rerun until it passes. Address warnings too (a vague change log entry is a warning).
+6. **Build:** `node scripts/docs.mjs build <source.md> --theme <the chosen theme> --preview <folder>` writes `<name>.pdf` and `<name>.docx` next to the source, plus one PNG per PDF page in the preview folder. Always pass `--theme` (a bundled name such as `clean-modern`, or a file). Use `--format pdf` or `--format docx` for one format, `--out <folder>` for another folder.
+7. **Look at the result.** If you can view images, open the cover, one page with a table, and the last page of the preview, and fix what looks wrong (rebuild after editing the source). In the final message say what you checked; if you could not look at the pages, say that too.
+8. **Report** the output paths and the theme used. Mention that Word may ask to update fields when the DOCX opens; answering yes refreshes the table of contents after edits.
 
-For an **Excel template or Office theme**: `node scripts/docs.mjs office-theme [--theme <file>] [--lang pt-BR|en|es] [--out <folder>]` writes `<theme>.xltx` and `<theme>.thmx`. Tell the user how to use them: open the `.xltx` to start a workbook (new tables use the theme's table style; the named styles are in the Cell Styles gallery); apply the `.thmx` in Excel, Word or PowerPoint under Page Layout or Design → Themes → Browse for Themes. Office does not embed fonts: if the theme font is not installed on the user's machine, point them to the font files (for the default theme, `assets/fonts/`).
+**Excel is a template, not a workbook.** For an **Excel template or Office theme**, `node scripts/docs.mjs office-theme [--theme <file>] [--lang pt-BR|en|es] [--out <folder>]` writes `<theme>.xltx` and `<theme>.thmx`. Tell the user how to use them: open the `.xltx` to start a workbook (new tables use the theme's table style; the named styles are in the Cell Styles gallery); apply the `.thmx` in Excel, Word or PowerPoint under Page Layout or Design → Themes → Browse for Themes. Office does not embed fonts: if the theme font is not installed on the user's machine, point them to the font files (for the default theme, `assets/fonts/`). If the user asked for "Excel" together with a document, make clear before building that the Excel output is an empty template with the document's look, not a workbook with its tables; offer to put the tables in a workbook with another tool or skill if they want that.
 
 Every command accepts `--json` for a machine-readable result. Exit codes: 0 success, 1 validation or rendering failure, 2 usage error.
 
 ## Choosing the theme
 
-Pick the first that applies, and tell the user which one you used:
+**Always settle the theme with the user before the first build. Never fall back to `clean-modern` on your own.** The user may have a design system or brand they never mention, so you have to ask.
 
-1. **A theme the user named**, or a `docs-theme.json` next to the source (the engine picks it up automatically).
-2. **The user's Claude Design System.** If the user has one (or mentions their design system or brand), read its `project/tokens.json` and map it to a `docs-theme.json` as described in `references/from-design-system.md`. Show the user a short table of which tokens you used and which values came from `clean-modern`, and run `node scripts/docs.mjs theme check docs-theme.json` before building.
-3. **Another design specification** the user points to (a file, a URL, a Style Dictionary or Figma variables export): map it the same way.
-4. **The bundled `clean-modern` theme**, if the user accepts it: Public Sans, 11 pt body, teal accent, neutral palette, tables with horizontal rules only.
-5. **Otherwise, a short interview:** ask for the brand's main color, text color if not near-black, fonts (and their files, if they are not common), logo, and page size (A4 or Letter). Create the file with `node scripts/docs.mjs theme init --out docs-theme.json`, edit it with the answers, and run `theme check`.
+Skip the question only when the user already named a theme in the request, or a `docs-theme.json` sits next to the source. Then say which one you are using.
+
+Otherwise:
+
+1. **Look for design systems.** If you can read claude.ai artifacts (the Artifact tool), list the user's artifacts of type "Design System" and note their names. Do not read any yet.
+2. **Ask one question and wait for the answer.** Use your question tool (for example `AskUserQuestion`); if you have none, ask in your reply and stop. Offer these options:
+   - **Use my design system**, naming the ones you found (leave this out only if you found none and cannot check).
+   - **Use another design specification**: a file, a URL, a Style Dictionary or Figma variables export.
+   - **Use the default `clean-modern`**: Public Sans, 11 pt body, teal accent, neutral palette, tables with horizontal rules only.
+   - **Build a theme together**: a short interview.
+3. **Act on the answer:**
+   - *Design system:* read its `project/tokens.json` and map it to a `docs-theme.json` as described in `references/from-design-system.md`. Show the user a short table of which tokens you used and which values came from `clean-modern`, get a yes, and run `node scripts/docs.mjs theme check docs-theme.json` before building.
+   - *Another specification:* map it the same way.
+   - *Default:* use `--theme clean-modern`.
+   - *Interview:* ask for the brand's main color, text color if not near-black, fonts (and their files, if they are not common), logo, and page size (A4 or Letter). Create the file with `node scripts/docs.mjs theme init --out docs-theme.json`, edit it with the answers, and run `theme check`.
+
+If you cannot ask at all (a run with no user to answer, such as a headless job), use `clean-modern`, and begin your final message by saying you used the default theme because you could not ask, and how to change it.
 
 When `theme check` reports a contrast failure, it prints the nearest color that passes. Propose that color to the user rather than changing the brand silently. Theme fields are described in `references/theme-format.md`.
 
