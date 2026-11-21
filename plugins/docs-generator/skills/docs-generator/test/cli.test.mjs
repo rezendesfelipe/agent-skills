@@ -45,6 +45,21 @@ describe("Engine command line", () => {
     assert.ok(existsSync(join(dir, "report.docx")));
   });
 
+  test("build says which theme it used and flags the silent default", () => {
+    const dir = tmp();
+    const src = writeSource(dir, "doc.md", MINIMAL);
+    const byDefault = runCli(["build", src, "--format", "docx"]);
+    assert.match(byDefault.stdout, /^theme: clean-modern \(/m);
+    assert.match(byDefault.stdout, /no --theme and no docs-theme\.json .* ask before building/);
+    const json = JSON.parse(runCli(["build", src, "--format", "docx", "--json"]).stdout);
+    assert.equal(json.themeName, "clean-modern");
+    assert.equal(json.usedDefaultTheme, true);
+
+    const explicit = runCli(["build", src, "--format", "docx", "--theme", "clean-modern", "--json"]);
+    assert.equal(JSON.parse(explicit.stdout).usedDefaultTheme, false);
+    assert.doesNotMatch(runCli(["build", src, "--format", "docx", "--theme", "clean-modern"]).stdout, /note: no --theme/);
+  });
+
   test("bad --format is a usage error", () => {
     const src = writeSource(tmp(), "doc.md", MINIMAL);
     assert.equal(runCli(["build", src, "--format", "odt"]).code, 2);
