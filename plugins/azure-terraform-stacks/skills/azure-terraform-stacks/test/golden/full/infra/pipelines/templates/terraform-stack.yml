@@ -1,0 +1,92 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+# infra/pipelines/templates/terraform-stack.yml
+parameters:
+  - name: stack
+    type: string
+  - name: stageName
+    type: string
+  - name: environment
+    type: string
+  - name: instance
+    type: string
+  - name: action
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: deploymentEnvironment
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+
+stages:
+  - stage: ${{ parameters.stageName }}
+    displayName: "${{ parameters.stack }}-${{ parameters.environment }}-${{ parameters.instance }}"
+    dependsOn: ${{ parameters.dependsOn }}
+    jobs:
+      - job: plan
+        pool:
+          name: private-agents # self-hosted, inside the VNet
+        steps:
+          - checkout: self
+          - bash: |
+              set -euo pipefail
+              d="$(Agent.TempDirectory)/terraform-1.12.2"
+              if [ ! -x "$d/terraform" ]; then
+                mkdir -p "$d"
+                curl -sSfL -o "$d/terraform.zip" "https://releases.hashicorp.com/terraform/1.12.2/terraform_1.12.2_linux_amd64.zip"
+                unzip -o -q "$d/terraform.zip" -d "$d"
+              fi
+              echo "##vso[task.prependpath]$d"
+            displayName: install terraform 1.12.2
+          - task: AzureCLI@2
+            displayName: terraform init + plan
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: scriptPath
+              scriptPath: infra/scripts/tf.sh
+              arguments: plan ${{ parameters.stack }} ${{ parameters.environment }} ${{ parameters.instance }} $(Build.ArtifactStagingDirectory)/${{ parameters.stack }}.tfplan
+              addSpnToEnvironment: true
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)
+          - publish: $(Build.ArtifactStagingDirectory)/${{ parameters.stack }}.tfplan
+            artifact: plan-${{ parameters.stageName }}
+
+      # Approvals and checks live on the Environment, not in this YAML.
+      - ${{ if eq(parameters.action, 'apply') }}:
+          - deployment: apply
+            dependsOn: plan
+            pool:
+              name: private-agents
+            environment: ${{ parameters.deploymentEnvironment }}
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - checkout: self
+                    - download: current
+                      artifact: plan-${{ parameters.stageName }}
+                    - bash: |
+                        set -euo pipefail
+                        d="$(Agent.TempDirectory)/terraform-1.12.2"
+                        if [ ! -x "$d/terraform" ]; then
+                          mkdir -p "$d"
+                          curl -sSfL -o "$d/terraform.zip" "https://releases.hashicorp.com/terraform/1.12.2/terraform_1.12.2_linux_amd64.zip"
+                          unzip -o -q "$d/terraform.zip" -d "$d"
+                        fi
+                        echo "##vso[task.prependpath]$d"
+                      displayName: install terraform 1.12.2
+                    - task: AzureCLI@2
+                      displayName: terraform apply
+                      inputs:
+                        azureSubscription: ${{ parameters.serviceConnection }}
+                        scriptType: bash
+                        scriptLocation: scriptPath
+                        scriptPath: infra/scripts/tf.sh
+                        arguments: apply ${{ parameters.stack }} ${{ parameters.environment }} ${{ parameters.instance }} $(Pipeline.Workspace)/plan-${{ parameters.stageName }}/${{ parameters.stack }}.tfplan
+                        addSpnToEnvironment: true
+                      env:
+                        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                        SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)

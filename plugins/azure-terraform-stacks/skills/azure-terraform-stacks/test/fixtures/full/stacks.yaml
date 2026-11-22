@@ -1,0 +1,26 @@
+# The setup of the two blog articles: three stacks, both CI platforms, Argo CD.
+version: 1
+regions:
+  brazilsouth: brs
+environments:
+  dev: { subscriptionId: 00000000-0000-0000-0000-000000000001 }
+  hml: { subscriptionId: 00000000-0000-0000-0000-000000000002 }
+  prod: { subscriptionId: 00000000-0000-0000-0000-000000000003 }
+instances: [brs-01]
+ci: [azure-devops, github-actions]
+profile: private-aks-postgres
+state:
+  subscriptionId: 00000000-0000-0000-0000-0000000000ff
+  resourceGroup: rg-tfstate
+  storageAccount: sttfstatecorp001
+  container: tfstate
+stacks:
+  - { name: vnet-core, type: vnet, owner: core }
+  - { name: aks-core, type: aks, owner: core, dependsOn: [vnet-core] }
+  - { name: app-orders, type: app, owner: orders, dependsOn: [vnet-core, aks-core] }
+gitops:
+  tool: argocd
+  argocdVersion: v3.6.2
+  repoURL: https://github.com/example/platform.git
+  apps:
+    - { name: orders, stack: app-orders, tag: "1.8.3" }

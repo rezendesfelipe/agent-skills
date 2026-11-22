@@ -1,0 +1,20 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks.
+# infra/argocd/bootstrap/root-hml-brs-01.yaml (app of apps, applied by the bootstrap)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-hml-brs-01
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/platform.git
+    targetRevision: main
+    path: infra/argocd/apps/hml-brs-01
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: {} # no prune: what leaves Git is not deleted

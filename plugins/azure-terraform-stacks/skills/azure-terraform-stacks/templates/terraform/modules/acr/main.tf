@@ -1,0 +1,10 @@
+# Container Registry. Private Link needs the Premium SKU.
+resource "azurerm_container_registry" "this" {
+  name                          = var.name
+  location                      = var.location
+  resource_group_name           = var.resource_group_name
+  sku                           = "Premium"
+  admin_enabled                 = false
+  public_network_access_enabled = false
+  tags                          = var.tags
+}

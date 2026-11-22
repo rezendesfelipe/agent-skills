@@ -192,6 +192,20 @@ Not verified by the review and covered by task 8.3: real `plan`/`apply`, Azure D
   - Let the agent write the XML as drawio-skill does. Rejected: the same topology would come out differently each run, and it would need the repair loop that the generator avoids.
   - Mermaid or the Python `diagrams` package. Rejected: the user asked for an editable draw.io source (the blog's rule too), and neither produces one.
 
+## Implementation notes (2026-11-22)
+
+Where the implementation differs from the decisions above, and why:
+
+- **Decision 4 (templates).** The seven modules ship as static files under `templates/terraform/modules/`. Stacks, tfvars, pipelines, Argo CD manifests and scripts are built in code, because nearly every line depends on loops over stacks, environments and instances; a `{{placeholder}}` renderer would have held almost nothing. Output is still deterministic and covered by golden trees.
+- **State and subscriptions in `tf.sh`.** Instead of pipeline variables, `infra/scripts/tf.sh` is generated with two lookup tables: the state key for every stack, environment and instance, and the subscription of each environment, plus the state storage values. One place, the same for both CI platforms, and `check` reads it (`state-key`). This removes the undefined `TFSTATE_RG`/`TFSTATE_SA` of review finding I5 without a variable group.
+- **Decision 12 (alz).** The central zone IDs reach the stacks through their tfvars (generated from the manifest), not through a provider alias for the connectivity subscription: an ID is all `private_dns_zone_id` needs. The identity running Terraform still needs read access to the zones and the role assignment on the AKS zone.
+- **Decision 16 (diagram).** The diagram covers the `private-aks-postgres` profile only; with `profile: none` there is no fixed topology to draw and `diagram` says so. Export (SVG/PNG) was validated structurally here; the real draw.io export runs in the `azure-terraform-stacks-deep` CI job, because installing or running the draw.io binary was not allowed in the development container.
+- **Defaults.** Argo CD `v3.6.2` (stable on 2026-11-22), kubectl `v1.33.0`, Terraform `1.12.2`, Azure DevOps pool `private-agents`, GitHub runner labels `[self-hosted, linux, vnet-private]`. All except kubectl come from the manifest.
+- **Guards.** A run with no stack and no bootstrap selected fails fast in both platforms; a bootstrap-only run (`argocd` with `apply`) is allowed.
+- **`check` severities.** Errors fail the command; `drift` is a warning; overlays waiting for the bridge are `info` ("pending"), so a freshly scaffolded repository has no findings.
+- **`check --deep` and actionlint.** Without a `.github/actionlint.yaml` in the repository, the engine passes actionlint a temporary config declaring the manifest's self-hosted runner labels.
+- **`bridge --open-pr`.** What goes in the pull request is what differs from `HEAD`, so a change kept on disk by a run whose CLI was not logged in still becomes a pull request on the next run.
+
 ## Risks / Trade-offs
 
 - [Article code is simplified and partly not executed] → Modules completed and validated with `terraform validate`; a real deploy of fixture (a) in a sandbox subscription before release, recorded in the PR (task 8.3).

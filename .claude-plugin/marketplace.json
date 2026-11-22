@@ -11,6 +11,11 @@
       "name": "docs-generator",
       "source": "./plugins/docs-generator",
       "description": "Structured Markdown to designed PDF and DOCX documents, plus a matching Excel template and Office theme."
+    },
+    {
+      "name": "azure-terraform-stacks",
+      "source": "./plugins/azure-terraform-stacks",
+      "description": "Terraform on Azure as independent stacks with one parameterized Azure DevOps or GitHub Actions pipeline, private AKS + PostgreSQL profile, Argo CD and a draw.io diagram."
     }
   ]
 }

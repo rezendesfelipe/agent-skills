@@ -1,0 +1,186 @@
+<mxfile host="azure-terraform-stacks" generatorHash="78399f797a60c5cc">
+  <diagram id="architecture-prod-brs-01" name="Architecture prod-brs-01">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <UserObject id="git" label="Git repository&lt;br&gt;&lt;span style=&quot;font-size:10px;&quot;&gt;https://github.com/example/platform.git&lt;/span&gt;" kind="external">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#ffffff;strokeColor=#6b7280;dashed=1;" vertex="1" parent="1">
+            <mxGeometry x="40" y="140" width="180" height="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="pipeline" label="Pipeline&lt;br&gt;&lt;span style=&quot;font-size:10px;&quot;&gt;azure-devops · github-actions&lt;/span&gt;" kind="external">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#ffffff;strokeColor=#6b7280;dashed=1;" vertex="1" parent="1">
+            <mxGeometry x="40" y="260" width="180" height="60" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="state" label="sttfstatecorp001&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;tfstate (outside the stacks)&lt;/span&gt;" kind="storageAccount" resource="sttfstatecorp001">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/storage/Storage_Accounts.svg;" vertex="1" parent="1">
+            <mxGeometry x="100" y="400" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="subscription-prod" label="Subscription · prod · 00000000-0000-0000-0000-000000000003" kind="subscription">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1">
+            <mxGeometry x="300" y="40" width="1550" height="630" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="vnet-core-prod-brs-01" label="vnet-core-prod-brs-01 · VNet · rg-vnet-core-prod-brs-01" kind="vnet" resource="vnet-core-prod-brs-01" stack="vnet-core">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#f5f7fa;swimlaneFillColor=#f5f7fa;strokeColor=#6b7280;" vertex="1" parent="subscription-prod">
+            <mxGeometry x="30" y="50" width="1490" height="300" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="snet-aks-prod-brs-01" label="snet-aks-prod-brs-01 · nsg-aks-prod-brs-01" kind="subnet" resource="snet-aks-prod-brs-01" stack="vnet-core">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="vnet-core-prod-brs-01">
+            <mxGeometry x="30" y="70" width="540" height="190" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="snet-endpoints-prod-brs-01" label="snet-endpoints-prod-brs-01 · nsg-endpoints-prod-brs-01" kind="subnet" resource="snet-endpoints-prod-brs-01" stack="vnet-core">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="vnet-core-prod-brs-01">
+            <mxGeometry x="610" y="70" width="370" height="190" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="snet-postgres-prod-brs-01" label="snet-postgres-prod-brs-01 · delegated · nsg-postgres-prod-brs-01" kind="subnet" resource="snet-postgres-prod-brs-01" stack="vnet-core">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="vnet-core-prod-brs-01">
+            <mxGeometry x="1020" y="70" width="200" height="190" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="snet-agents-prod-brs-01" label="snet-agents-prod-brs-01 · nsg-agents-prod-brs-01" kind="subnet" resource="snet-agents-prod-brs-01" stack="vnet-core">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#ffffff;swimlaneFillColor=#ffffff;strokeColor=#6b7280;dashed=1;" vertex="1" parent="vnet-core-prod-brs-01">
+            <mxGeometry x="1260" y="70" width="200" height="190" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="aks-core-prod-brs-01" label="aks-core-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;private API&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#1d4ed8;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;aks-core&lt;/span&gt;" kind="aks" resource="aks-core-prod-brs-01" stack="aks-core">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/containers/Kubernetes_Services.svg;" vertex="1" parent="snet-aks-prod-brs-01">
+            <mxGeometry x="60" y="60" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="argocd" label="Argo CD&lt;br&gt;&lt;span style=&quot;font-size:10px;&quot;&gt;in the cluster, outside Terraform&lt;/span&gt;" kind="gitops">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="snet-aks-prod-brs-01">
+            <mxGeometry x="200" y="60" width="120" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="pods-orders" label="orders pods&lt;br&gt;&lt;span style=&quot;font-size:10px;&quot;&gt;ns orders · sa orders&lt;/span&gt;" kind="workload">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="snet-aks-prod-brs-01">
+            <mxGeometry x="370" y="60" width="120" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="crcoreprodbrs01" label="crcoreprodbrs01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;Premium · public access off&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#1d4ed8;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;aks-core&lt;/span&gt;" kind="acr" resource="crcoreprodbrs01" stack="aks-core">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/containers/Container_Registries.svg;" vertex="1" parent="subscription-prod">
+            <mxGeometry x="70" y="410" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="kv-orders-prod-brs-01" label="kv-orders-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;RBAC · public access off&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#047857;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;app-orders&lt;/span&gt;" kind="keyVault" resource="kv-orders-prod-brs-01" stack="app-orders">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/security/Key_Vaults.svg;" vertex="1" parent="subscription-prod">
+            <mxGeometry x="240" y="410" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="id-orders-prod-brs-01" label="id-orders-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;workload identity&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#047857;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;app-orders&lt;/span&gt;" kind="managedIdentity" resource="id-orders-prod-brs-01" stack="app-orders">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/identity/Managed_Identities.svg;" vertex="1" parent="subscription-prod">
+            <mxGeometry x="410" y="410" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="pgsql-orders-prod-brs-01" label="pgsql-orders-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;flexible server · private access&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#047857;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;app-orders&lt;/span&gt;" kind="postgresql" resource="pgsql-orders-prod-brs-01" stack="app-orders">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg;" vertex="1" parent="snet-postgres-prod-brs-01">
+            <mxGeometry x="60" y="60" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="pep-cr-core-prod-brs-01" label="pep-cr-core-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;registry&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#1d4ed8;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;aks-core&lt;/span&gt;" kind="privateEndpoint" resource="pep-cr-core-prod-brs-01" stack="aks-core">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="snet-endpoints-prod-brs-01">
+            <mxGeometry x="60" y="60" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="pep-cr-core-prod-brs-01-to-acr" value="Private Link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#0f6cbd;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="pep-cr-core-prod-brs-01" target="crcoreprodbrs01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject id="pep-kv-orders-prod-brs-01" label="pep-kv-orders-prod-brs-01&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;vault&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#047857;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;app-orders&lt;/span&gt;" kind="privateEndpoint" resource="pep-kv-orders-prod-brs-01" stack="app-orders">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/Private_Endpoint.svg;" vertex="1" parent="snet-endpoints-prod-brs-01">
+            <mxGeometry x="230" y="60" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="pep-kv-orders-prod-brs-01-to-kv" value="Private Link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#0f6cbd;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="pep-kv-orders-prod-brs-01" target="kv-orders-prod-brs-01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pods-orders-to-pg" value="5432" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="pods-orders" target="pgsql-orders-prod-brs-01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pods-orders-to-pep" value="secrets (Workload ID)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="pods-orders" target="pep-kv-orders-prod-brs-01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="id-orders-prod-brs-01-to-pod" value="federated" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;dashed=1;" edge="1" parent="1" source="id-orders-prod-brs-01" target="pods-orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aks-to-pep-cr" value="pull images" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="aks-core-prod-brs-01" target="pep-cr-core-prod-brs-01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject id="agents" label="self-hosted agents&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;outside the stacks&lt;/span&gt;" kind="agents" resource="self-hosted agents">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/compute/VM_Scale_Sets.svg;" vertex="1" parent="snet-agents-prod-brs-01">
+            <mxGeometry x="60" y="60" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="ci-to-agents" value="runs on" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;dashed=1;" edge="1" parent="1" source="pipeline" target="agents">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="agents-to-state" value="tfstate (Entra ID)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;dashed=1;" edge="1" parent="1" source="agents" target="state">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="agents-to-aks" value="bootstrap (once)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;dashed=1;" edge="1" parent="1" source="agents" target="aks-core-prod-brs-01">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd-to-git" value="pulls manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="argocd" target="git">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="argocd-to-orders" value="syncs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;" edge="1" parent="1" source="argocd" target="pods-orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject id="connectivity" label="Connectivity subscription · platform team (external)" kind="external">
+          <mxCell style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#f5f7fa;swimlaneFillColor=#f5f7fa;strokeColor=#6b7280;dashed=1;" vertex="1" parent="1">
+            <mxGeometry x="1930" y="40" width="360" height="580" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="hub" label="vnet-hub&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;hub · DNS 10.0.0.4&lt;/span&gt;" kind="vnet" resource="vnet-hub">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="connectivity">
+            <mxGeometry x="40" y="50" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="zone-acr" label="privatelink.azurecr.io&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;records by Azure Policy&lt;/span&gt;" kind="privateDnsZone" resource="privatelink.azurecr.io">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/DNS_Zones.svg;" vertex="1" parent="connectivity">
+            <mxGeometry x="40" y="160" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="zone-keyvault" label="privatelink.vaultcore.azure.net&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;records by Azure Policy&lt;/span&gt;" kind="privateDnsZone" resource="privatelink.vaultcore.azure.net">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/DNS_Zones.svg;" vertex="1" parent="connectivity">
+            <mxGeometry x="40" y="270" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="zone-postgres" label="platform.postgres.database.azure.com&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;records by Azure Policy&lt;/span&gt;" kind="privateDnsZone" resource="platform.postgres.database.azure.com">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/DNS_Zones.svg;" vertex="1" parent="connectivity">
+            <mxGeometry x="40" y="380" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject id="zone-aks" label="privatelink.brazilsouth.azmk8s.io&lt;br&gt;&lt;span style=&quot;color:#52606d;font-size:10px;&quot;&gt;AKS API (custom zone)&lt;/span&gt;" kind="privateDnsZone" resource="privatelink.brazilsouth.azmk8s.io">
+          <mxCell style="image;aspect=fixed;html=1;points=[];align=center;verticalLabelPosition=bottom;verticalAlign=top;fontSize=11;fontFamily=Helvetica;fontColor=#1f2933;image=img/lib/azure2/networking/DNS_Zones.svg;" vertex="1" parent="connectivity">
+            <mxGeometry x="40" y="490" width="50" height="50" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="vnet-to-hub" value="peering (spoke side by vnet stack)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endSize=8;strokeColor=#52606d;fontColor=#52606d;fontSize=10;fontFamily=Helvetica;dashed=1;" edge="1" parent="1" source="vnet-core-prod-brs-01" target="hub">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Legend" style="swimlane;startSize=30;html=1;rounded=1;arcSize=4;whiteSpace=wrap;fontFamily=Helvetica;fontStyle=1;fontSize=13;fontColor=#1f2933;fillColor=#f5f7fa;swimlaneFillColor=#f5f7fa;strokeColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="40" y="730" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-0" value="&lt;span style=&quot;background-color:#b45309;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;stack&lt;/span&gt; vnet-core: owns the resources with this label" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#f5f7fa;strokeColor=#f5f7fa;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="40" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-1" value="&lt;span style=&quot;background-color:#1d4ed8;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;stack&lt;/span&gt; aks-core: owns the resources with this label" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#f5f7fa;strokeColor=#f5f7fa;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="70" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-2" value="&lt;span style=&quot;background-color:#047857;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;stack&lt;/span&gt; app-orders: owns the resources with this label" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#f5f7fa;strokeColor=#f5f7fa;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="100" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-3" value="&lt;span style=&quot;background-color:#6b7280;color:#ffffff;font-size:10px;border-radius:4px;padding:1px 4px;&quot;&gt;stack&lt;/span&gt; dashed: outside the stacks (agents, pipeline, external)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Helvetica;fontSize=11;fontColor=#1f2933;fillColor=#f5f7fa;strokeColor=#f5f7fa;" vertex="1" parent="legend">
+          <mxGeometry x="20" y="130" width="260" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,15 @@
+# One stack, no dependencies, Azure DevOps only.
+version: 1
+regions:
+  westeurope: weu
+environments:
+  dev: { subscriptionId: 00000000-0000-0000-0000-000000000021 }
+instances: [weu-01]
+ci: [azure-devops]
+state:
+  subscriptionId: 00000000-0000-0000-0000-0000000000fd
+  resourceGroup: rg-tfstate
+  storageAccount: sttfstatesingle1
+  container: tfstate
+stacks:
+  - { name: app-demo, type: app, owner: demo }

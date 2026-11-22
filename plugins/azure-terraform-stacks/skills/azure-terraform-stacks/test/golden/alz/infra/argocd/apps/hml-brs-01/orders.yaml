@@ -1,0 +1,22 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks.
+# infra/argocd/apps/hml-brs-01/orders.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-hml-brs-01
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io # deleting the Application deletes what it manages
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/platform.git
+    targetRevision: main
+    path: infra/argocd/manifests/orders/overlays/hml-brs-01
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders
+  syncPolicy:
+    automated: {} # no prune by default
+    syncOptions:
+      - CreateNamespace=true

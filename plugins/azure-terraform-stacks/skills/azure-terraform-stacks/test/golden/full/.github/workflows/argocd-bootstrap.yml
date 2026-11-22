@@ -1,0 +1,29 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+name: argocd-bootstrap
+
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      instance: { type: string, required: true }
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ["self-hosted", "linux", "vnet-private"] # must reach the private AKS API
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_BOOTSTRAP_CLIENT_ID }} # own identity, not the Terraform one
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ fromJSON('{"dev":"00000000-0000-0000-0000-000000000001","hml":"00000000-0000-0000-0000-000000000002","prod":"00000000-0000-0000-0000-000000000003"}')[inputs.environment] }}
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: v1.33.0
+      - name: install Argo CD and the root Application
+        run: bash infra/scripts/bootstrap-argocd.sh "${{ inputs.environment }}" "${{ inputs.instance }}"

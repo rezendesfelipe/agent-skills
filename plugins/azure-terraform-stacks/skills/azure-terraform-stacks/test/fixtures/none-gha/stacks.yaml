@@ -1,0 +1,21 @@
+# profile none with two stacks, GitHub Actions only, custom naming pattern.
+version: 1
+regions:
+  eastus2: eus2
+environments:
+  dev: { subscriptionId: 00000000-0000-0000-0000-000000000011 }
+  prod: { subscriptionId: 00000000-0000-0000-0000-000000000012 }
+instances: [eus2-01]
+naming:
+  pattern: "{env}-{region}-{type}-{name}-{seq}"
+  separator: "_"
+ci: [github-actions]
+profile: none
+state:
+  subscriptionId: 00000000-0000-0000-0000-0000000000fe
+  resourceGroup: rg-tfstate
+  storageAccount: sttfstatedemo01
+  container: tfstate
+stacks:
+  - { name: vnet-shared, type: vnet, owner: shared }
+  - { name: app-billing, type: app, owner: billing, dependsOn: [vnet-shared] }

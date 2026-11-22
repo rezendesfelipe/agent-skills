@@ -1,0 +1,33 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+name: terraform-stack
+
+on:
+  workflow_call:
+    inputs:
+      stack: { type: string, required: true }
+      environment: { type: string, required: true }
+      instance: { type: string, required: true }
+      action: { type: string, required: true }
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ["self-hosted", "linux", "vnet-private"] # inside the VNet
+    environment: ${{ inputs.environment }}
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }} # federated credential for this Environment
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+          terraform_wrapper: false
+      - name: plan
+        run: bash infra/scripts/tf.sh plan "${{ inputs.stack }}" "${{ inputs.environment }}" "${{ inputs.instance }}" "$RUNNER_TEMP/tfplan"
+      - name: apply
+        if: ${{ inputs.action == 'apply' }}
+        run: bash infra/scripts/tf.sh apply "${{ inputs.stack }}" "${{ inputs.environment }}" "${{ inputs.instance }}" "$RUNNER_TEMP/tfplan"

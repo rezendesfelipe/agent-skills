@@ -1,0 +1,17 @@
+{
+  "name": "azure-terraform-stacks-engine",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Engine for the azure-terraform-stacks skill: manifest to Terraform stacks, pipelines, Argo CD manifests and a draw.io diagram, plus checks.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "2.9.1"
+  }
+}

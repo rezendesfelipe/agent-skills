@@ -1,65 +1,65 @@
 ## 1. Setup
 
-- [ ] 1.1 Create `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/` from `templates/skill/` with `name: azure-terraform-stacks` and a description of what it does and when to use it (Terraform on Azure, Azure DevOps or GitHub Actions)
-- [ ] 1.2 Add `plugins/azure-terraform-stacks/.claude-plugin/plugin.json` and the plugin entry in `.claude-plugin/marketplace.json`
-- [ ] 1.3 Add the skill's `package.json` (Node 20+, `type: module`, runtime dependency `yaml`) and commit `package-lock.json`
-- [ ] 1.4 Run `node scripts/validate-skills.mjs` to validate the frontmatter and the marketplace manifest
+- [x] 1.1 Create `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/` from `templates/skill/` with `name: azure-terraform-stacks` and a description of what it does and when to use it (Terraform on Azure, Azure DevOps or GitHub Actions)
+- [x] 1.2 Add `plugins/azure-terraform-stacks/.claude-plugin/plugin.json` and the plugin entry in `.claude-plugin/marketplace.json`
+- [x] 1.3 Add the skill's `package.json` (Node 20+, `type: module`, runtime dependency `yaml`) and commit `package-lock.json`
+- [x] 1.4 Run `node scripts/validate-skills.mjs` to validate the frontmatter and the marketplace manifest
 
 ## 2. Manifest
 
-- [ ] 2.1 Write `schema/stacks.schema.json` and `references/manifest-format.md` with the full example from the design
-- [ ] 2.2 Implement manifest loading and `check-manifest` (required fields, cycles, unknown stacks and modules, stack name `<type>-<owner>`, GitHub input count), one test per scenario
-- [ ] 2.3 Implement name derivation from `naming.pattern` (default and custom patterns, separator, abbreviation overrides, resource groups, ACR and Key Vault rules, state keys) and `references/naming.md`, with tests for the derived-names, custom-pattern, missing-token and over-the-limit scenarios
-- [ ] 2.4 Validate `regions`, `environments.<env>.subscriptionId` (one per environment) and `landingZone` fields, one test per scenario
+- [x] 2.1 Write `schema/stacks.schema.json` and `references/manifest-format.md` with the full example from the design
+- [x] 2.2 Implement manifest loading and `check-manifest` (required fields, cycles, unknown stacks and modules, stack name `<type>-<owner>`, GitHub input count), one test per scenario
+- [x] 2.3 Implement name derivation from `naming.pattern` (default and custom patterns, separator, abbreviation overrides, resource groups, ACR and Key Vault rules, state keys) and `references/naming.md`, with tests for the derived-names, custom-pattern, missing-token and over-the-limit scenarios
+- [x] 2.4 Validate `regions`, `environments.<env>.subscriptionId` (one per environment) and `landingZone` fields, one test per scenario
 
 ## 3. Terraform templates
 
-- [ ] 3.1 Stack template (`terraform {}` with constraints from the manifest, empty `backend "azurerm" {}`, provider, `environment` and `instance` variables) and `envs/<env>-<instance>.tfvars`
-- [ ] 3.2 Profile `private-aks-postgres`: complete the seven modules from the Parte 2 snippets with variables, outputs and private-by-default settings, applying every fix in design Decision 15 (resource group per stack, `location`/`resource_group_name` on every call, full `network` module with delegation and DNS VNet links, NSGs, `Network Contributor` for AKS, `user_assigned_identity_id`, version constraints)
-- [ ] 3.3 Profile stacks `vnet-core`, `aks-core`, `app-<owner>` with data-source reads; `remoteState: true` variant
-- [ ] 3.4 Landing zone modes: `standalone` and `alz` variants of `vnet-core` (spoke VNet, DNS servers, managed or external peering), connectivity provider alias, zone reads by ID, Private Endpoints without zone group when `dnsByPolicy: true`, AKS `private_dns_zone_id` and role assignments; `references/landing-zones.md`
-- [ ] 3.5 `infra/scripts/tf.sh` (init with backend config from rendered variables, plan to file, apply the planned file, assign-then-export, `*)` usage error; shellcheck clean) and `references/stacks-and-state.md`
+- [x] 3.1 Stack template (`terraform {}` with constraints from the manifest, empty `backend "azurerm" {}`, provider, `environment` and `instance` variables) and `envs/<env>-<instance>.tfvars`
+- [x] 3.2 Profile `private-aks-postgres`: complete the seven modules from the Parte 2 snippets with variables, outputs and private-by-default settings, applying every fix in design Decision 15 (resource group per stack, `location`/`resource_group_name` on every call, full `network` module with delegation and DNS VNet links, NSGs, `Network Contributor` for AKS, `user_assigned_identity_id`, version constraints)
+- [x] 3.3 Profile stacks `vnet-core`, `aks-core`, `app-<owner>` with data-source reads; `remoteState: true` variant
+- [x] 3.4 Landing zone modes: `standalone` and `alz` variants of `vnet-core` (spoke VNet, DNS servers, managed or external peering), connectivity provider alias, zone reads by ID, Private Endpoints without zone group when `dnsByPolicy: true`, AKS `private_dns_zone_id` and role assignments; `references/landing-zones.md`
+- [x] 3.5 `infra/scripts/tf.sh` (init with backend config from rendered variables, plan to file, apply the planned file, assign-then-export, `*)` usage error; shellcheck clean) and `references/stacks-and-state.md`
 
 ## 4. Pipelines
 
-- [ ] 4.1 Azure DevOps orchestrator and stack template (runtime parameters, conditional stages and `dependsOn`, plan artifact, deployment job with Environment, OIDC variables) and `references/pipelines-azure-devops.md`
-- [ ] 4.2 GitHub Actions orchestrator and reusable stack workflow (`workflow_dispatch`, `needs` + `!cancelled() && !failure()`, `id-token: write`) and `references/pipelines-github-actions.md`, including both OIDC subject formats
-- [ ] 4.3 Pinned Terraform and kubectl install steps in both platforms; orchestrator fails fast when no stack is selected
-- [ ] 4.4 Tests: compiled stage list for single-stack and all-stacks selections; no `destroy` with `prod`; `trigger: none`; defaults `plan` and `false`
+- [x] 4.1 Azure DevOps orchestrator and stack template (runtime parameters, conditional stages and `dependsOn`, plan artifact, deployment job with Environment, OIDC variables) and `references/pipelines-azure-devops.md`
+- [x] 4.2 GitHub Actions orchestrator and reusable stack workflow (`workflow_dispatch`, `needs` + `!cancelled() && !failure()`, `id-token: write`) and `references/pipelines-github-actions.md`, including both OIDC subject formats
+- [x] 4.3 Pinned Terraform and kubectl install steps in both platforms; orchestrator fails fast when no stack is selected
+- [x] 4.4 Tests: compiled stage list for single-stack and all-stacks selections; no `destroy` with `prod`; `trigger: none`; defaults `plan` and `false`
 
 ## 5. GitOps
 
-- [ ] 5.1 Argo CD templates: root Application, per-app Application with finalizer and `CreateNamespace=true`, Kustomize base (ServiceAccount, Deployment with Workload Identity label) and overlays, prod without `automated` by default
-- [ ] 5.2 Bootstrap script with pinned version and server-side apply, called with `bash`; bootstrap stage/job only when `action` is `apply`, with own identity and dependencies from the manifest; `base/kustomization.yaml`
-- [ ] 5.3 `bridge` command (map outputs to overlay fields, refuse sensitive outputs, touch only mapped lines) with tests
-- [ ] 5.4 `bridge --open-pr`: remote detection, branch naming, `gh pr create` / `az repos pr create`, reuse of an open PR, no-change and not-logged-in paths; tests with stubbed `gh` and `az` on `PATH`; optional post-apply pipeline step (off by default) with the pipeline identity's permissions documented
-- [ ] 5.5 `references/gitops-argocd.md` and `references/private-aks-postgres.md` with the documentation links from Parte 2
+- [x] 5.1 Argo CD templates: root Application, per-app Application with finalizer and `CreateNamespace=true`, Kustomize base (ServiceAccount, Deployment with Workload Identity label) and overlays, prod without `automated` by default
+- [x] 5.2 Bootstrap script with pinned version and server-side apply, called with `bash`; bootstrap stage/job only when `action` is `apply`, with own identity and dependencies from the manifest; `base/kustomization.yaml`
+- [x] 5.3 `bridge` command (map outputs to overlay fields, refuse sensitive outputs, touch only mapped lines) with tests
+- [x] 5.4 `bridge --open-pr`: remote detection, branch naming, `gh pr create` / `az repos pr create`, reuse of an open PR, no-change and not-logged-in paths; tests with stubbed `gh` and `az` on `PATH`; optional post-apply pipeline step (off by default) with the pipeline identity's permissions documented
+- [x] 5.5 `references/gitops-argocd.md` and `references/private-aks-postgres.md` with the documentation links from Parte 2
 
 ## 6. Engine commands
 
-- [ ] 6.1 Renderer for `{{placeholders}}` and the file planner (`create`/`update`/`unchanged`)
-- [ ] 6.2 `plan`, `scaffold` (no overwrite without `--force`, writes only inside `infra/`, `.github/workflows/` and the manifest) and `add-stack`
-- [ ] 6.3 `check` with every rule in design Decision 7, `--json`, and `--deep` with tool detection and a skipped-tools list; one failing fixture per rule; `references/traps.md` mapping each article trap to its rule
+- [x] 6.1 Renderer for `{{placeholders}}` and the file planner (`create`/`update`/`unchanged`)
+- [x] 6.2 `plan`, `scaffold` (no overwrite without `--force`, writes only inside `infra/`, `.github/workflows/` and the manifest) and `add-stack`
+- [x] 6.3 `check` with every rule in design Decision 7, `--json`, and `--deep` with tool detection and a skipped-tools list; one failing fixture per rule; `references/traps.md` mapping each article trap to its rule
 
 ## 7. Architecture diagram
 
-- [ ] 7.1 `diagram/icons.json`: closed map from resource type to a verified draw.io Azure stencil style (`img/lib/azure2/...`), plus `references/diagram.md` with the XML rules, export flags, review loop, Azure icon terms and credit to Agents365-ai/drawio-skill (MIT)
-- [ ] 7.2 Diagram model from the manifest (subscriptions, VNet, subnets, resources with stack labels, Private Endpoints and targets, DNS zones for `standalone` and `alz`, Argo CD and pipeline flows, legend)
-- [ ] 7.3 Grid layout and XML writer (reserved cells, stable ids, `html=1`, expanded orthogonal edges with pinned ports, swimlane containers, 10 px grid, spacing table) with themes `default`, `dark` and custom tokens with WCAG checks
-- [ ] 7.4 `check-diagram` (structure, coverage, icon map, overlaps) with one failing fixture per rule; content hash and `--force` behavior
-- [ ] 7.5 draw.io binary lookup (`DRAWIO_BIN`, PATH, macOS, Windows), headless Linux with `xvfb-run -a`, SVG/PNG export and draft PNG; tests skip export with a notice when no binary is found
-- [ ] 7.6 Golden `.drawio` files for the full fixture in `standalone` and `alz`; CI job that installs draw.io and `xvfb`, exports them and checks that every icon rendered (non-blank)
+- [x] 7.1 `diagram/icons.json`: closed map from resource type to a verified draw.io Azure stencil style (`img/lib/azure2/...`), plus `references/diagram.md` with the XML rules, export flags, review loop, Azure icon terms and credit to Agents365-ai/drawio-skill (MIT)
+- [x] 7.2 Diagram model from the manifest (subscriptions, VNet, subnets, resources with stack labels, Private Endpoints and targets, DNS zones for `standalone` and `alz`, Argo CD and pipeline flows, legend)
+- [x] 7.3 Grid layout and XML writer (reserved cells, stable ids, `html=1`, expanded orthogonal edges with pinned ports, swimlane containers, 10 px grid, spacing table) with themes `default`, `dark` and custom tokens with WCAG checks
+- [x] 7.4 `check-diagram` (structure, coverage, icon map, overlaps) with one failing fixture per rule; content hash and `--force` behavior
+- [x] 7.5 draw.io binary lookup (`DRAWIO_BIN`, PATH, macOS, Windows), headless Linux with `xvfb-run -a`, SVG/PNG export and draft PNG; tests skip export with a notice when no binary is found
+- [x] 7.6 Golden `.drawio` files for the full fixture in `standalone` and `alz`; CI job that installs draw.io and `xvfb`, exports them and checks that every icon rendered (non-blank)
 
 ## 8. Skill instructions and catalog
 
-- [ ] 8.1 Write `SKILL.md`: detection, interview, manifest, plan confirmation, scaffold, deep check, diagram offer and review, manual-prerequisites report, never apply
-- [ ] 8.2 Add the plugin to the README catalog table
-- [ ] 8.3 Add a CI job to `.github/workflows/validate.yml` that runs the skill tests and `check --deep` (with Terraform and `actionlint` installed) on the full fixture
+- [x] 8.1 Write `SKILL.md`: detection, interview, manifest, plan confirmation, scaffold, deep check, diagram offer and review, manual-prerequisites report, never apply
+- [x] 8.2 Add the plugin to the README catalog table
+- [x] 8.3 Add a CI job to `.github/workflows/validate.yml` that runs the skill tests and `check --deep` (with Terraform and `actionlint` installed) on the full fixture
 
 ## 9. Verification
 
-- [ ] 9.0 Regression fixture from the expert review: each finding B1–B3 and I1–I8 has a test that fails on the article's version and passes on the template
-- [ ] 9.1 Golden fixtures: articles' setup (both CI, GitOps), `profile: none` with GitHub only, single stack; byte-for-byte comparison
-- [ ] 9.2 `node scripts/validate-skills.mjs`, `npm test`, `openspec validate --all --strict` pass
+- [x] 9.0 Regression fixture from the expert review: each finding B1–B3 and I1–I8 has a test that fails on the article's version and passes on the template
+- [x] 9.1 Golden fixtures: articles' setup (both CI, GitOps), `profile: none` with GitHub only, single stack; byte-for-byte comparison
+- [x] 9.2 `node scripts/validate-skills.mjs`, `npm test`, `openspec validate --all --strict` pass
 - [ ] 9.3 Manual run in a sandbox subscription: scaffold the full fixture, run the Azure DevOps and GitHub pipelines with single-stack and all-stacks selections (`plan` and `apply`), bootstrap Argo CD, sync `orders`, confirm Workload Identity reads Key Vault, run `bridge --open-pr` against GitHub and Azure Repos; repeat in `alz` mode with a minimal hub and central zones; record results and gaps in the PR
-- [ ] 9.4 Install with the CLI into Claude Code and Codex (`npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool claude,codex --dry-run`) and confirm the skill is listed
+- [x] 9.4 Install with the CLI into Claude Code and Codex (`npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool claude,codex --dry-run`) and confirm the skill is listed

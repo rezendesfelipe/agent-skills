@@ -1,0 +1,51 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+# infra/pipelines/azure-pipelines.yml
+trigger: none # always an intentional run; a triggered run would use the defaults
+pr: none
+
+parameters:
+  - name: environment
+    displayName: Environment
+    type: string
+    default: dev
+    values: [dev]
+
+  - name: instance
+    displayName: Instance (region-seq)
+    type: string
+    default: weu-01
+    values: [weu-01]
+
+  - name: action
+    displayName: Action
+    type: string
+    default: plan
+    values: [plan, apply] # no destroy: see references/traps.md
+
+  - name: appDemo
+    displayName: "app-demo"
+    type: boolean
+    default: false
+
+stages:
+  # Fails fast when nothing was selected.
+  - ${{ if eq(parameters.appDemo, false) }}:
+      - stage: nothing_selected
+        jobs:
+          - job: fail
+            pool:
+              name: private-agents
+            steps:
+              - checkout: none
+              - script: echo "Select at least one stack or step." && exit 1
+
+  - ${{ if eq(parameters.appDemo, true) }}:
+      - template: templates/terraform-stack.yml
+        parameters:
+          stack: app-demo
+          stageName: app_demo
+          environment: ${{ parameters.environment }}
+          instance: ${{ parameters.instance }}
+          action: ${{ parameters.action }}
+          serviceConnection: sc-terraform-${{ parameters.environment }}
+          deploymentEnvironment: azure-${{ parameters.environment }}
