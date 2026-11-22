@@ -18,14 +18,18 @@ This change ships a **skill**, not a subagent. Summary of the decision (full tra
 ## What Changes
 
 - New plugin `azure-terraform-stacks` with skill `azure-terraform-stacks` (`plugins/azure-terraform-stacks/skills/azure-terraform-stacks/`).
-- **Manifest as the single source of truth.** The agent writes `infra/stacks.yaml` (environments, instances, stacks with their modules and dependencies, CI platform, optional GitOps). Every generated file is derived from it.
+- **Manifest as the single source of truth.** The agent writes `infra/stacks.yaml` (environments with one subscription each, regions and instances, naming pattern, landing zone mode, stacks with their modules and dependencies, CI platform, optional GitOps). Every generated file is derived from it.
+- **Naming.** The articles' pattern `<type>-<name>-<env>-<region>-<seq>` with CAF abbreviations is the proposed default; the user can replace it in the manifest with their own component order, separator and abbreviations. Resource-specific rules (ACR alphanumeric, Key Vault length) always apply.
+- **Regions.** Any Azure region, listed in the manifest with a short code chosen by the user (for example `brazilsouth: brs`). Multi-region comes from `instances`.
+- **Subscriptions.** One subscription per environment, with one federated identity per environment and stack scope.
+- **Landing zone mode.** `standalone` (the articles: `vnet-core` owns the VNet and the Private DNS zones) or `alz` (Azure Landing Zone: the stack creates a spoke VNet peered to an existing hub, reads the central Private DNS zones from the connectivity subscription and leaves DNS records to Azure Policy when the platform deploys it).
 - **Bundled Node engine** (`scripts/stacks.mjs`, no network access, no Azure calls) with commands:
   - `check-manifest`: validates the manifest (names, dependency cycles, unknown modules, global-name rules).
   - `plan`: lists the files it would create or change, without writing.
   - `scaffold`: writes the repository layout from the manifest; never overwrites a file without `--force`.
   - `add-stack`: adds a stack to the manifest and generates only what changes.
   - `check`: checks an existing `infra/` against the rules (state keys, naming, pipeline parameters vs. stacks, `dependsOn` vs. manifest, Workload Identity subject vs. Argo CD Application, no `destroy` in production, `trigger: none`).
-  - `bridge`: writes Terraform outputs (from `terraform output -json`) into the Kustomize overlay, refusing values marked `sensitive`.
+  - `bridge`: writes Terraform outputs (from `terraform output -json`) into the Kustomize overlay, refusing values marked `sensitive`, and with `--open-pr` opens a pull request with the change through `gh` (GitHub) or `az repos` (Azure Repos), never merging it.
 - **Generated content**, following the articles:
   - Layout `infra/{modules,stacks,envs,scripts,pipelines}` and, with GitOps, `infra/argocd/{bootstrap,apps,manifests}`.
   - Naming `<type>-<name>-<env>-<region>-<seq>` with Cloud Adoption Framework abbreviations; state `key` = `<stack>-<env>-<instance>.tfstate`; partial `backend "azurerm" {}` with Entra ID auth.
@@ -46,13 +50,14 @@ This change ships a **skill**, not a subagent. Summary of the decision (full tra
 
 ## Non-goals
 
-- Running `terraform apply`, `destroy`, `kubectl apply` or any command that changes Azure, Azure DevOps, GitHub or a cluster. The skill writes files and runs local, read-only checks.
+- Running `terraform apply`, `destroy`, `kubectl apply` or any command that changes Azure, Azure DevOps, GitHub or a cluster. The skill writes files and runs local, read-only checks. The one outward action is `bridge --open-pr`, which opens (never merges) a pull request after the user confirms.
 - Creating service connections, federated credentials, Environments, approvals, branch policies or self-hosted agents. The skill documents what must exist and checks references to it.
+- Deploying the landing zone itself (hub, Firewall, DNS Private Resolver, Azure Policy assignments). In `alz` mode the skill consumes an existing hub; it does not build it.
 - Cluster egress design (firewall, NAT, `outbound_type` choice), left open by the articles on purpose.
 - Argo CD credentials for private Git repositories, ApplicationSets, Helm charts as app sources, multi-cluster Argo CD.
 - Bicep, Pulumi, Terraform Cloud/HCP workspaces, other clouds. OpenTofu is not tested in this release.
 - Migrating an existing single state into stacks (`moved`/`removed`/`import` blocks). `check` may report what to split; it does not move state.
-- A Claude Code subagent for repository audits (see "Skill or agent").
+- A Claude Code subagent for repository audits (see "Skill or agent"). Decided on 2026-11-22: it will be a separate change, after this one is archived.
 - Content in Portuguese: skill content is in English per repository rules; the generated files' comments are in English too.
 
 ## Impact

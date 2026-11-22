@@ -56,12 +56,22 @@ plugins/azure-terraform-stacks/skills/azure-terraform-stacks/
 ```yaml
 # infra/stacks.yaml
 version: 1
-region: { name: brazilsouth, code: brs }
-environments: [dev, hml, prod]
-instances: [brs-01]
+regions:                             # any Azure region, short code chosen by the user
+  brazilsouth: brs
+environments:                        # one subscription per environment
+  dev:  { subscriptionId: 00000000-0000-0000-0000-000000000001 }
+  hml:  { subscriptionId: 00000000-0000-0000-0000-000000000002 }
+  prod: { subscriptionId: 00000000-0000-0000-0000-000000000003 }
+instances: [brs-01]                  # <region code>-<seq>
+naming:                              # optional; default is the articles' pattern
+  pattern: "{type}-{name}-{env}-{region}-{seq}"
+  separator: "-"
+  abbreviations: {}                  # overrides of CAF abbreviations, e.g. { pgsql: psql }
+landingZone:
+  mode: standalone                   # or alz (see Decision 12)
 ci: [azure-devops, github-actions]   # one or both
 profile: private-aks-postgres        # or "none" for empty stacks
-state: { resourceGroup: rg-tfstate, storageAccount: sttfstatecorp001, container: tfstate }
+state: { subscriptionId: …, resourceGroup: rg-tfstate, storageAccount: sttfstatecorp001, container: tfstate }
 stacks:
   - { name: vnet-core,  type: vnet, owner: core,   modules: [network] }
   - { name: aks-core,   type: aks,  owner: core,   modules: [aks, acr, private-endpoint], dependsOn: [vnet-core] }
@@ -103,13 +113,23 @@ gitops:
 
 When `terraform` is on `PATH`, `check --deep` also runs `terraform fmt -check` and `terraform init -backend=false && terraform validate` per stack; with `actionlint`, it lints workflows; with `kubectl`, it runs `kubectl kustomize` on each overlay. Skipped tools are listed in the report. Output is human-readable by default and `--json` for agents.
 
-**8. Bridge from Terraform outputs to the overlay.** `bridge --stack app-orders --env prod --instance brs-01 --outputs outputs.json` reads `terraform output -json`, maps outputs to overlay fields declared in the manifest (`gitops.apps[].values: { DB_HOST: postgres_fqdn, clientId: app_client_id }`) and rewrites only those lines in `kustomization.yaml`. Outputs marked `sensitive: true` are refused. The generated pipelines include an optional step, off by default, that runs `bridge` after `apply` and opens a pull request; Parte 2 leaves this choice to the reader, so the skill asks. *Alternative:* the cluster reads outputs at runtime (e.g., an operator). Rejected for v1: more moving parts in the cluster.
+**8. Bridge from Terraform outputs to the overlay.** `bridge --stack app-orders --env prod --instance brs-01 --outputs outputs.json` reads `terraform output -json`, maps outputs to overlay fields declared in the manifest (`gitops.apps[].values: { DB_HOST: postgres_fqdn, clientId: app_client_id }`) and rewrites only those lines in `kustomization.yaml`. Outputs marked `sensitive: true` are refused. With `--open-pr`, it creates a branch `bridge/<stack>-<env>-<instance>-<short sha of outputs>`, commits only the overlay, pushes and opens a pull request with `gh pr create` when the remote is GitHub or `az repos pr create` when it is Azure Repos (detected from `git remote get-url origin`, overridable with `--provider`). It uses the CLI's existing login (`gh auth`, `az login` / `AZURE_DEVOPS_EXT_PAT` in pipelines), never stores tokens, never merges, and reuses an open PR from the same branch instead of opening a second one. When the agent runs it, it asks the user before `--open-pr`. The generated pipelines include an optional post-apply step (off by default) that runs `bridge --open-pr` with the pipeline's own identity (`GH_TOKEN` from a GitHub App or `GITHUB_TOKEN` with `pull-requests: write`; `System.AccessToken` with "Contribute to pull requests" on Azure Repos). *Alternative:* the cluster reads outputs at runtime (e.g., an operator). Rejected for v1: more moving parts in the cluster. Sources: [gh pr create](https://cli.github.com/manual/gh_pr_create), [az repos pr create](https://learn.microsoft.com/en-us/cli/azure/repos/pr#az-repos-pr-create).
 
 **9. Agent workflow (SKILL.md).** (1) Detect existing `infra/`; if present, run `check` first and offer `add-stack` or fixes instead of `scaffold`. (2) Interview: CI platform, environments, instances and region code, stacks and owners, profile, GitOps yes/no, bridge step yes/no. (3) Write `infra/stacks.yaml`, run `check-manifest`, show the manifest. (4) Run `plan`, show the file list, ask before writing. (5) `scaffold`, then `check --deep`. (6) Report: files written, checks passed/skipped, and the manual prerequisites list (state storage account, service connections or federated credentials per environment, Environments with approvals, self-hosted agents in the VNet, Argo CD repo credentials if private). The skill never runs `apply`.
 
 **10. Dependencies.** Runtime: `yaml` only. Dev: none beyond `node --test`. `package-lock.json` committed. If `node_modules` is missing in the skill folder, `SKILL.md` tells the agent to run `npm ci --omit=dev` there (same as `docs-generator`).
 
 **11. Tests.** Golden fixtures: manifests for (a) the articles' setup with both CI platforms and GitOps, (b) `profile: none` with two stacks and GitHub only, (c) one stack with no dependencies. `scaffold` output is compared byte-for-byte with committed expected trees. One test per `check` rule with a failing fixture. In CI, a job installs Terraform and `actionlint` and runs `check --deep` on fixture (a).
+
+**12. Landing zone mode.** Decided with the user on 2026-11-22: both modes, chosen in the manifest.
+- `standalone` (the articles): `vnet-core` creates the VNet, subnets, NSGs and the Private DNS zones, and links the zones to its VNet. Private Endpoints carry a `private_dns_zone_group`.
+- `alz`: assumes an Azure Landing Zone with a hub in a connectivity subscription ([ALZ architecture](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/), [Private Link and DNS at scale](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/private-link-and-dns-integration-at-scale)). The manifest adds `landingZone: { hubVnetId, privateDnsZoneIds: { acr, keyVault, aks, postgres }, dnsByPolicy: true|false, peering: managed|external, dnsServers: [...] }`. `vnet-core` becomes a spoke: it creates the VNet with the hub's DNS servers and, with `peering: managed`, the spoke-to-hub peering (the hub-to-spoke side stays with the platform team); it creates no `privatelink.*` zones. Stacks read zones by resource ID through an aliased `azurerm` provider for the connectivity subscription. With `dnsByPolicy: true` (ALZ's DeployIfNotExists policies), Private Endpoints are generated **without** `private_dns_zone_group` and with `lifecycle { ignore_changes = [private_dns_zone_group] }`, so Terraform does not fight the policy. The AKS cluster receives `private_dns_zone_id` from the manifest (zone `privatelink.<region>.azmk8s.io`) and its identity gets `Private DNS Zone Contributor` on that zone plus `Network Contributor` on the subnet; the PostgreSQL server receives a central zone ending in `.postgres.database.azure.com`, which must be linked to the hub VNet.
+- `check` gains `lz-dns-zone-group` (no zone group when `dnsByPolicy: true`) and `lz-no-local-privatelink-zone` (no `privatelink.*` zone created in `alz` mode).
+- Egress through the hub firewall (`outbound_type = userDefinedRouting` with a route table) remains out of scope, as in the articles; the module exposes the variable.
+
+**13. Naming is configurable, articles' pattern by default.** `naming.pattern` takes the tokens `{type}`, `{name}`, `{env}`, `{region}`, `{seq}` in any order; `separator` and `abbreviations` override the defaults. One function derives every name from it (resources, resource groups, state keys, Argo CD Applications), so `check` validates any pattern the same way. Names that cannot hold the separator (ACR, storage accounts) drop it; length limits are checked after derivation and never shortened silently. Sources: [CAF naming](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming), [CAF abbreviations](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations), [resource name rules](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules).
+
+**14. One subscription per environment.** Each `environments.<env>.subscriptionId` sets `ARM_SUBSCRIPTION_ID` for that environment's runs (instead of the article's `az account show`), and the generated docs list one federated identity per environment, scoped per stack where the user wants least privilege. The state storage lives in its own subscription (`state.subscriptionId`), outside every stack.
 
 ## Risks / Trade-offs
 
@@ -120,8 +140,16 @@ When `terraform` is on `PATH`, `check --deep` also runs `terraform fmt -check` a
 - [GitHub OIDC immutable subjects for repos created after 2026-07-15] → `references/pipelines-github-actions.md` explains both subject formats; the skill asks which applies and does not generate federated credentials itself.
 - [Scope creep into a generic Terraform generator] → Only the modules of the profile; anything else is `profile: none` plus the user's own modules.
 
+- [`alz` mode cannot be tested without a hub] → The sandbox run (task 8.3) includes a minimal hub VNet with central zones to exercise peering, zone reads and `dnsByPolicy: false`; `dnsByPolicy: true` is checked by `check` rules and by hand in a tenant with the ALZ policies, recorded in the PR.
+- [`bridge --open-pr` is an outward action] → Asked before running, never merges, reuses an existing PR, uses only the CLI's existing login.
+
+## Resolved Questions (2026-11-22, with the user)
+
+- Skill name: `azure-terraform-stacks`.
+- Bridge: opens the pull request with `gh` or `az repos` (Decision 8).
+- Auditor subagent: separate change.
+- Naming: articles' pattern proposed, configurable (Decision 13). Regions: free list in the manifest. Landing zone: `standalone` or `alz` (Decision 12). Subscriptions: one per environment (Decision 14).
+
 ## Open Questions
 
-- Plugin and skill name: `azure-terraform-stacks` (proposed) vs. a broader name if Bicep is planned later.
-- Should the bridge step open the pull request with the platform CLI (`az repos`, `gh`) or only write the file and leave the PR to the user? Proposed: only write the file in v1.
-- Should a future `stacks-auditor` subagent ship in the same plugin? Proposed: separate change, after this one is archived.
+- Results of the expert review of the articles' code (running in parallel) may change module details in Decision 6; findings will be folded into this design before implementation.
