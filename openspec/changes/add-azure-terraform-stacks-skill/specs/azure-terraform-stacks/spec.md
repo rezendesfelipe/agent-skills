@@ -65,11 +65,15 @@ Generated resource names SHALL follow the manifest's `naming.pattern`, whose def
 - **THEN** `check-manifest` fails, shows the derived name and its length, and does not shorten it silently
 
 ### Requirement: Repository layout
-`scaffold` SHALL write `infra/modules/<module>/`, `infra/stacks/<stack>/`, `infra/envs/<env>-<instance>.tfvars`, `infra/scripts/` and the pipeline files for each platform in `ci`. Each stack SHALL declare an empty `backend "azurerm" {}` and receive the backend values at `init`, authenticate to the backend with Microsoft Entra ID, and take `environment` and `instance` as variables. Stacks SHALL read other stacks' resources through provider data sources, and SHALL use `terraform_remote_state` only when the stack sets `remoteState: true`.
+`scaffold` SHALL write `infra/modules/<module>/`, `infra/stacks/<stack>/`, `infra/envs/<env>-<instance>.tfvars`, `infra/scripts/` and the pipeline files for each platform in `ci`. Each stack SHALL create its own resource group, pass `location` and `resource_group_name` to every module call, require Terraform `>= 1.12` and `azurerm >= 4.65`, declare an empty `backend "azurerm" {}` and receive the backend values at `init`, authenticate to the backend with Microsoft Entra ID, and take `environment` and `instance` as variables. Stacks SHALL read other stacks' resources through provider data sources, and SHALL use `terraform_remote_state` only when the stack sets `remoteState: true`.
 
 #### Scenario: Scaffold from a manifest
 - **WHEN** the agent runs `scaffold` on a valid manifest with three stacks and both CI platforms
 - **THEN** the layout above exists, each stack has its own backend block with no inline values, and no file outside `infra/`, `.github/workflows/` and the manifest is written
+
+#### Scenario: Every read resource group exists
+- **WHEN** a stack's data source or the bootstrap script reads `rg-aks-core-prod-brs-01`
+- **THEN** the `aks-core` stack creates that resource group, and `check` reports `rg-owned` if no stack does
 
 #### Scenario: Existing file
 - **WHEN** a file that `scaffold` would write already exists and differs
@@ -139,11 +143,19 @@ With `landingZone.mode: standalone`, the network stack SHALL create the VNet, su
 - **THEN** `check-manifest` fails and names the missing field
 
 ### Requirement: Argo CD delivery
-When `gitops.tool` is `argocd`, the engine SHALL generate `infra/argocd/bootstrap/root-<env>-<instance>.yaml` (app of apps), `infra/argocd/apps/<env>-<instance>/<app>.yaml` per app, Kustomize `base` and `overlays/<env>-<instance>`, a bootstrap script that installs a pinned Argo CD version with server-side apply, and a bootstrap stage or job behind its own boolean parameter, its own identity and the same Environment as the stacks. Applications SHALL carry the `resources-finalizer.argocd.argoproj.io` finalizer and `CreateNamespace=true`. The production Application SHALL NOT have `syncPolicy.automated` unless the manifest enables it for `prod`.
+When `gitops.tool` is `argocd`, the engine SHALL generate `infra/argocd/bootstrap/root-<env>-<instance>.yaml` (app of apps), `infra/argocd/apps/<env>-<instance>/<app>.yaml` per app, Kustomize `base` and `overlays/<env>-<instance>`, a bootstrap script that installs a pinned Argo CD version with server-side apply, Kustomize `base/kustomization.yaml`, and a bootstrap stage or job behind its own boolean parameter, inserted only when `action` is `apply`, with its own identity and the same Environment as the stacks. Federated credentials SHALL use `user_assigned_identity_id`, not the deprecated `parent_id`. Applications SHALL carry the `resources-finalizer.argocd.argoproj.io` finalizer and `CreateNamespace=true`. The production Application SHALL NOT have `syncPolicy.automated` unless the manifest enables it for `prod`.
 
 #### Scenario: Workload Identity subject matches
 - **WHEN** an app has `namespace: orders` and `serviceAccount: orders`
 - **THEN** the federated credential subject is `system:serviceaccount:orders:orders`, the Application's destination namespace is `orders`, and the ServiceAccount is named `orders`
+
+#### Scenario: Plan run does not bootstrap
+- **WHEN** the bootstrap boolean is true and `action` is `plan`
+- **THEN** no bootstrap stage or job runs
+
+#### Scenario: Overlay builds
+- **WHEN** the GitOps layer is scaffolded and `kubectl` or `kustomize` is installed
+- **THEN** `check --deep` builds every overlay without errors
 
 #### Scenario: Bootstrap ordering
 - **WHEN** the bootstrap boolean and the AKS stack boolean are both true

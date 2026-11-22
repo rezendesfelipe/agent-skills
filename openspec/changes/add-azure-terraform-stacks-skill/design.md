@@ -89,7 +89,7 @@ gitops:
 
 **5. Dependency graph drives pipelines.** `dependsOn` in the manifest generates, for Azure DevOps, conditional `dependsOn` entries wrapped in `${{ if eq(parameters.<x>, true) }}`, and for GitHub Actions `needs:` plus `if: ${{ !cancelled() && !failure() && inputs.<x> }}`. Stage names are the stack name with `-` replaced by `_`; parameter names are camelCase for Azure DevOps (`appOrders`) and snake_case for GitHub (`app_orders`), as in the articles. The Argo CD bootstrap depends on every stack that a `gitops.apps[].stack` names plus the AKS stack.
 
-**6. Profile `private-aks-postgres` ships full minimal modules.** The seven modules (`network`, `private-endpoint`, `postgresql`, `key-vault`, `workload-identity`, `acr`, `aks`) are completed from the article snippets with variables, outputs and safe defaults (`public_network_access_enabled = false`, ACR `Premium`, Key Vault RBAC, `private_cluster_enabled`, OIDC issuer and Workload Identity on). Provider and Terraform constraints default to the articles' (`azurerm ~> 4.0`, Terraform `~> 1.9`); `SKILL.md` tells the agent to confirm the current versions in the registry before scaffolding and to write them into the manifest. With `profile: none`, stacks get an empty `main.tf` with backend, provider and the `environment`/`instance` variables.
+**6. Profile `private-aks-postgres` ships full minimal modules.** The seven modules (`network`, `private-endpoint`, `postgresql`, `key-vault`, `workload-identity`, `acr`, `aks`) are completed from the article snippets with variables, outputs and safe defaults (`public_network_access_enabled = false`, ACR `Premium`, Key Vault RBAC, `private_cluster_enabled`, OIDC issuer and Workload Identity on). Provider and Terraform constraints default to `azurerm >= 4.65, < 5.0` and Terraform `>= 1.12, < 2.0`, not the articles' `~> 4.0` / `~> 1.9` (see Decision 15); `SKILL.md` tells the agent to confirm the current versions in the registry before scaffolding and to write them into the manifest. With `profile: none`, stacks get an empty `main.tf` with backend, provider and the `environment`/`instance` variables.
 
 **7. `check` rules.** Each rule has an id, a severity and a link to the reference that explains it. Initial set:
 
@@ -108,6 +108,9 @@ gitops:
 | `argocd-prod-sync` | Prod Application has no `syncPolicy.automated` unless the manifest says so | Parte 2 |
 | `argocd-finalizer` | Applications carry `resources-finalizer.argocd.argoproj.io` | Parte 2 |
 | `argocd-pinned` | Bootstrap installs a pinned Argo CD version | Parte 2, Argo CD install docs |
+| `argocd-apply-only` | Bootstrap stage/job runs only when `action` is `apply` | Review finding I7 |
+| `rg-owned` | Every resource group a stack or script reads is created by some stack | Review finding B1 |
+| `versions` | `required_version` allows only ≥ 1.12 and `azurerm` only ≥ 4.65 | Review findings I1–I2 |
 | `bridge-placeholders` | Overlays have no unresolved `<output>` placeholders | Parte 2, trap 1 |
 | `gha-inputs` | GitHub orchestrator has ≤ 25 inputs | GitHub changelog 2025-12-04 |
 
@@ -131,6 +134,25 @@ When `terraform` is on `PATH`, `check --deep` also runs `terraform fmt -check` a
 
 **14. One subscription per environment.** Each `environments.<env>.subscriptionId` sets `ARM_SUBSCRIPTION_ID` for that environment's runs (instead of the article's `az account show`), and the generated docs list one federated identity per environment, scoped per stack where the user wants least privilege. The state storage lives in its own subscription (`state.subscriptionId`), outside every stack.
 
+**15. Fixes from the expert review of the articles' code (2026-11-22).** A review extracted every code block, ran Terraform 1.9.8 with azurerm 4.81.0 (`fmt`, `init -backend=false`, `validate`), actionlint 1.7.7, shellcheck 0.10.0, kustomize 5.4.3, the Argo CD v3.2.0 CRD schema and an expansion simulator over the 32 parameter combinations of the Azure DevOps pipeline. With minimal additions all stacks validate; as published, three blocks are broken. The templates SHALL include these fixes:
+
+| Id | Severity | Finding | Template fix |
+|---|---|---|---|
+| B1 | blocking | No code creates `rg-aks-core-<suffix>` or any resource group for `app-orders`, but data sources and the bootstrap script read them | Every stack creates its own `azurerm_resource_group` (`rg-<stack name>`) and passes it to its modules |
+| B2 | blocking | Module calls omit `location`, `resource_group_name`, and `vm_size`/`node_count`/`outbound_type` for `aks` (`Missing required argument`) | Every module call passes `location` and `resource_group_name`; `aks` inputs come from the stack with documented defaults |
+| B3 | blocking | Kustomize `base/` has no `kustomization.yaml` (`kustomize build` fails) | Generate `base/kustomization.yaml` listing ServiceAccount and Deployment |
+| I1 | important | Backend OIDC for Azure DevOps is documented only from Terraform 1.12; `~> 1.9` allows 1.9–1.11 | `required_version = ">= 1.12, < 2.0"`; pipelines install a pinned Terraform |
+| I2 | important | `rbac_authorization_enabled` exists only from azurerm 4.42; `user_assigned_identity_id` from 4.65 | `azurerm >= 4.65, < 5.0` |
+| I3 | important | `azurerm_federated_identity_credential.parent_id` and `resource_group_name` deprecated in 4.65, removed in 5.0 | Use `user_assigned_identity_id`; drop `resource_group_name` |
+| I4 | important | AKS with SystemAssigned identity on a subnet in another resource group lacks `Network Contributor` ([AKS managed identity](https://learn.microsoft.com/azure/aks/system-assigned-managed-identity)) | Assign `Network Contributor` on the subnet; use UserAssigned identity in `alz` mode (custom private DNS zone requires it) |
+| I5 | important | `TFSTATE_RG` / `TFSTATE_SA` are never defined in the Azure DevOps YAML; `set -u` aborts | Values come from `state` in the manifest and are rendered into pipeline variables |
+| I6 | important | `export X="$(az …)"` hides a failing `az` (SC2155) | Assign, then export |
+| I7 | important | Argo CD bootstrap runs even when `action=plan` | Bootstrap stage/job inserted only when `action == apply` |
+| I8 | important | Network module not shown: subnet `delegation`/`service_delegation` and Private DNS VNet links missing ([PostgreSQL private networking](https://learn.microsoft.com/azure/postgresql/network/concepts-networking-private)) | Full `network` module with delegation and `azurerm_private_dns_zone_virtual_network_link` |
+| M1–M9 | minor | `terraform fmt` drift; `case` without `*)`; one shared tfvars warns on other stacks' variables; NSGs in the table but not in code; no Terraform/kubectl install step; script exec bit; Argo CD `v3.2.0` older than stable `3.6.2`; ADO run with no stack selected yields zero stages (not verified) | `fmt` in tests; `*)` usage error; one tfvars per stack and instance; NSG per subnet; pinned tool install steps; call scripts with `bash`; Argo CD version from manifest with an age warning; orchestrator fails fast when no stack boolean is set |
+
+Not verified by the review and covered by task 8.3: real `plan`/`apply`, Azure DevOps execution of conditional `dependsOn` (the simulator and the [template-expressions doc](https://learn.microsoft.com/azure/devops/pipelines/process/template-expressions) agree), `az aks get-credentials` permissions for the bootstrap identity, and PostgreSQL authentication settings. A follow-up for the blog (outside this repository): correct the articles with B1–B3 and I1–I7.
+
 ## Risks / Trade-offs
 
 - [Article code is simplified and partly not executed] → Modules completed and validated with `terraform validate`; a real deploy of fixture (a) in a sandbox subscription before release, recorded in the PR (task 8.3).
@@ -152,4 +174,4 @@ When `terraform` is on `PATH`, `check --deep` also runs `terraform fmt -check` a
 
 ## Open Questions
 
-- Results of the expert review of the articles' code (running in parallel) may change module details in Decision 6; findings will be folded into this design before implementation.
+- None blocking. Decision 15 folds in the expert review; remaining unknowns are covered by task 8.3.
