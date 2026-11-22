@@ -7,6 +7,9 @@ import { spawnSync } from "node:child_process";
 import { bridge, applyOutputs } from "../scripts/lib/bridge.mjs";
 import { manifestOf, tempRepo } from "./helpers.mjs";
 
+// bridge commits with the user's identity; give the test process one so it also runs on CI runners without git config.
+for (const [k, v] of Object.entries({ GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.com", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.com" })) process.env[k] ??= v;
+
 const OUT = {
   postgres_fqdn: { sensitive: false, type: "string", value: "pgsql-orders-prod-brs-01.prod-brs-01.postgres.database.azure.com" },
   app_client_id: { sensitive: false, type: "string", value: "11111111-2222-3333-4444-555555555555" },
