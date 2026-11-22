@@ -1,0 +1,19 @@
+{
+  "$comment": "Closed map: resource kind -> draw.io built-in Azure stencil (img/lib/azure2). Each path was checked against jgraph/drawio (src/main/webapp/img/lib/azure2) on 2026-11-22. A kind that is not here fails check-diagram.",
+  "subscription": "img/lib/azure2/general/Subscriptions.svg",
+  "resourceGroup": "img/lib/azure2/general/Resource_Groups.svg",
+  "vnet": "img/lib/azure2/networking/Virtual_Networks.svg",
+  "subnet": "img/lib/azure2/networking/Subnet.svg",
+  "nsg": "img/lib/azure2/networking/Network_Security_Groups.svg",
+  "privateEndpoint": "img/lib/azure2/networking/Private_Endpoint.svg",
+  "privateDnsZone": "img/lib/azure2/networking/DNS_Zones.svg",
+  "firewall": "img/lib/azure2/networking/Firewalls.svg",
+  "aks": "img/lib/azure2/containers/Kubernetes_Services.svg",
+  "acr": "img/lib/azure2/containers/Container_Registries.svg",
+  "postgresql": "img/lib/azure2/databases/Azure_Database_PostgreSQL_Server.svg",
+  "keyVault": "img/lib/azure2/security/Key_Vaults.svg",
+  "managedIdentity": "img/lib/azure2/identity/Managed_Identities.svg",
+  "storageAccount": "img/lib/azure2/storage/Storage_Accounts.svg",
+  "agents": "img/lib/azure2/compute/VM_Scale_Sets.svg",
+  "azureDevOps": "img/lib/azure2/devops/Azure_DevOps.svg"
+}

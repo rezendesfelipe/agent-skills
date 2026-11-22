@@ -1,0 +1,110 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+# infra/pipelines/azure-pipelines.yml
+trigger: none # always an intentional run; a triggered run would use the defaults
+pr: none
+
+parameters:
+  - name: environment
+    displayName: Environment
+    type: string
+    default: dev
+    values: [dev, hml, prod]
+
+  - name: instance
+    displayName: Instance (region-seq)
+    type: string
+    default: brs-01
+    values: [brs-01]
+
+  - name: action
+    displayName: Action
+    type: string
+    default: plan
+    values: [plan, apply] # no destroy: see references/traps.md
+
+  - name: vnetCore
+    displayName: "vnet-core"
+    type: boolean
+    default: false
+
+  - name: aksCore
+    displayName: "aks-core"
+    type: boolean
+    default: false
+
+  - name: appOrders
+    displayName: "app-orders"
+    type: boolean
+    default: false
+
+  - name: argocd
+    displayName: "argocd · install and root Application (once per cluster, apply only)"
+    type: boolean
+    default: false
+
+stages:
+  # Fails fast when nothing was selected.
+  - ${{ if and(eq(parameters.vnetCore, false), eq(parameters.aksCore, false), eq(parameters.appOrders, false), eq(parameters.argocd, false)) }}:
+      - stage: nothing_selected
+        jobs:
+          - job: fail
+            pool:
+              name: private-agents
+            steps:
+              - checkout: none
+              - script: echo "Select at least one stack or step." && exit 1
+
+  - ${{ if eq(parameters.vnetCore, true) }}:
+      - template: templates/terraform-stack.yml
+        parameters:
+          stack: vnet-core
+          stageName: vnet_core
+          environment: ${{ parameters.environment }}
+          instance: ${{ parameters.instance }}
+          action: ${{ parameters.action }}
+          serviceConnection: sc-terraform-${{ parameters.environment }}
+          deploymentEnvironment: azure-${{ parameters.environment }}
+
+  - ${{ if eq(parameters.aksCore, true) }}:
+      - template: templates/terraform-stack.yml
+        parameters:
+          stack: aks-core
+          stageName: aks_core
+          environment: ${{ parameters.environment }}
+          instance: ${{ parameters.instance }}
+          action: ${{ parameters.action }}
+          serviceConnection: sc-terraform-${{ parameters.environment }}
+          deploymentEnvironment: azure-${{ parameters.environment }}
+          dependsOn:
+            - ${{ if eq(parameters.vnetCore, true) }}:
+                - vnet_core
+
+  - ${{ if eq(parameters.appOrders, true) }}:
+      - template: templates/terraform-stack.yml
+        parameters:
+          stack: app-orders
+          stageName: app_orders
+          environment: ${{ parameters.environment }}
+          instance: ${{ parameters.instance }}
+          action: ${{ parameters.action }}
+          serviceConnection: sc-terraform-${{ parameters.environment }}
+          deploymentEnvironment: azure-${{ parameters.environment }}
+          dependsOn:
+            - ${{ if eq(parameters.vnetCore, true) }}:
+                - vnet_core
+            - ${{ if eq(parameters.aksCore, true) }}:
+                - aks_core
+
+  # Argo CD bootstrap: only on apply, after the cluster and the app stacks selected in the same run.
+  - ${{ if and(eq(parameters.argocd, true), eq(parameters.action, 'apply')) }}:
+      - template: templates/argocd-bootstrap.yml
+        parameters:
+          environment: ${{ parameters.environment }}
+          instance: ${{ parameters.instance }}
+          serviceConnection: sc-aks-bootstrap-${{ parameters.environment }}
+          deploymentEnvironment: azure-${{ parameters.environment }}
+          dependsOn:
+            - ${{ if eq(parameters.aksCore, true) }}:
+                - aks_core
+            - ${{ if eq(parameters.appOrders, true) }}:
+                - app_orders

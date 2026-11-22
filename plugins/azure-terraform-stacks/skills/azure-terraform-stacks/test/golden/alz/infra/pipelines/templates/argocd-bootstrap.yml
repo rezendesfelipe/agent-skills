@@ -1,0 +1,45 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+# infra/pipelines/templates/argocd-bootstrap.yml
+parameters:
+  - name: environment
+    type: string
+  - name: instance
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: deploymentEnvironment
+    type: string
+  - name: dependsOn
+    type: object
+    default: []
+
+stages:
+  - stage: argocd
+    displayName: "argocd-bootstrap-${{ parameters.environment }}-${{ parameters.instance }}"
+    dependsOn: ${{ parameters.dependsOn }}
+    jobs:
+      - deployment: bootstrap
+        pool:
+          name: private-agents # must reach the private AKS API
+        environment: ${{ parameters.deploymentEnvironment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - bash: |
+                    set -euo pipefail
+                    d="$(Agent.TempDirectory)/kubectl-v1.33.0"
+                    mkdir -p "$d"
+                    curl -sSfL -o "$d/kubectl" "https://dl.k8s.io/release/v1.33.0/bin/linux/amd64/kubectl"
+                    chmod +x "$d/kubectl"
+                    echo "##vso[task.prependpath]$d"
+                  displayName: install kubectl v1.33.0
+                - task: AzureCLI@2
+                  displayName: install Argo CD and the root Application
+                  inputs:
+                    azureSubscription: ${{ parameters.serviceConnection }} # own identity, not the Terraform one
+                    scriptType: bash
+                    scriptLocation: scriptPath
+                    scriptPath: infra/scripts/bootstrap-argocd.sh
+                    arguments: ${{ parameters.environment }} ${{ parameters.instance }}

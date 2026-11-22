@@ -54,3 +54,50 @@ jobs:
       - run: npm ci
       - name: Test the docs-generator engine
         run: npm test
+
+  azure-terraform-stacks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    defaults:
+      run:
+        working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - name: Test the azure-terraform-stacks engine
+        run: npm test
+
+  azure-terraform-stacks-deep:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+          terraform_wrapper: false
+      # kubectl, shellcheck and xvfb come with GitHub's Ubuntu runners.
+      - name: Install actionlint 1.7.7
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7 "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Install draw.io desktop 24.7.17
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/drawio.deb" https://github.com/jgraph/drawio-desktop/releases/download/v24.7.17/drawio-amd64-24.7.17.deb
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "$RUNNER_TEMP/drawio.deb" xvfb
+      - run: npm ci
+      - name: Scaffold the fixtures, check --deep and export the diagrams
+        run: node test/ci-deep.mjs --require-drawio
+

@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rezendesfelipe/agent-skills/plugins/azure-terraform-stacks/skills/azure-terraform-stacks/schema/stacks.schema.json",
+  "title": "azure-terraform-stacks manifest (infra/stacks.yaml)",
+  "description": "Editor autocomplete. The engine (check-manifest) applies the same rules plus cross-field checks: cycles, unknown stacks and modules, naming, one subscription per environment, GitHub input count.",
+  "type": "object",
+  "required": ["version", "regions", "environments", "instances", "ci", "state", "stacks"],
+  "additionalProperties": false,
+  "$defs": {
+    "guid": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
+    "lower": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
+    "resourceId": { "type": "string", "pattern": "^/subscriptions/" },
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+  },
+  "properties": {
+    "version": { "const": 1 },
+    "regions": {
+      "type": "object", "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z0-9]+$" },
+      "additionalProperties": { "type": "string", "pattern": "^[a-z0-9]{2,6}$" }
+    },
+    "environments": {
+      "type": "object", "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9]*$" },
+      "additionalProperties": {
+        "type": "object", "required": ["subscriptionId"], "additionalProperties": false,
+        "properties": { "subscriptionId": { "$ref": "#/$defs/guid" } }
+      }
+    },
+    "instances": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z0-9]+-\\d+$" } },
+    "naming": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "pattern": { "type": "string", "description": "Tokens {type} {name} {env} {region} {seq}, all required. Default {type}-{name}-{env}-{region}-{seq}" },
+        "separator": { "enum": ["-", "_", ""] },
+        "abbreviations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "ci": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["azure-devops", "github-actions"] } },
+    "profile": { "enum": ["none", "private-aks-postgres"] },
+    "landingZone": {
+      "type": "object", "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["standalone", "alz"] },
+        "hubVnetId": { "$ref": "#/$defs/resourceId" },
+        "dnsServers": { "type": "array", "items": { "type": "string" } },
+        "peering": { "enum": ["managed", "external"] },
+        "dnsByPolicy": { "type": "boolean" },
+        "privateDnsZoneIds": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "acr": { "$ref": "#/$defs/resourceId" }, "keyVault": { "$ref": "#/$defs/resourceId" },
+            "aks": { "$ref": "#/$defs/resourceId" }, "postgres": { "$ref": "#/$defs/resourceId" }
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object", "required": ["subscriptionId", "resourceGroup", "storageAccount", "container"], "additionalProperties": false,
+      "properties": {
+        "subscriptionId": { "$ref": "#/$defs/guid" },
+        "resourceGroup": { "type": "string" },
+        "storageAccount": { "type": "string", "pattern": "^[a-z0-9]{3,24}$" },
+        "container": { "type": "string" }
+      }
+    },
+    "terraform": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "version": { "type": "string" }, "requiredVersion": { "type": "string" }, "azurerm": { "type": "string" } }
+    },
+    "pipelines": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "azureDevOps": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "pool": { "type": "string" }, "serviceConnection": { "type": "string" }, "bootstrapServiceConnection": { "type": "string" }, "environment": { "type": "string" } }
+        },
+        "githubActions": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "runsOn": { "type": "array", "items": { "type": "string" } } }
+        }
+      }
+    },
+    "stacks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["name", "type", "owner"], "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*-[a-z][a-z0-9]*$", "description": "<type>-<owner>" },
+          "type": { "$ref": "#/$defs/lower" },
+          "owner": { "$ref": "#/$defs/lower" },
+          "modules": { "type": "array", "items": { "type": "string" } },
+          "dependsOn": { "type": "array", "items": { "type": "string" } },
+          "remoteState": { "type": "boolean" }
+        }
+      }
+    },
+    "gitops": {
+      "type": "object", "required": ["tool", "repoURL", "apps"], "additionalProperties": false,
+      "properties": {
+        "tool": { "const": "argocd" },
+        "argocdVersion": { "type": "string", "pattern": "^v\\d+\\.\\d+\\.\\d+$" },
+        "repoURL": { "type": "string" },
+        "targetRevision": { "type": "string" },
+        "apps": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "required": ["name", "stack"], "additionalProperties": false,
+            "properties": {
+              "name": { "$ref": "#/$defs/lower" }, "stack": { "type": "string" },
+              "namespace": { "type": "string" }, "serviceAccount": { "type": "string" },
+              "image": { "type": "string" }, "tag": { "type": ["string", "number"] },
+              "autoSync": { "type": "object", "additionalProperties": { "type": "boolean" } },
+              "values": { "type": "object", "additionalProperties": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "diagram": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "theme": {
+          "oneOf": [
+            { "enum": ["default", "dark"] },
+            {
+              "type": "object", "additionalProperties": false,
+              "properties": {
+                "background": { "$ref": "#/$defs/color" }, "surface": { "$ref": "#/$defs/color" }, "border": { "$ref": "#/$defs/color" },
+                "text": { "$ref": "#/$defs/color" }, "textSecondary": { "$ref": "#/$defs/color" }, "accent": { "$ref": "#/$defs/color" },
+                "fontHeading": { "type": "string" }, "fontBody": { "type": "string" }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks.
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders
+spec:
+  selector:
+    app: orders
+  ports:
+    - port: 80
+      targetPort: 8080

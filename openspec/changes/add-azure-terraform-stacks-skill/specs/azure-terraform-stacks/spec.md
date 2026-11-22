@@ -53,8 +53,12 @@ Generated resource names SHALL follow the manifest's `naming.pattern`, whose def
 - **THEN** the cluster is `aks-core-prod-brs-01`, its resource group `rg-aks-core-prod-brs-01`, the registry `crcoreprodbrs01` and the state key `aks-core-prod-brs-01.tfstate`
 
 #### Scenario: Custom pattern
-- **WHEN** the manifest sets `naming.pattern: "{env}-{region}-{type}-{name}-{seq}"` and `separator: "_"`
-- **THEN** the cluster is `prod_brs_aks_core_01`, the registry drops the separator (`prodbrscrcore01`), and `check` validates names against this pattern instead of the default
+- **WHEN** the manifest sets `naming.pattern: "{env}-{region}-{type}-{name}-{seq}"`
+- **THEN** the cluster is `prod-brs-aks-core-01`, the registry drops the separator (`prodbrscrcore01`), the state key is `prod-brs-aks-core-01.tfstate`, and `check` validates names against this pattern instead of the default
+
+#### Scenario: Separator a resource does not allow
+- **WHEN** the manifest sets `naming.separator: "_"` with the `private-aks-postgres` profile
+- **THEN** `check-manifest` fails for the Key Vault and PostgreSQL names, which do not allow underscores, and names each derived name
 
 #### Scenario: Pattern missing a token
 - **WHEN** `naming.pattern` has no `{env}`

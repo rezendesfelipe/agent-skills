@@ -1,0 +1,27 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks.
+# infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml
+# Lines marked "# bridge: ..." are written by "stacks.mjs bridge" from the outputs of app-orders.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: orders
+    newName: crcoreprodbrs01.azurecr.io/orders
+    newTag: "1.8.3"
+
+configMapGenerator:
+  - name: orders-config
+    literals:
+      - DB_HOST=<postgres_fqdn> # bridge: postgres_fqdn
+
+patches:
+  - target:
+      kind: ServiceAccount
+      name: orders
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/azure.workload.identity~1client-id
+        value: "<app_client_id>" # bridge: app_client_id

@@ -1,0 +1,58 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+name: infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment (GitHub Environment)
+        type: environment
+        required: true
+      instance:
+        description: Instance (region-seq)
+        type: choice
+        options: [eus2-01]
+        default: eus2-01
+      action:
+        description: Action
+        type: choice
+        options: [plan, apply] # no destroy: see references/traps.md
+        default: plan
+      vnet_shared:
+        description: "vnet-shared"
+        type: boolean
+        default: false
+      app_billing:
+        description: "app-billing"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nothing-selected:
+    if: ${{ !(inputs.vnet_shared || inputs.app_billing) }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Select at least one stack or step." && exit 1
+
+  vnet-shared:
+    if: ${{ !cancelled() && !failure() && inputs.vnet_shared }}
+    uses: ./.github/workflows/terraform-stack.yml
+    with:
+      stack: vnet-shared
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}
+      action: ${{ inputs.action }}
+
+  app-billing:
+    needs: [vnet-shared]
+    if: ${{ !cancelled() && !failure() && inputs.app_billing }}
+    uses: ./.github/workflows/terraform-stack.yml
+    with:
+      stack: app-billing
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}
+      action: ${{ inputs.action }}

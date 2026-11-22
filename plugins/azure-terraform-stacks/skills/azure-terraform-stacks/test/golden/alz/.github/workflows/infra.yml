@@ -1,0 +1,84 @@
+# Generated from infra/stacks.yaml by azure-terraform-stacks. Regenerate instead of editing by hand.
+name: infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment (GitHub Environment)
+        type: environment
+        required: true
+      instance:
+        description: Instance (region-seq)
+        type: choice
+        options: [brs-01]
+        default: brs-01
+      action:
+        description: Action
+        type: choice
+        options: [plan, apply] # no destroy: see references/traps.md
+        default: plan
+      vnet_core:
+        description: "vnet-core"
+        type: boolean
+        default: false
+      aks_core:
+        description: "aks-core"
+        type: boolean
+        default: false
+      app_orders:
+        description: "app-orders"
+        type: boolean
+        default: false
+      argocd:
+        description: "argocd · install and root Application (once per cluster, apply only)"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  nothing-selected:
+    if: ${{ !(inputs.vnet_core || inputs.aks_core || inputs.app_orders || inputs.argocd) }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Select at least one stack or step." && exit 1
+
+  vnet-core:
+    if: ${{ !cancelled() && !failure() && inputs.vnet_core }}
+    uses: ./.github/workflows/terraform-stack.yml
+    with:
+      stack: vnet-core
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}
+      action: ${{ inputs.action }}
+
+  aks-core:
+    needs: [vnet-core]
+    if: ${{ !cancelled() && !failure() && inputs.aks_core }}
+    uses: ./.github/workflows/terraform-stack.yml
+    with:
+      stack: aks-core
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}
+      action: ${{ inputs.action }}
+
+  app-orders:
+    needs: [vnet-core, aks-core]
+    if: ${{ !cancelled() && !failure() && inputs.app_orders }}
+    uses: ./.github/workflows/terraform-stack.yml
+    with:
+      stack: app-orders
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}
+      action: ${{ inputs.action }}
+
+  argocd:
+    needs: [aks-core, app-orders]
+    if: ${{ !cancelled() && !failure() && inputs.argocd && inputs.action == 'apply' }}
+    uses: ./.github/workflows/argocd-bootstrap.yml
+    with:
+      environment: ${{ inputs.environment }}
+      instance: ${{ inputs.instance }}

@@ -1,0 +1,203 @@
+// Generates infra/argocd/** and infra/scripts/bootstrap-argocd.sh.
+import { literalName, literalRg } from "./naming.mjs";
+
+const HEADER = "# Generated from infra/stacks.yaml by azure-terraform-stacks.\n";
+export const FINALIZER = "resources-finalizer.argocd.argoproj.io";
+export const bridgeMarker = (output) => `# bridge: ${output}`;
+export const placeholder = (output) => `<${output}>`;
+
+function rootApp(m, env, inst) {
+  const g = m.gitops;
+  return `${HEADER}# infra/argocd/bootstrap/root-${env}-${inst}.yaml (app of apps, applied by the bootstrap)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-${env}-${inst}
+  namespace: argocd
+  finalizers:
+    - ${FINALIZER}
+spec:
+  project: default
+  source:
+    repoURL: ${g.repoURL}
+    targetRevision: ${g.targetRevision}
+    path: infra/argocd/apps/${env}-${inst}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: {} # no prune: what leaves Git is not deleted
+`;
+}
+
+function app(m, a, env, inst) {
+  const g = m.gitops;
+  const auto = a.autoSync[env];
+  return `${HEADER}# infra/argocd/apps/${env}-${inst}/${a.name}.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${a.name}-${env}-${inst}
+  namespace: argocd
+  finalizers:
+    - ${FINALIZER} # deleting the Application deletes what it manages
+spec:
+  project: default
+  source:
+    repoURL: ${g.repoURL}
+    targetRevision: ${g.targetRevision}
+    path: infra/argocd/manifests/${a.name}/overlays/${env}-${inst}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${a.namespace}
+  syncPolicy:
+${auto ? "    automated: {} # no prune by default\n" : `    # no "automated": in ${env} the sync is manual, after the pull request is merged\n`}    syncOptions:
+      - CreateNamespace=true
+`;
+}
+
+function base(m, a) {
+  const files = new Map();
+  const dir = `infra/argocd/manifests/${a.name}/base`;
+  const configKeys = Object.keys(a.values).filter((k) => k !== "clientId");
+  files.set(`${dir}/kustomization.yaml`, `${HEADER}apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+`);
+  files.set(`${dir}/serviceaccount.yaml`, `${HEADER}apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${a.serviceAccount}
+  annotations:
+    azure.workload.identity/client-id: "00000000-0000-0000-0000-000000000000" # set per instance in the overlay
+`);
+  files.set(`${dir}/deployment.yaml`, `${HEADER}apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${a.name}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ${a.name}
+  template:
+    metadata:
+      labels:
+        app: ${a.name}
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: ${a.serviceAccount}
+      containers:
+        - name: ${a.name}
+          image: ${a.image}
+          ports:
+            - containerPort: 8080${configKeys.length ? `
+          envFrom:
+            - configMapRef:
+                name: ${a.name}-config` : ""}
+`);
+  files.set(`${dir}/service.yaml`, `${HEADER}apiVersion: v1
+kind: Service
+metadata:
+  name: ${a.name}
+spec:
+  selector:
+    app: ${a.name}
+  ports:
+    - port: 80
+      targetPort: 8080
+`);
+  return files;
+}
+
+function overlay(m, a, env, inst) {
+  const registry = `${literalName(m, "cr", m.clusterStack.owner, env, inst)}.azurecr.io`;
+  const config = Object.entries(a.values).filter(([k]) => k !== "clientId");
+  const clientOutput = a.values.clientId;
+  return `${HEADER}# infra/argocd/manifests/${a.name}/overlays/${env}-${inst}/kustomization.yaml
+# Lines marked "# bridge: ..." are written by "stacks.mjs bridge" from the outputs of ${a.stack}.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: ${a.image}
+    newName: ${registry}/${a.image}
+    newTag: "${a.tag}"
+${config.length ? `
+configMapGenerator:
+  - name: ${a.name}-config
+    literals:
+${config.map(([k, out]) => `      - ${k}=${placeholder(out)} ${bridgeMarker(out)}`).join("\n")}
+` : ""}${clientOutput ? `
+patches:
+  - target:
+      kind: ServiceAccount
+      name: ${a.serviceAccount}
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/azure.workload.identity~1client-id
+        value: "${placeholder(clientOutput)}" ${bridgeMarker(clientOutput)}
+` : ""}`;
+}
+
+function bootstrapScript(m) {
+  const rows = [];
+  for (const env of m.envNames) for (const inst of m.instances) {
+    rows.push(`    "${env}:${inst}") echo "${m.environments[env].subscriptionId} ${literalRg(m, "aks", m.clusterStack.owner, env, inst)} ${literalName(m, "aks", m.clusterStack.owner, env, inst)}" ;;`);
+  }
+  return `#!/usr/bin/env bash
+# infra/scripts/bootstrap-argocd.sh  ->  bootstrap-argocd.sh <env> <instance>
+# Installs a pinned Argo CD and applies the root Application. Runs once per cluster,
+# on an agent that reaches the private API. Generated by azure-terraform-stacks.
+set -euo pipefail
+
+[ "$#" -eq 2 ] || { echo "usage: bootstrap-argocd.sh <env> <instance>" >&2; exit 2; }
+env="$1"; instance="$2"
+argocd_version="${m.gitops.argocdVersion}" # pinned; check the current stable release
+
+cluster() {
+  case "$1:$2" in
+${rows.join("\n")}
+    *) echo "unknown environment or instance: $1 $2" >&2; return 1 ;;
+  esac
+}
+
+read -r subscription resource_group name <<<"$(cluster "$env" "$instance")"
+
+az aks get-credentials \\
+  --subscription "$subscription" \\
+  --resource-group "$resource_group" \\
+  --name "$name" \\
+  --overwrite-existing
+
+kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+# --server-side: some CRDs (ApplicationSet) exceed the client-side annotation limit.
+kubectl apply -n argocd --server-side --force-conflicts \\
+  -f "https://raw.githubusercontent.com/argoproj/argo-cd/\${argocd_version}/manifests/install.yaml"
+
+kubectl apply -n argocd -f "infra/argocd/bootstrap/root-\${env}-\${instance}.yaml"
+`;
+}
+
+export function generateGitops(m) {
+  const files = new Map();
+  if (!m.gitops) return files;
+  for (const env of m.envNames) for (const inst of m.instances) {
+    files.set(`infra/argocd/bootstrap/root-${env}-${inst}.yaml`, rootApp(m, env, inst));
+    for (const a of m.gitops.apps) {
+      files.set(`infra/argocd/apps/${env}-${inst}/${a.name}.yaml`, app(m, a, env, inst));
+      files.set(`infra/argocd/manifests/${a.name}/overlays/${env}-${inst}/kustomization.yaml`, overlay(m, a, env, inst));
+    }
+  }
+  for (const a of m.gitops.apps) for (const [p, c] of base(m, a)) files.set(p, c);
+  files.set("infra/scripts/bootstrap-argocd.sh", bootstrapScript(m));
+  return files;
+}
