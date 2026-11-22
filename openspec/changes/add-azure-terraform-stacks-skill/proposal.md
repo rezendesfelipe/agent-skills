@@ -29,6 +29,7 @@ This change ships a **skill**, not a subagent. Summary of the decision (full tra
   - `scaffold`: writes the repository layout from the manifest; never overwrites a file without `--force`.
   - `add-stack`: adds a stack to the manifest and generates only what changes.
   - `check`: checks an existing `infra/` against the rules (state keys, naming, pipeline parameters vs. stacks, `dependsOn` vs. manifest, Workload Identity subject vs. Argo CD Application, no `destroy` in production, `trigger: none`).
+  - `diagram`: writes an architecture diagram as an editable draw.io file (`docs/architecture/<env>-<instance>.drawio`) derived from the manifest, with official Azure icons, one container per subscription, VNet and subnet, a label with the owning stack on every resource, and the GitOps and pipeline flows. When the draw.io desktop CLI is installed, it also exports SVG and PNG; otherwise it delivers the `.drawio` file and says so.
   - `bridge`: writes Terraform outputs (from `terraform output -json`) into the Kustomize overlay, refusing values marked `sensitive`, and with `--open-pr` opens a pull request with the change through `gh` (GitHub) or `az repos` (Azure Repos), never merging it.
 - **Generated content**, following the articles:
   - Layout `infra/{modules,stacks,envs,scripts,pipelines}` and, with GitOps, `infra/argocd/{bootstrap,apps,manifests}`.
@@ -38,6 +39,7 @@ This change ships a **skill**, not a subagent. Summary of the decision (full tra
   - GitHub Actions: `workflow_dispatch` orchestrator, reusable stack workflow, OIDC, `!cancelled() && !failure()` chaining.
   - Optional profile `private-aks-postgres`: the three stacks and seven modules of the reference architecture.
   - Optional GitOps: Argo CD root Application (app of apps), one Application per app and instance, Kustomize base and overlays, bootstrap script with a pinned version, bootstrap stage with its own identity.
+- Diagram practices follow [Agents365-ai/drawio-skill](https://github.com/Agents365-ai/drawio-skill) (MIT): XML skeleton and id rules, expanded edges, containers, grid and spacing rules, export flags and binary lookup, a validator and a bounded visual review. Ideas are reused, no code is copied; the reference is credited in `references/diagram.md`.
 - Marketplace manifest and README catalog list the new plugin.
 
 ## Capabilities
@@ -58,11 +60,12 @@ This change ships a **skill**, not a subagent. Summary of the decision (full tra
 - Bicep, Pulumi, Terraform Cloud/HCP workspaces, other clouds. OpenTofu is not tested in this release.
 - Migrating an existing single state into stacks (`moved`/`removed`/`import` blocks). `check` may report what to split; it does not move state.
 - A Claude Code subagent for repository audits (see "Skill or agent"). Decided on 2026-11-22: it will be a separate change, after this one is archived.
+- Diagrams of live Azure environments (reading resources from Azure or from Terraform state) or hand-drawn diagram editing. The diagram comes from the manifest only.
 - Content in Portuguese: skill content is in English per repository rules; the generated files' comments are in English too.
 
 ## Impact
 
 - New: `plugins/azure-terraform-stacks/` (skill, references, templates, Node engine with no runtime dependencies beyond `yaml`, tests with golden fixtures).
 - Changed: `.claude-plugin/marketplace.json`, README catalog, `.github/workflows/validate.yml` (a job that runs the skill tests and, when available, `terraform validate` on the generated fixture).
-- Users need Node.js 20+. `terraform`, `actionlint` and `kubectl` are optional: `check` uses them when found and says which checks it skipped.
+- Users need Node.js 20+. The draw.io desktop app is optional (only for SVG/PNG export; on headless Linux also `xvfb`). `terraform`, `actionlint` and `kubectl` are optional: `check` uses them when found and says which checks it skipped.
 - The generated Terraform and pipelines come from simplified article code, parts of which the articles mark as not executed. The tasks include a real deploy in a sandbox subscription before release.

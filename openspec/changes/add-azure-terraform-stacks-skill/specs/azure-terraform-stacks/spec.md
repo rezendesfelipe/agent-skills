@@ -188,6 +188,33 @@ The `bridge` command SHALL read a `terraform output -json` file for one stack an
 - **WHEN** `gh` or `az` is missing or not authenticated
 - **THEN** `bridge` keeps the overlay change on disk, prints the command to log in, and exits with a non-zero code without storing any token
 
+### Requirement: Architecture diagram
+The `diagram` command SHALL write an editable draw.io file per selected environment and instance, derived only from the manifest. The diagram SHALL show one container per subscription, the VNet and one container per subnet, every resource of the profile with an official Azure icon from a closed icon map, its derived name and a label with its owning stack, Private Endpoints with an edge to their target, the Private DNS zones (local in `standalone`, central in `alz`), the Argo CD flow when GitOps is enabled, the pipeline agents, and a legend of the roles present. The XML SHALL contain the reserved cells `0` and `1`, stable ids, `html=1` labels, edges in expanded form with orthogonal style, and coordinates on a 10 px grid. Colors and fonts SHALL come from `diagram.theme` (`default`, `dark` or custom tokens that pass WCAG contrast). When the draw.io desktop CLI is installed, `--export` SHALL also write SVG and PNG; otherwise the command SHALL write the `.drawio` file, list the skipped exports and exit with code 0.
+
+#### Scenario: Diagram from the articles' manifest
+- **WHEN** `diagram --env prod --instance brs-01` runs on the full fixture in `standalone` mode
+- **THEN** `docs/architecture/prod-brs-01.drawio` shows the subscription, `vnet-core-prod-brs-01` with its four subnets, `aks-core-prod-brs-01`, `crcoreprodbrs01`, `pgsql-orders-prod-brs-01`, `kv-orders-prod-brs-01`, two Private Endpoints, three Private DNS zones and the Argo CD flow, and every resource carries the label of its stack
+
+#### Scenario: ALZ mode
+- **WHEN** the manifest has `landingZone.mode: alz`
+- **THEN** the hub and the central Private DNS zones appear in a separate connectivity subscription container marked as external, and no `privatelink.*` zone appears inside the workload subscription
+
+#### Scenario: Deterministic output
+- **WHEN** `diagram` runs twice on the same manifest
+- **THEN** both files are byte-for-byte identical
+
+#### Scenario: Manual edits preserved
+- **WHEN** the `.drawio` file was edited after generation and `diagram` runs again without `--force`
+- **THEN** the file is not changed and the command reports that it was edited
+
+#### Scenario: Export without draw.io
+- **WHEN** `diagram --export svg,png` runs and no draw.io binary is found
+- **THEN** the `.drawio` file is written, the report lists SVG and PNG as skipped with the install hint, and the exit code is 0
+
+#### Scenario: Structural check
+- **WHEN** `check-diagram` runs on a file with an edge whose target id does not exist, an unknown icon or two overlapping sibling shapes
+- **THEN** it fails and names each problem with the cell id
+
 ### Requirement: Repository check
 The `check` command SHALL check an existing repository against the rules listed in the design (state key, partial backend, naming, pipeline parameters and dependencies versus the manifest, production guardrails, OIDC, Workload Identity subject, Argo CD sync, finalizer, pinned version, unresolved overlay placeholders, GitHub input limit, landing zone DNS rules). Each finding SHALL show the rule id, the file and line when known, and the reference to read. With `--deep`, it SHALL also run `terraform fmt -check`, `terraform validate`, `actionlint` and `kubectl kustomize` when those tools are installed, and list the ones it skipped. With `--json`, it SHALL print the findings as JSON.
 
@@ -204,7 +231,7 @@ The `check` command SHALL check an existing repository against the rules listed 
 - **THEN** the report lists the Terraform checks as skipped, and the exit code reflects only the checks that ran
 
 ### Requirement: Agent workflow
-`SKILL.md` SHALL instruct the agent to: detect an existing `infra/` and run `check` before proposing changes; interview the user for CI platform, environments and their subscriptions, regions and instances, naming pattern (proposing the articles' default), landing zone mode and its hub data, stacks and owners, profile, GitOps and the bridge step; write the manifest and run `check-manifest`; show the `plan` output and get confirmation before writing; run `scaffold` (or `add-stack`) and then `check --deep`; and end with the list of manual prerequisites (state storage, federated identities per environment, Environments and approvals, self-hosted agents inside the VNet for private resources, Argo CD repository credentials when the repository is private). The skill's `description` SHALL say that it applies to Terraform on Azure with Azure DevOps or GitHub Actions.
+`SKILL.md` SHALL instruct the agent to: detect an existing `infra/` and run `check` before proposing changes; interview the user for CI platform, environments and their subscriptions, regions and instances, naming pattern (proposing the articles' default), landing zone mode and its hub data, stacks and owners, profile, GitOps and the bridge step; write the manifest and run `check-manifest`; show the `plan` output and get confirmation before writing; run `scaffold` (or `add-stack`) and then `check --deep`; offer to generate the architecture diagram and, when an export is available, review the draft PNG at most twice before showing it; and end with the list of manual prerequisites (state storage, federated identities per environment, Environments and approvals, self-hosted agents inside the VNet for private resources, Argo CD repository credentials when the repository is private). The skill's `description` SHALL say that it applies to Terraform on Azure with Azure DevOps or GitHub Actions.
 
 #### Scenario: New repository
 - **WHEN** a user asks to set up Terraform stacks with a parameterized pipeline in a repository without `infra/`

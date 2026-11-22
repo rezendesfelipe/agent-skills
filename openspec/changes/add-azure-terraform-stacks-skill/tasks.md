@@ -41,16 +41,25 @@
 - [ ] 6.2 `plan`, `scaffold` (no overwrite without `--force`, writes only inside `infra/`, `.github/workflows/` and the manifest) and `add-stack`
 - [ ] 6.3 `check` with every rule in design Decision 7, `--json`, and `--deep` with tool detection and a skipped-tools list; one failing fixture per rule; `references/traps.md` mapping each article trap to its rule
 
-## 7. Skill instructions and catalog
+## 7. Architecture diagram
 
-- [ ] 7.1 Write `SKILL.md`: detection, interview, manifest, plan confirmation, scaffold, deep check, manual-prerequisites report, never apply
-- [ ] 7.2 Add the plugin to the README catalog table
-- [ ] 7.3 Add a CI job to `.github/workflows/validate.yml` that runs the skill tests and `check --deep` (with Terraform and `actionlint` installed) on the full fixture
+- [ ] 7.1 `diagram/icons.json`: closed map from resource type to a verified draw.io Azure stencil style (`img/lib/azure2/...`), plus `references/diagram.md` with the XML rules, export flags, review loop, Azure icon terms and credit to Agents365-ai/drawio-skill (MIT)
+- [ ] 7.2 Diagram model from the manifest (subscriptions, VNet, subnets, resources with stack labels, Private Endpoints and targets, DNS zones for `standalone` and `alz`, Argo CD and pipeline flows, legend)
+- [ ] 7.3 Grid layout and XML writer (reserved cells, stable ids, `html=1`, expanded orthogonal edges with pinned ports, swimlane containers, 10 px grid, spacing table) with themes `default`, `dark` and custom tokens with WCAG checks
+- [ ] 7.4 `check-diagram` (structure, coverage, icon map, overlaps) with one failing fixture per rule; content hash and `--force` behavior
+- [ ] 7.5 draw.io binary lookup (`DRAWIO_BIN`, PATH, macOS, Windows), headless Linux with `xvfb-run -a`, SVG/PNG export and draft PNG; tests skip export with a notice when no binary is found
+- [ ] 7.6 Golden `.drawio` files for the full fixture in `standalone` and `alz`; CI job that installs draw.io and `xvfb`, exports them and checks that every icon rendered (non-blank)
 
-## 8. Verification
+## 8. Skill instructions and catalog
 
-- [ ] 8.0 Regression fixture from the expert review: each finding B1–B3 and I1–I8 has a test that fails on the article's version and passes on the template
-- [ ] 8.1 Golden fixtures: articles' setup (both CI, GitOps), `profile: none` with GitHub only, single stack; byte-for-byte comparison
-- [ ] 8.2 `node scripts/validate-skills.mjs`, `npm test`, `openspec validate --all --strict` pass
-- [ ] 8.3 Manual run in a sandbox subscription: scaffold the full fixture, run the Azure DevOps and GitHub pipelines with single-stack and all-stacks selections (`plan` and `apply`), bootstrap Argo CD, sync `orders`, confirm Workload Identity reads Key Vault, run `bridge --open-pr` against GitHub and Azure Repos; repeat in `alz` mode with a minimal hub and central zones; record results and gaps in the PR
-- [ ] 8.4 Install with the CLI into Claude Code and Codex (`npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool claude,codex --dry-run`) and confirm the skill is listed
+- [ ] 8.1 Write `SKILL.md`: detection, interview, manifest, plan confirmation, scaffold, deep check, diagram offer and review, manual-prerequisites report, never apply
+- [ ] 8.2 Add the plugin to the README catalog table
+- [ ] 8.3 Add a CI job to `.github/workflows/validate.yml` that runs the skill tests and `check --deep` (with Terraform and `actionlint` installed) on the full fixture
+
+## 9. Verification
+
+- [ ] 9.0 Regression fixture from the expert review: each finding B1–B3 and I1–I8 has a test that fails on the article's version and passes on the template
+- [ ] 9.1 Golden fixtures: articles' setup (both CI, GitOps), `profile: none` with GitHub only, single stack; byte-for-byte comparison
+- [ ] 9.2 `node scripts/validate-skills.mjs`, `npm test`, `openspec validate --all --strict` pass
+- [ ] 9.3 Manual run in a sandbox subscription: scaffold the full fixture, run the Azure DevOps and GitHub pipelines with single-stack and all-stacks selections (`plan` and `apply`), bootstrap Argo CD, sync `orders`, confirm Workload Identity reads Key Vault, run `bridge --open-pr` against GitHub and Azure Repos; repeat in `alz` mode with a minimal hub and central zones; record results and gaps in the PR
+- [ ] 9.4 Install with the CLI into Claude Code and Codex (`npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool claude,codex --dry-run`) and confirm the skill is listed
