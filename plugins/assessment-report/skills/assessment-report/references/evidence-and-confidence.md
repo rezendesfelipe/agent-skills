@@ -18,7 +18,7 @@ Every finding lists at least one evidence ID. A finding with none is rejected by
 | `url` | `url`, `accessed`, `quote`, optional `snapshot` (+ `startLine`, `endLine`) | Only with a snapshot saved under `evidence/`, then as a file. The URL is never fetched |
 | `statement` | `source` (a role or name), `date`, `text`; optionally `path`, `startLine`, `endLine` of the saved note it comes from | Nothing; recorded with who said it and when. Interviews, tickets, chat. The optional location says where the note is saved; it is not checked, and the item stays not machine-checked |
 
-Two items with different `source` values are independent; two with the same `source` count once. An evidence item no finding cites is a warning.
+Two items with different `source` values are independent; two with the same `source` count once. Sources are compared ignoring case, surrounding spaces and repeated spaces, so "CTO" and "cto" are one source. An evidence item no finding cites is a warning.
 
 ## Failure codes
 
@@ -27,6 +27,10 @@ Two items with different `source` values are independent; two with the same `sou
 ## Repair
 
 At most two attempts. For each failure: fix the line range, re-copy the quote from the file, narrow or correct the scope or pattern, or cite a different excerpt. If the fix needs a file you were not given, stop and ask the user for it, then verify again. Do not edit a quote to match a wrong claim, and do not delete the failing evidence to get a clean run: failures stay in the verification log. After the second repair, `verify` demotes by code.
+
+## Limits of machine-checked evidence
+
+`file`, `document` and `absence` evidence are checked against the assessed files, which the engine inventoried itself. `output` evidence and a `url` with a `snapshot` are different: they count as machine-checked, but the engine only proves that the quote is in a file under `<out>/evidence/` that has not changed since `capture`. The agent wrote that file, and `capture` never runs the command, so these two kinds prove consistency with a file the agent controls, not that the command produced that output or that the page said that. A reader should weigh them like a statement. The report's method annex says so. (Whether they should be capped at `reported`, or counted as not machine-checked, is a decision for the maintainer; the rules in this table are unchanged.)
 
 ## What the verifier proves, and what it does not
 
@@ -49,4 +53,4 @@ If an unverified, reported or corroborated finding would be Critical or High if 
 
 ## Secrets
 
-Never copy a secret value. For a committed secret use `redacted: true`, the file and lines, and a `secretKind` (`private-key`, `aws-access-key`, `github-token`, `slack-token`, `google-api-key`, `stripe-key`, `jwt`, `generic-credential`). `verify` and `render` scan every string for secret patterns. The scan is heuristic: a person must still look before the report leaves the team.
+Never copy a secret value. For a committed secret use `redacted: true`, the file and lines, and a `secretKind` (`private-key`, `aws-access-key`, `github-token`, `slack-token`, `google-api-key`, `stripe-key`, `jwt`, `url-credential`, `azure-storage-key`, `bearer-token`, `sas-signature`, `generic-credential`). `verify` and `render` scan every string for secret patterns. The scan is heuristic: a person must still look before the report leaves the team.

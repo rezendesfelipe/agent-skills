@@ -278,6 +278,7 @@ function annexMethod(a, L, { unreviewed }) {
   out.push(`# ${inline(L.verifierTitle)}`);
   out.push(para(L.verifierProves));
   out.push(para(L.verifierDoesNot));
+  out.push(para(L.evidenceLimits));
   out.push(para(L.secretScan));
   out.push(`# ${inline(L.conventionsTitle)}`);
   out.push(para(L.conventionsIntro));

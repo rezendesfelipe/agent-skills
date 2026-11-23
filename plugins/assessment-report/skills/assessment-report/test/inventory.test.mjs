@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
@@ -73,4 +73,54 @@ test("secret scanner: finds common shapes and ignores references and placeholder
   assert.deepEqual(scanString(fakeSecret.generic()), ["generic-credential"]);
   for (const ok of ['password = var.db_password', 'password: "${DB_PASSWORD}"', "token = <your token>", "Senhas rotacionadas a cada 90 dias.", 'secret_name = "app-secret"', "api_key: changeme"])
     assert.deepEqual(scanString(ok), [], ok);
+});
+
+// ---- more secret shapes (review cycle 1, I2). Every value is assembled at run time from short parts. ----------
+const j = (...p) => p.join("");
+const SHAPES = [
+  ["url-credential", j("postgres://admin", ":", "S3cr3t", "Passw0rd", "@db.example.com/app")],
+  ["url-credential", j("mongodb+srv://svc", ":", "pa55word", "@cluster0.example.net")],
+  ["azure-storage-key", j("DefaultEndpointsProtocol=https;AccountName=st;", "AccountKey", "=", "Zm9vYmFy", "YmF6cXV4", "Zm9vYmFy", "YmF6cXV4", "Zm9vYg", "==;")],
+  ["bearer-token", j("Authorization: ", "Bearer", " ", "0123456789", "abcdef0123", "456789abcd", "ef")],
+  ["sas-signature", j("https://st.blob.core.windows.net/c?sv=2022-11-02&", "sig", "=", "Ab3dE6gH9", "jK2mN5pQ8", "sT1vW4yZ")],
+  ["generic-credential", j("pass", "word", " = ", '"', "hunt", "er2", '"')],
+  ["generic-credential", j("pass", "word", " = ", '"', "correct", "horse", "battery", "staple", '"')],
+  ["generic-credential", j("client", "_", "secret", ": ", "abcd", "efgh")],
+  ["generic-credential", j("export DB_", "PASS", "WORD", "=", "swordfish")],
+];
+for (const [kind, text] of SHAPES)
+  test(`secret shape detected: ${kind} (${text.slice(0, 18)}...)`, () => {
+    assert.ok(scanString(text).includes(kind), `${kind} not found in a ${text.length}-char string`);
+  });
+
+test("references, placeholders and ordinary configuration are not flagged as secrets", () => {
+  for (const ok of [
+    "id-token: write", "permissions:\n  contents: read", "password: var.db_password", 'token: ${{ secrets.GITHUB_TOKEN }}',
+    'postgres://admin:${DB_PASS}@db.example.com/app', "postgres://admin:<password>@host/app", "https://user@example.com/path",
+    "Authorization: Bearer <token>", 'secret_name = "app-secret"', 'key = "terraform.tfstate"', "password: changeme", 'password = "<your password>"',
+    "sig=short", "token_endpoint: https://login.example.com", "Bearer tokens are described in the policy",
+  ])
+    assert.deepEqual(scanString(ok), [], ok);
+});
+
+test("false positives are measured: no fixture, golden file or reference trips the scanner", () => {
+  const roots = [join(FIXTURE_REPO, ".."), fileURLToPath(new URL("../evals/cases", import.meta.url)), fileURLToPath(new URL("../references", import.meta.url)), fileURLToPath(new URL("./golden", import.meta.url)),
+    fileURLToPath(new URL("../../../../azure-terraform-stacks/skills/azure-terraform-stacks/test/golden", import.meta.url))];
+  const hits = [];
+  let files = 0;
+  const walk = (d) => {
+    for (const n of readdirSync(d)) {
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) walk(p);
+      else {
+        let t;
+        try { t = readFileSync(p, "utf8"); } catch { continue; }
+        files++;
+        t.split("\n").forEach((l, i) => { if (scanString(l).length) hits.push(`${p}:${i + 1}`); });
+      }
+    }
+  };
+  for (const r of roots) if (existsSync(r)) walk(r);
+  assert.ok(files > 100, `only ${files} files scanned`);
+  assert.deepEqual(hits, []);
 });

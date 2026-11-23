@@ -63,6 +63,9 @@ test("confidence rules", () => {
   assert.equal(conf(["E-003", "E-006"], R), "corroborated", "a url counts as its own source");
   assert.equal(conf(["E-003"], R), "reported");
   assert.equal(conf(["E-003", "E-004"], R), "reported", "two statements of one source count once");
+  const spelled = [stmt("E-007", "cto"), stmt("E-008", "  C T O  ".replace(/ T /, "T ").trim()), stmt("E-009", "Cto ")];
+  const sameSource = build({ evidence: [...ev, ...spelled], results: [...R, res("E-007", "unchecked", false), res("E-009", "unchecked", false)], findings: [finding("F-001", ["E-003", "E-007", "E-009"])] });
+  assert.equal(recompute(sameSource).get("F-001").confidence, "reported", "CTO, cto and 'Cto ' are one source");
   assert.equal(conf(["E-002", "E-003"], R), "reported", "a failed item does not count as a source");
   assert.equal(conf(["E-002"], R), "unverified", "every cited item failed");
   assert.equal(conf([], R), "unverified", "no evidence");

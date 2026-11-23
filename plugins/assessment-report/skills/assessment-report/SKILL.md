@@ -5,7 +5,7 @@ description: Produces a technical assessment report for a client in which every 
 
 # Assessment report
 
-You find and explain; the engine in `scripts/assess.mjs` verifies, computes and refuses. Every finding carries evidence that a script checked, everything unchecked is labelled, and the report is an executive document with a technical annex that `docs-generator` renders. The flow is a fixed graph kept in `<out>/.state/run.json`; a command run out of order exits 1 and says what to do first.
+You find and explain; the engine in `scripts/assess.mjs` verifies, computes and refuses. Every finding carries evidence that a script checked, everything unchecked is labelled, and the report is an executive document with a technical annex that `docs-generator` renders. The flow is a fixed graph kept in `<out>/.state/run.json`; a command run out of order exits 1 and says what to do first. The state and `assessment.json` are plain files that you can write too: the gates prevent shortcuts and accidents, not a determined agent, so never edit `.state/` or the computed blocks (`verification`, `confidence`, `severity`).
 
 Paths are relative to this skill's folder. Node.js 20 or later; nothing to install. `<out>` is the output folder (default `./assessment-report/`). `node scripts/assess.mjs status --out <out>` shows the current node and the allowed next ones; `--help` lists every command.
 
@@ -48,7 +48,7 @@ Not for fixing the assessed system, scanning for vulnerabilities, or scoring mat
 { "id": "E-003", "kind": "statement", "source": "CTO", "date": "2026-11-10", "text": "Restores have never been tested." }
 ```
 
-Also `output` (saved command output; run `capture` first), `document` (text only), `url` (never fetched; a snapshot file is needed to check it). Confidence follows from what verifies: `verified` (a machine-checked item passes), `corroborated` (two independent sources), `reported` (one source), `unverified` (none; shown only under Not verified). Only verified findings can be Critical or High.
+Also `output` (saved command output; run `capture` first), `document` (text only), `url` (never fetched; a snapshot file is needed to check it). Limit: for `output` and a `url` snapshot the engine only proves consistency with a file you saved; `capture` never runs the command, so weigh them like a statement and say so in the final message. Confidence follows from what verifies: `verified` (a machine-checked item passes), `corroborated` (two independent sources), `reported` (one source), `unverified` (none; shown only under Not verified). Only verified findings can be Critical or High.
 
 ## Interrupts
 

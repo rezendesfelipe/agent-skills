@@ -111,6 +111,7 @@
   "verifierTitle": "What the verifier does and does not prove",
   "verifierProves": "It proves that each cited excerpt exists at the cited lines of the inventoried files, that an absence search found no match in a non-empty scope, and that saved output has not changed since capture.",
   "verifierDoesNot": "It does not prove that an excerpt supports the claim, that an absence search covers every place a control could live, or that a statement, document or web page is true.",
+  "evidenceLimits": "Evidence of kind output, and a web page with a saved snapshot, count as machine-checked, but the engine only proves that the quote is in a file the assessor saved and that the file has not changed since capture. It does not run the command or fetch the page, so these items show consistency with a saved file, not that the command produced that output or that the page said it.",
   "secretScan": "A heuristic scan looks for secrets in the data and in this report. It cannot prove there are none: a person must still look before the report leaves the team.",
   "conventionsTitle": "Conventions",
   "conventionsIntro": "Confidence, severity and effort follow fixed rules computed by code, not by the model. The thresholds are conventions of this skill, not findings of research.",

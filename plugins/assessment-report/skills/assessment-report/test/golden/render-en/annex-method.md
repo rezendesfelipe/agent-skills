@@ -15,6 +15,8 @@ It proves that each cited excerpt exists at the cited lines of the inventoried f
 
 It does not prove that an excerpt supports the claim, that an absence search covers every place a control could live, or that a statement, document or web page is true.
 
+Evidence of kind output, and a web page with a saved snapshot, count as machine-checked, but the engine only proves that the quote is in a file the assessor saved and that the file has not changed since capture. It does not run the command or fetch the page, so these items show consistency with a saved file, not that the command produced that output or that the page said it.
+
 A heuristic scan looks for secrets in the data and in this report. It cannot prove there are none: a person must still look before the report leaves the team.
 
 # Conventions

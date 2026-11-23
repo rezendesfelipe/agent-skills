@@ -15,6 +15,8 @@ Prova que cada trecho citado existe nas linhas citadas dos arquivos inventariado
 
 Não prova que um trecho sustenta a afirmação, que uma busca de ausência cobre todos os lugares onde um controle poderia estar, nem que uma declaração, documento ou página web seja verdadeiro.
 
+Evidências do tipo saída de comando, e páginas web com cópia salva, contam como verificadas por máquina, mas o motor apenas prova que a citação está em um arquivo salvo pelo avaliador e que o arquivo não mudou desde a captura. Ele não executa o comando nem baixa a página; esses itens mostram consistência com um arquivo salvo, não que o comando produziu aquela saída ou que a página dizia aquilo.
+
 Uma varredura heurística procura segredos nos dados e neste relatório. Ela não prova que não existam: uma pessoa ainda precisa olhar antes de o relatório sair da equipe.
 
 # Convenções

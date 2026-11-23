@@ -128,3 +128,16 @@ test("schema --validate accepts a fixture output and rejects a broken file", () 
   assert.match(r.out, /findings\[0\]\.impact/);
   assert.equal(run(["schema", "--validate", join(out, "nope.json")]).code, 2);
 });
+
+// ---- the CLI refuses to write a report that holds a secret (review cycle 1, I4 / M18) ------------------------
+test("render exits 1 with secret-in-output and writes nothing when a secret appears only after token expansion", () => {
+  const { out } = toReview();
+  // The raw summary is clean (the pattern is split by a token); expanded, it is an AWS-style key ID.
+  const summary = ["AKIA", "IOSFODNN7", "{{count.critical}}", "EXAMPL", " is the count."].join("");
+  edit(out, (a) => (a.summary = summary));
+  assert.equal(run(["review", "--approve", "--by", "A", "--date", "2026-11-21", "--out", out]).code, 0, "the raw summary passes check and review");
+  const r = run(["render", "--out", out]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /secret-in-output/);
+  assert.ok(!existsSync(join(out, "report")), "nothing was written");
+});

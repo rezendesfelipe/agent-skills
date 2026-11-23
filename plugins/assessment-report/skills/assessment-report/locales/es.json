@@ -111,6 +111,7 @@
   "verifierTitle": "Qué prueba y qué no prueba el verificador",
   "verifierProves": "Prueba que cada extracto citado existe en las líneas citadas de los archivos inventariados, que una búsqueda de ausencia no encontró coincidencias en un alcance no vacío y que la salida guardada no cambió desde su captura.",
   "verifierDoesNot": "No prueba que un extracto respalde la afirmación, que una búsqueda de ausencia cubra todos los lugares donde podría estar un control, ni que una declaración, documento o página web sea verdadero.",
+  "evidenceLimits": "Las evidencias de tipo salida de comando, y las páginas web con copia guardada, cuentan como verificadas automáticamente, pero el motor solo prueba que la cita está en un archivo guardado por el evaluador y que el archivo no cambió desde la captura. No ejecuta el comando ni descarga la página; estos elementos muestran coherencia con un archivo guardado, no que el comando produjo esa salida o que la página lo decía.",
   "secretScan": "Un escaneo heurístico busca secretos en los datos y en este informe. No puede probar que no los haya: una persona debe revisar antes de que el informe salga del equipo.",
   "conventionsTitle": "Convenciones",
   "conventionsIntro": "La confianza, la severidad y el esfuerzo siguen reglas fijas calculadas por código, no por el modelo. Los umbrales son convenciones de esta skill, no resultados de investigación.",

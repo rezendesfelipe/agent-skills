@@ -111,6 +111,7 @@
   "verifierTitle": "O que o verificador prova e o que não prova",
   "verifierProves": "Prova que cada trecho citado existe nas linhas citadas dos arquivos inventariados, que uma busca de ausência não encontrou ocorrência em um escopo não vazio e que a saída salva não mudou desde a captura.",
   "verifierDoesNot": "Não prova que um trecho sustenta a afirmação, que uma busca de ausência cobre todos os lugares onde um controle poderia estar, nem que uma declaração, documento ou página web seja verdadeiro.",
+  "evidenceLimits": "Evidências do tipo saída de comando, e páginas web com cópia salva, contam como verificadas por máquina, mas o motor apenas prova que a citação está em um arquivo salvo pelo avaliador e que o arquivo não mudou desde a captura. Ele não executa o comando nem baixa a página; esses itens mostram consistência com um arquivo salvo, não que o comando produziu aquela saída ou que a página dizia aquilo.",
   "secretScan": "Uma varredura heurística procura segredos nos dados e neste relatório. Ela não prova que não existam: uma pessoa ainda precisa olhar antes de o relatório sair da equipe.",
   "conventionsTitle": "Convenções",
   "conventionsIntro": "Confiança, severidade e esforço seguem regras fixas calculadas por código, não pelo modelo. Os limiares são convenções desta skill, não resultados de pesquisa.",

@@ -173,3 +173,12 @@ test("the report folder is not created by rendering alone (the CLI writes the fi
   renderReport(fullAssessment().assessment);
   assert.ok(!existsSync(join(dir, "report")));
 });
+
+test("redacted evidence never prints a quote, even if one is present in the data (review cycle 1, I4 / M19)", () => {
+  const { assessment } = fullAssessment();
+  const marker = "SENTINEL-QUOTE-MUST-NOT-APPEAR";
+  assessment.evidence.find((e) => e.id === "E-008").quote = marker;
+  const all = Object.entries(renderReport(assessment)).filter(([n]) => n.endsWith(".md")).map(([, t]) => t).join("\n");
+  assert.ok(!all.includes(marker));
+  assert.match(all, /redacted secret of kind private-key/);
+});

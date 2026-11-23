@@ -27,9 +27,9 @@ export function effortDays(scale) {
   return { ...DEFAULT_EFFORT_DAYS, ...(scale?.effortDays ?? {}) };
 }
 
-/** Independent non-machine sources of one finding: different `source` values count separately. */
+/** Independent non-machine sources of one finding. A source is compared trimmed, lower-case and with single spaces: "CTO" and " cto " are one source. */
 function sourceOf(e) {
-  if (e.source) return e.source;
+  if (e.source) return String(e.source).trim().toLowerCase().replace(/\s+/g, " ");
   if (e.url) {
     try {
       return new URL(e.url).origin;

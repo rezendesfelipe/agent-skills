@@ -15,6 +15,8 @@ Prueba que cada extracto citado existe en las líneas citadas de los archivos in
 
 No prueba que un extracto respalde la afirmación, que una búsqueda de ausencia cubra todos los lugares donde podría estar un control, ni que una declaración, documento o página web sea verdadero.
 
+Las evidencias de tipo salida de comando, y las páginas web con copia guardada, cuentan como verificadas automáticamente, pero el motor solo prueba que la cita está en un archivo guardado por el evaluador y que el archivo no cambió desde la captura. No ejecuta el comando ni descarga la página; estos elementos muestran coherencia con un archivo guardado, no que el comando produjo esa salida o que la página lo decía.
+
 Un escaneo heurístico busca secretos en los datos y en este informe. No puede probar que no los haya: una persona debe revisar antes de que el informe salga del equipo.
 
 # Convenciones
