@@ -60,8 +60,8 @@ describe("List skills", () => {
   test("--json prints only a JSON array", () => {
     const r = run("list", "--json");
     const data = JSON.parse(r.stdout);
-    assert.deepEqual(data.map((s) => s.name), ["alpha", "beta"]);
-    assert.deepEqual(Object.keys(data[0]).sort(), ["description", "name", "plugin"]);
+    assert.deepEqual(data.filter((s) => s.kind === "skill").map((s) => s.name), ["alpha", "beta"]);
+    assert.deepEqual(Object.keys(data[0]).sort(), ["description", "kind", "name", "plugin"]);
   });
 });
 
@@ -194,8 +194,8 @@ describe("Interactive selection", () => {
   test("non-interactive add without skill fails with exit 2 and lists skills", () => {
     const r = run("add", "--tool", "claude");
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /Missing skill name/);
-    assert.match(r.stderr, /alpha, beta/);
+    assert.match(r.stderr, /Missing skill or agent name/);
+    assert.match(r.stderr, /alpha, beta, full-access/);
   });
 
   test("non-interactive add without --tool fails with exit 2 and lists detected tools", () => {

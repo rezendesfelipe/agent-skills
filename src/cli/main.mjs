@@ -1,11 +1,12 @@
-// agent-skills command line: list, add and remove skills for supported tools.
+// agent-skills command line: list, add and remove skills and agents for supported tools.
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { TOOLS, TOOL_IDS, SCOPES, detectTools, overlaps } from "../lib/tools.mjs";
-import { findSkills } from "../lib/catalog.mjs";
-import { OK_STATUSES, PACKAGE_NAME, install, installedSkills, planTargets, remove } from "../lib/install.mjs";
+import { findCatalog } from "../lib/catalog.mjs";
+import { OK_STATUSES, PACKAGE_NAME } from "../lib/install.mjs";
+import { agentOverlapNotes, installedItems, planAdd, planRemove, runAdd, runRemove } from "../lib/operations.mjs";
 import * as prompts from "./prompt.mjs";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -17,24 +18,28 @@ class UsageError extends Error {}
 const HELP = `Usage: npx ${PACKAGE_NAME} <command> [options]
 
 Commands:
-  list                   Show every skill available in this repository
-  add [<skill>...]       Install skills into tools' skills folders
-  remove [<skill>...]    Remove skills that agent-skills installed
+  list                   Show every skill and agent available in this repository
+  add [<name>...]        Install skills (folders) and agents (converted files) for tools
+  remove [<name>...]     Remove skills and agents that agent-skills installed
 
 Options:
   --tool <ids>           Comma-separated tools: ${TOOL_IDS.join(", ")}
   --scope <scope>        user (default, home folder) or project (current folder)
-  --force                add: replace a skill folder that already exists
+  --force                add: replace a skill folder or agent file that already exists (an agent
+                         file agent-skills did not write is copied to <file>.bak first)
+                         remove: also delete an agent file that was edited after installation
+  --allow-broader-access add: install an agent for a tool that cannot restrict its tools the way the
+                         source asks (Codex always), without that restriction. Never implied by --yes
   --yes, -y              Skip the confirmation summary
   --dry-run              Show what would change, change nothing
   --json                 Print a JSON result on stdout, messages on stderr
   --help, -h             Show this help
   --version, -v          Show the version
 
-In a terminal, add and remove ask for any skill, tool or scope not given.
+In a terminal, add and remove ask for any name, tool or scope not given.
 
 Tools and folders (user scope | project scope):
-${TOOL_IDS.map((id) => `  ${id.padEnd(8)} ~/${TOOLS[id].user} | ./${TOOLS[id].project}`).join("\n")}
+${TOOL_IDS.map((id) => `  ${id.padEnd(8)} skills ~/${TOOLS[id].user} | ./${TOOLS[id].project}\n  ${"".padEnd(8)} agents ~/${TOOLS[id].agents.user} | ./${TOOLS[id].agents.project}`).join("\n")}
 `;
 
 /**
@@ -60,6 +65,7 @@ export async function main(argv, io = {}) {
         tool: { type: "string" },
         scope: { type: "string" },
         force: { type: "boolean", default: false },
+        "allow-broader-access": { type: "boolean", default: false },
         yes: { type: "boolean", short: "y", default: false },
         "dry-run": { type: "boolean", default: false },
         json: { type: "boolean", default: false },
@@ -72,7 +78,8 @@ export async function main(argv, io = {}) {
     return EXIT.USAGE;
   }
   const { values: opts, positionals } = args;
-  const [command, ...names] = positionals;
+  const [command, ...positionalNames] = positionals;
+  const names = [...new Set(positionalNames)];
   const json = opts.json;
   const say = (line) => (json ? stderr : stdout).write(line + "\n");
   const ask = { input: stdin, output: stderr };
@@ -83,16 +90,17 @@ export async function main(argv, io = {}) {
     return opts.help ? EXIT.OK : EXIT.USAGE;
   }
 
-  const catalog = findSkills(root);
-  const byName = new Map(catalog.map((s) => [s.name, s]));
+  const catalog = findCatalog(root);
+  const byName = new Map(catalog.map((i) => [i.name, i]));
 
   try {
     if (command === "list") {
-      if (json) stdout.write(JSON.stringify(catalog.map(({ name, plugin, description }) => ({ name, plugin, description }))) + "\n");
-      else if (!catalog.length) stdout.write("No skills available yet.\n");
+      if (json) stdout.write(JSON.stringify(catalog.map(({ kind, name, plugin, description }) => ({ kind, name, plugin, description }))) + "\n");
+      else if (!catalog.length) stdout.write("No skills or agents available yet.\n");
       else {
-        const width = Math.max(...catalog.map((s) => s.name.length));
-        for (const s of catalog) stdout.write(`${s.name.padEnd(width)}  ${s.plugin}  ${s.description}\n`);
+        const width = Math.max(...catalog.map((i) => i.name.length));
+        for (const i of catalog) stdout.write(`${i.kind.padEnd(5)}  ${i.name.padEnd(width)}  ${i.plugin}  ${i.description}\n`);
+        if (!catalog.some((i) => i.kind === "agent")) stdout.write("No agents available yet.\n");
       }
       return EXIT.OK;
     }
@@ -100,7 +108,7 @@ export async function main(argv, io = {}) {
 
     const unknown = names.filter((n) => !byName.has(n));
     if (unknown.length)
-      throw new UsageError(`Unknown skill: ${unknown.join(", ")}. Run "agent-skills list" to see the available skills.`);
+      throw new UsageError(`Unknown name: ${unknown.join(", ")}. No skill or agent has that name. Run "agent-skills list" to see what is available.`);
 
     // Tools
     let tools = opts.tool ? [...new Set(opts.tool.split(",").map((a) => a.trim()).filter(Boolean))] : null;
@@ -138,24 +146,26 @@ export async function main(argv, io = {}) {
         ],
       });
     };
-    const askSkills = async (choices, emptyMessage) => {
-      if (names.length) return names;
+    /** @returns {Promise<object[]|null>} chosen catalog items, [] when none, null when cancelled */
+    const askItems = async (choices, emptyMessage) => {
+      if (names.length) return names.map((n) => byName.get(n));
       if (!interactive)
         throw new UsageError(
-          `Missing skill name. Available skills: ${catalog.map((s) => s.name).join(", ") || "none"}.`,
+          `Missing skill or agent name. Available skills and agents: ${catalog.map((i) => i.name).join(", ") || "none"}.`,
         );
       if (!choices.length) return say(emptyMessage), [];
-      return prompts.checkbox({
+      const picked = await prompts.checkbox({
         ...ask,
-        message: command === "add" ? "Which skills do you want to install?" : "Which skills do you want to remove?",
-        choices: choices.map((s) => ({ value: s.name, label: s.name, hint: s.description })),
+        message: command === "add" ? "Which skills or agents do you want to install?" : "Which skills or agents do you want to remove?",
+        choices: choices.map((i) => ({ value: i.name, label: `[${i.kind}] ${i.name}`, hint: i.description })),
       });
+      return picked === null ? null : picked.map((n) => byName.get(n));
     };
 
-    let skills, scope;
+    let items, scope;
     if (command === "add") {
-      skills = await askSkills(catalog, "No skills available yet.");
-      if (skills === null || !skills.length) return cancelled(stderr, skills);
+      items = await askItems(catalog, "No skills or agents available yet.");
+      if (items === null || !items.length) return cancelled(stderr, items);
       tools = await askTools();
       if (tools === null || !tools.length) return cancelled(stderr, tools);
       scope = await askScope();
@@ -165,43 +175,64 @@ export async function main(argv, io = {}) {
       if (tools === null || !tools.length) return cancelled(stderr, tools);
       scope = await askScope();
       if (scope === null) return cancelled(stderr, null);
-      const installed = installedSkills(catalog, tools, scope, env);
-      skills = await askSkills(installed, `No skills installed by agent-skills for ${tools.join(", ")} at ${scope} scope.`);
-      if (skills === null) return cancelled(stderr, null);
-      if (!skills.length) {
+      const installed = installedItems(catalog, tools, scope, env);
+      items = await askItems(installed, `No skills or agents installed by agent-skills for ${tools.join(", ")} at ${scope} scope.`);
+      if (items === null) return cancelled(stderr, null);
+      if (!items.length) {
         if (installed.length) return cancelled(stderr, []);
         if (json) stdout.write(JSON.stringify({ ok: true, results: [], notes: [] }) + "\n");
         return EXIT.OK;
       }
     }
 
-    const targets = planTargets(skills.map((n) => byName.get(n)), tools, scope, env);
     const dryRun = opts["dry-run"];
+    const plan =
+      command === "add"
+        ? planAdd({ items, tools, scope, env, catalog, version, allowBroader: opts["allow-broader-access"], force: opts.force })
+        : planRemove({ items, tools, scope, env });
 
     if (interactive && !opts.yes && !dryRun) {
       const verb = command === "add" ? "Install" : "Remove";
-      stderr.write(`\n${verb} ${skills.length} skill(s) for ${tools.join(", ")} at ${scope} scope:\n`);
-      for (const t of targets) stderr.write(`  ${t.path}\n`);
+      stderr.write(`\n${verb} ${items.length} item(s) for ${tools.join(", ")} at ${scope} scope:\n`);
+      for (const e of plan) {
+        if (e.refused) stderr.write(`  refused  ${e.path}  (${e.refused})\n`);
+        else stderr.write(`  ${e.kind.padEnd(5)}  ${e.path}${e.dependency ? `  (skill needed by ${e.requiredBy.join(", ")})` : ""}\n`);
+      }
+      const broader = plan.filter((e) => e.conversion?.broadened);
+      if (broader.length) {
+        stderr.write("\nBroader access than the source asks (--allow-broader-access):\n");
+        for (const e of broader) stderr.write(`  ${e.name} for ${e.tools[0]}: ${e.conversion.broader}\n`);
+        stderr.write("\n");
+      }
       const ok = await prompts.confirm({ ...ask, message: "Continue?" });
       if (!ok) return cancelled(stderr, null);
     }
 
-    const results = targets.map((t) => {
-      const r = command === "add" ? install(t, { force: opts.force, dryRun, version }) : remove(t, { dryRun });
-      return { skill: t.skill.name, tools: t.tools, path: t.path, ...r };
-    });
+    const results =
+      command === "add" ? runAdd(plan, { force: opts.force, dryRun, version }) : runRemove(plan, { force: opts.force, dryRun });
     const ok = results.every((r) => OK_STATUSES.has(r.status));
 
     const notes = [];
-    if (command === "add" && results.some((r) => OK_STATUSES.has(r.status))) {
-      for (const o of overlaps(tools, scope))
-        notes.push(`${TOOLS[o.reader].label} also reads ${o.path}, so it may list skills installed for ${o.other} twice.`);
-      for (const a of tools) if (TOOLS[a].note) notes.push(TOOLS[a].note);
+    if (command === "add") {
+      const wrote = (kind) => results.some((r) => r.kind === kind && OK_STATUSES.has(r.status));
+      if (wrote("skill")) {
+        for (const o of overlaps(tools, scope))
+          notes.push(`${TOOLS[o.reader].label} also reads ${o.path}, so it may list skills installed for ${o.other} twice.`);
+        for (const a of tools) if (TOOLS[a].note) notes.push(TOOLS[a].note);
+      }
+      if (wrote("agent")) notes.push(...agentOverlapNotes(results, tools, scope));
     }
 
-    if (json) stdout.write(JSON.stringify({ ok, results, notes }) + "\n");
-    else {
-      for (const r of results) stdout.write(`${r.status.padEnd(13)} ${r.path}${r.message ? `  (${r.message})` : ""}\n`);
+    if (json) {
+      stdout.write(JSON.stringify({ ok, results: results.map(({ restricted, ...rest }) => rest), notes }) + "\n");
+    } else {
+      for (const r of results) {
+        stdout.write(`${r.status.padEnd(13)} ${r.path}${r.message ? `  (${r.message})` : ""}\n`);
+        const pad = " ".repeat(14);
+        if (r.dropped) stdout.write(`${pad}dropped for ${r.tools[0]}: ${r.dropped.join(", ")}\n`);
+        if (r.broader) stdout.write(`${pad}broader access: ${r.broader}\n`);
+        for (const n of r.notes ?? []) stdout.write(`${pad}note: ${n}\n`);
+      }
     }
     for (const n of notes) say(`note: ${n}`);
     return ok ? EXIT.OK : EXIT.FAILED;
@@ -219,4 +250,3 @@ function cancelled(stderr, value) {
   stderr.write(value === null ? "Cancelled.\n" : "Nothing selected. Cancelled.\n");
   return EXIT.FAILED;
 }
-
