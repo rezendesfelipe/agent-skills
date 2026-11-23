@@ -131,6 +131,59 @@ A capability SHALL count as published when its pull request is merged to `main`,
 - **WHEN** the maintainer explicitly approves a version for release
 - **THEN** one release change bumps the version and the maintainer's OK allows the `v<version>` tag that the publish workflow validates against `package.json`
 
+### Requirement: Repository protection as a release prerequisite
+The documentation SHALL record, as a checklist and as a prerequisite for any release automation, the recommended protection of the repository: required status checks that list every GitHub Actions job (`validate`; `test` on ubuntu, macos and windows with Node 20, 22 and 24; `docs-generator` on Node 20 and 24; `azure-terraform-stacks` on Node 20 and 24; `azure-terraform-stacks-deep`), CodeQL enabled through the default setup for the languages `actions` and `javascript-typescript` so that a `code_scanning` rule can be satisfied, administrator bypass of the `main` ruleset limited to the mode `pull_request` and not `always`, and a tag ruleset on `refs/tags/v*` that restricts creation, update and deletion. The documentation SHALL state the measured state at the time of writing, SHALL state that these rules prevent accidents and shortcuts but not a hostile agent while agents act under the maintainer's administrator identity, SHALL recommend a separate identity for the agents (a GitHub App or a bot account without administrator permission and without the right to create tags) as a future change, and SHALL recommend a protected GitHub environment with a required reviewer on the npm publish job as an extra gate that needs a separate workflow change. Changes to the repository ruleset SHALL be applied by the maintainer and SHALL NOT be part of this change's diff.
+
+#### Scenario: Checklist without claims of enforcement
+- **WHEN** a contributor reads the protection section
+- **THEN** it lists the five recommended items and the honest limit, and it does not claim that the rules stop an agent acting with administrator rights
+
+#### Scenario: Empty required checks
+- **WHEN** the ruleset's required status checks list is empty
+- **THEN** the documentation does not treat "green CI" as enforced by the repository, and release automation is not built
+
+#### Scenario: Tags immutable
+- **WHEN** the tag ruleset on `refs/tags/v*` is in place
+- **THEN** a published tag cannot be moved or deleted and a new `v*` tag cannot be created without the maintainer
+
+#### Scenario: Agents change the ruleset
+- **WHEN** an agent is asked to edit the repository ruleset
+- **THEN** it does not do it and refers the maintainer to the checklist
+
+### Requirement: Engagement workspaces
+The documentation SHALL define **engagement** as a client project and **workspace** as the isolated area that holds the client's artifacts, the state of the runs, the reports, credentials scoped to that client only, an audit log and a retention and disposal policy. It SHALL record the decision that each engagement uses its own private repository created from a template, the alternative that was rejected (a private monorepo with a folder per engagement, because of the risk of leaking between clients and all-or-nothing access), and that the skills and agents of this public repository are installed into an engagement repository by the CLI while nothing of the client enters this repository. Creating the template SHALL NOT be part of this change; it SHALL be recorded as a future change.
+
+#### Scenario: Where client material goes
+- **WHEN** a contributor asks where a client's artifacts, credentials or reports belong
+- **THEN** the documentation points to the engagement's own private repository and says that nothing of the client enters this repository
+
+#### Scenario: Template not created
+- **WHEN** this change is implemented
+- **THEN** no engagement template or workspace exists in this repository, and the documentation lists the template as a future change
+
+### Requirement: Context budget
+Every capability of the catalog (a skill or an agent) SHALL have a loaded-context cost measured in tokens and a declared budget: for a skill, what is loaded when it triggers; for an agent, the size of the agent file plus what it pre-loads through `skills:`. A deterministic helper SHALL compare the measured cost with the declared budget and fail when the cost exceeds it. The requirement is tool-agnostic: when an API key is available, the official token counting of the Anthropic Messages API for the named model is the reference (run manually and locally); in CI without a key, an offline estimate MAY be used and SHALL be labeled as an approximation. An estimate SHALL NOT be presented as an exact measure, and the method used (including the model for an official count) SHALL be recorded next to every number. The repository SHALL NOT add a runtime dependency for this purpose.
+
+#### Scenario: Method recorded
+- **WHEN** the helper reports a cost
+- **THEN** the number is shown together with its method, for example `official:<model>` or `estimate:bytes/4`
+
+#### Scenario: Estimate never exact
+- **WHEN** the cost comes from the offline estimate
+- **THEN** the report labels it as an approximation and the budget check applies the declared margin
+
+#### Scenario: Over budget
+- **WHEN** a capability's measured cost is above its declared budget
+- **THEN** the helper exits with a failure and names the capability, the cost, the budget and the method
+
+#### Scenario: No key in CI
+- **WHEN** CI runs without an API key
+- **THEN** the helper uses the labeled estimate and does not call the API
+
+#### Scenario: No new dependency
+- **WHEN** the helper is implemented
+- **THEN** `package.json` gains no runtime dependency for tokenizing
+
 ### Requirement: Branch and pull request discipline
 Every change SHALL use its own branch named `claude/<change-name>` and a pull request opened as a draft. Agents MUST NOT push to `main`, force-push to `main`, or push to a branch whose name does not start with `claude/`. A pull request SHALL leave draft state only after `test-and-validate` passes; marking it ready for review does not authorize merge. Commits SHALL follow Conventional Commits.
 

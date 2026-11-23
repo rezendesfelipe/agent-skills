@@ -20,8 +20,8 @@ For a consultancy that delivers assessments, architectures and platforms to thir
 | Verifiable evidence | A finding is only a finding if it points to evidence; the rest is "not verified" | The level 2 verifier node and the evidence rule |
 | Governance | Who may write where, when an agent must stop and ask, who decides | Roles, read-only defaults, the two human gates |
 | Audit trail | Who did what, which verdict, how many cycles, per engagement | Pull requests, labels, commits, tasks |
-| Multi-client isolation | Client context and data stay inside one engagement | **Not provided by this repository** (see gaps) |
-| Deliverables | Reports and artifacts handed to the client | `assessment-report` (approved, merged, change `add-assessment-report-skill`) |
+| Multi-client isolation | Client context and data stay inside one engagement | **Not provided by this repository.** Decided: one private repository per engagement, created from a template (Decision 13); the template is a future change |
+| Deliverables | Reports and artifacts handed to the client | `assessment-report` (in `main`, change `add-assessment-report-skill`) |
 
 The repository is public (MIT). Client data, client context and engagement outputs therefore **do not belong in it**; the repository holds the reusable catalog and the delivery process, and engagement workspaces are separate.
 
@@ -32,7 +32,7 @@ The repository is public (MIT). Client data, client context and engagement outpu
 | Tooling (IDP planes, CI, as-code configuration) | GitHub, GitHub Actions, the OpenSpec CLI, `scripts/`, `.github/workflows/` |
 | Path specifications, deterministic | CI checks, `openspec validate`, the scope and evidence helper |
 | Path specifications, probabilistic and hybrid | The delivery graph of this change: agent nodes `propose`, `apply`, `review` followed by deterministic gates |
-| Harness, capability (skills, tools, registries) | The marketplace, skills, and custom agents (change `add-custom-agents`, approved and merged) |
+| Harness, capability (skills, tools, registries) | The marketplace, skills, and custom agents (change `add-custom-agents`, in `main` and already implemented in `src/`) |
 | Harness, evaluation | CI, the independent reviewer, the verifier node with the evidence rule |
 | Harness, execution (orchestration) | Claude Code sessions and subagents, OpenSpec CLI, scripts, CI; **no graph runtime** (Decision 11) |
 | Governance, agent security | Read-only defaults, tool allowlists, the CLI's `refused` status, human gates |
@@ -61,6 +61,9 @@ The framing that fits is **graph engineering** (Runkle and Chase, ["3 years of g
 - **Roles and permissions:** proposal author (writes only under `openspec/changes/<name>/`), implementer (the change's own worktree), reviewer (read-only, fresh context), integrator (acts only on an approved verdict and green CI).
 - **Graph state** lives in three places that already exist: `tasks.md` checkboxes, the pull request (draft state, labels, review verdict) and `.openspec.yaml`.
 - **Parallelism:** one worktree per change, rebase before merge, and a rule for the shared files (`README.md`, `.claude-plugin/marketplace.json`, `package.json`); the version bump happens only at release.
+- **Release prerequisites and the limit of enforcement:** the recommended protection of `main` and of the `v*` tags, the real measured state, the honest limit of administrator identity, and the extra publish gate are recorded as a checklist (spec requirement `Repository protection as a release prerequisite`). The ruleset edits themselves are applied by the maintainer, outside this diff.
+- **Engagement workspaces:** terms and the decision (one private repository per engagement, from a template) are recorded as a documentation requirement; nothing of a client enters this repository.
+- **Context budget:** every skill and agent has a measured context cost in tokens and a declared budget, checked by a deterministic helper; the method is tool-agnostic and the number always carries its method (spec requirement `Context budget`).
 - **Documentation and a diagram:** the graph is documented for contributors (`CONTRIBUTING.md` and a page under `docs/`), with a Mermaid diagram in this change's `design.md` and an editable draw.io source in the design system's palette (a task of this change; the `.drawio` file is not generated now). A small deterministic helper checks the parts of the graph that can be checked from the repository alone.
 
 ## Capabilities
@@ -71,17 +74,18 @@ The framing that fits is **graph engineering** (Runkle and Chase, ["3 years of g
 ### Modified Capabilities
 - None. `contribution-workflow` stays as it is: its "Spec-first changes" requirement is compatible with this graph. `CONTRIBUTING.md` (not a spec) is updated at apply, notably the step that says the maintainer runs the archive, which decision (a) replaces.
 
-## Decisions that need the maintainer's approval at gate 1
+## Maintainer decisions recorded
 
-Decisions (a) to (d) above were taken by the maintainer and are written down as requirements. The following are **proposals of this change**, not decided yet (see `design.md`, Open Questions):
+Gate 1 was approved with the edits below. Decisions (a) to (d) above and the defaults (1), (2), (4) and (5) were already written into the spec. The maintainer has now also decided the following; they are recorded in `design.md` (Decisions 7, 12 to 15 and Decision 11) and in the spec.
 
-Defaults already approved by the maintainer and written into the spec and design: (1) the same bound of 3 cycles for `propose`/`validate`; (2) the review verdict carried as a pull request label plus a verdict comment; (4) the deterministic helper `delivery-check` runs in `validate.yml`, as an implementation task (no workflow is edited now); (5) documentation-only fixes do not skip `propose`.
+1. **Protection of `main` and of the `v*` tags (recommended configuration, a release prerequisite).** The maintainer created the ruleset `main-protection`. What was measured on 2026-11-23: it has the rules `deletion`, `non_fast_forward`, `required_status_checks` with an **empty** list (strict `true`), `code_scanning` (CodeQL, `high_or_higher`) although the CodeQL default setup is `not-configured` (so the rule would block any pull request without a bypass), `pull_request` with 0 required approvals, an administrator bypass in mode `always`, and **no ruleset for tags** (the tags `v0.2.0` to `v0.5.0` exist). This change records the **recommended** configuration (required checks listing the 15 Actions jobs, CodeQL enabled, administrator bypass limited to `pull_request`, a tag ruleset for `refs/tags/v*`), the honest limit (agents act under the maintainer's administrator identity, so the rules prevent accidents and shortcuts, not a hostile agent; real separation needs an identity of their own, recommended as a future change) and one extra recommended gate (a GitHub environment with a required reviewer on the npm publish job; a separate workflow change). The ruleset edits are repository configuration that the maintainer applies; the payloads exist in the maintainer's session; they are **not part of this diff**.
+2. **Release queue:** accepted. It is derived from `git log` since the last tag and the archived changes, with no extra file.
+3. **Roles as installable subagents:** approved as its own future change, triggered after the agents CLI release and the `stacks-auditor` fix, with the **independent reviewer (read-only)** as the first role. The implementer and the integrator, which write, come later.
+4. **Engagement workspaces:** decided as **one private repository per engagement, created from a template**. Terms are defined in `design.md` (Decision 13). The template is a future change, not created here.
+5. **Reevaluation thresholds of the graph runtime decision:** accepted as a starting point (5 changes in flight, 2 resume failures, a quarter of the last 20 changes).
+6. **New concept, the context budget:** every capability (skill or agent) has a measured loaded-context cost in tokens and a declared budget, checked by a deterministic helper. The counting method is defined in a tool-agnostic way and grounded in the current Anthropic documentation (Decision 14 and the spec requirement `Context budget`).
 
-Still without a maintainer decision, recorded as **recommendations and prerequisites**:
-
-3. **Integrator identity and protection of `main` and of the `v*` tags.** Recommendation: a separate integrator identity, branch protection on `main` (required checks `validate` and `test`, no direct pushes) and tag protection for `v*`, all in place **before any release automation**. These are repository settings that only the maintainer can change.
-6. **Release queue.** Recommendation: derive it from `git log` since the last tag and the archived changes, with no extra file; revisit if it proves too coarse.
-7. **Roles as installable subagents.** Recommendation: a later, separate change; out of scope here.
+Related changes, referenced and not duplicated: `add-assessment-report-skill` and `add-custom-agents` are in `main` (the second is implemented in `src/`); `fix-stacks-auditor-agent` (pull request #17) is approved and in implementation.
 
 ## Non-goals
 
@@ -92,7 +96,10 @@ Still without a maintainer decision, recorded as **recommendations and prerequis
 - Storing client data, client context or engagement outputs in this public repository.
 - Autonomous release. Tags, version bumps and npm publication always need the maintainer's explicit OK.
 - Replacing the maintainer's judgment at gate 1 or gate 2, or letting an agent approve its own work.
-- Turning the roles into installable subagents or plugins. Role instructions are documented; packaging them is a later change.
+- Turning the roles into installable subagents or plugins. Role instructions are documented; packaging them is a later, separate change, triggered after the agents CLI release and the `stacks-auditor` fix, starting with the read-only independent reviewer.
+- Creating the engagement repository template, or any engagement workspace. Only the term and the decision are recorded; the template is a future change.
+- Applying the repository ruleset edits, creating a GitHub App or a bot account for the agents, or editing `publish.yml` to add a protected environment and a trusted publisher. These are configuration or separate changes; this diff documents them as recommendations.
+- Adding a runtime dependency (a tokenizer package or an API client) to the repository for the context budget. The helper uses what exists; an official count needs an API key and is run manually and locally.
 - Evals for individual skills, the CLI's `refused` semantics, or a registry of agent outputs. Those are other parts of the AEP programme.
 - Changing `publish.yml`, `validate.yml`, `package.json` or `.claude-plugin/marketplace.json` in this change.
 - Content in Portuguese: spec text is in English per repository rules.
@@ -100,7 +107,7 @@ Still without a maintainer decision, recorded as **recommendations and prerequis
 ## Impact
 
 - New in this change: only `openspec/changes/define-aep-delivery-graph/` (proposal, design, tasks, one spec, `.openspec.yaml`).
-- At apply (not now): `CONTRIBUTING.md` (delivery graph section, archive step), a page under `docs/aep/` with the diagram and the role instructions, `docs/aep/delivery-graph.drawio`, a helper script and its tests, and a pull request template. Labels and branch protection are GitHub settings that the maintainer sets or confirms.
+- At apply (not now): `CONTRIBUTING.md` (delivery graph section, archive step), a page under `docs/aep/` with the diagram and the role instructions, `docs/aep/delivery-graph.drawio`, a helper script and its tests (including the context budget check and its declared budgets), a pull request template, and the documentation of the protection checklist and of the engagement workspace decision. Labels, the ruleset and the CodeQL setup are GitHub settings that the maintainer sets or confirms.
 - No new runtime dependency and no change to the published npm package.
-- Related changes already approved and merged to `main`, referenced and not duplicated: `add-assessment-report-skill` (a deliverable skill) and `add-custom-agents` (revised; custom agents as catalog capabilities).
+- Related changes, referenced and not duplicated: `add-assessment-report-skill` (a deliverable skill, in `main`), `add-custom-agents` (custom agents as catalog capabilities, in `main` and implemented in `src/`) and `fix-stacks-auditor-agent` (pull request #17, approved, in implementation).
 - Spec effect at archive: a new `openspec/specs/aep-delivery-graph/spec.md`.

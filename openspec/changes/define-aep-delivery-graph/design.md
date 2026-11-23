@@ -1,6 +1,6 @@
 ## Context
 
-Motivation and scope: see `proposal.md`. Required behavior: `specs/aep-delivery-graph/spec.md`. Today the flow is prose in `CONTRIBUTING.md` plus the maintainer's habits; `.github/workflows/validate.yml` runs `scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict --no-interactive` (OpenSpec pinned at 1.7.0), and `.github/workflows/publish.yml` publishes to npm with provenance when a `v*` tag is pushed, after checking that the tag matches `package.json`. The repository has no pull request template and no branch protection recorded in files.
+Motivation and scope: see `proposal.md`. Required behavior: `specs/aep-delivery-graph/spec.md`. Today the flow is prose in `CONTRIBUTING.md` plus the maintainer's habits; `.github/workflows/validate.yml` runs `scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict --no-interactive` (OpenSpec pinned at 1.7.0), and `.github/workflows/publish.yml` publishes to npm with provenance when a `v*` tag is pushed, after checking that the tag matches `package.json`. The repository has no pull request template. Branch protection is a GitHub ruleset, not a file; its measured state on 2026-11-23 is in Decision 12.
 
 **Working definition, with sources.** "AEP" here means an Agentic Engineering Platform and stays a **working definition of this project**. It is anchored in two sources and adapted by us; the line between the two is kept explicit.
 
@@ -99,7 +99,7 @@ Enforcement is layered and honest: what is **enforced by tools** (the reviewer's
 
 **6. Parallelism, expressed as fan-out.** Changes are independent branches, so the delivery graph is run once per change, in its own worktree. This is the article's dynamic fan-out in a simple form: the number of changes in flight is only known at runtime, and each runs the same subgraph. The reduce step is the merge queue: changes merge one at a time, each rebased on `main` and re-validated, so the specs under `openspec/specs/` stay consistent. Shared files: `README.md` (catalog rows) and `marketplace.json` (plugin entries) take additive, per-change edits that rebase mechanically; `package.json`'s `version` is changed only by a release change after gate 2, so two feature changes never conflict on it. *Alternative:* serialize all changes (rejected: wastes the parallelism that agents give); bump versions per change (rejected: conflicts and implies a release that gate 2 has not approved).
 
-**7. Published is "merged"; release is a batch behind gate 2.** Merging to `main` makes plugins available in the marketplace, so for skills and agents "published" is satisfied at merge. The npm package (`agent-skills` CLI) is different: `publish.yml` publishes with provenance when a `v*` tag is pushed. A tag is irreversible in practice (a published npm version cannot be reused), so it needs an explicit OK that names the version. The release queue is the list of changes merged since the last tag; at this change's apply it is derived from `git log` since the last tag and the archived changes, with no extra file. *Alternative:* release on every merge (rejected by the maintainer's decision (b)).
+**7. Published is "merged"; release is a batch behind gate 2.** Merging to `main` makes plugins available in the marketplace, so for skills and agents "published" is satisfied at merge. The npm package (`agent-skills` CLI) is different: `publish.yml` publishes with provenance when a `v*` tag is pushed. A tag is irreversible in practice (a published npm version cannot be reused), so it needs an explicit OK that names the version. The release queue is the list of changes merged since the last tag; the maintainer **accepted** deriving it from `git log` since the last tag and the archived changes, with no extra file. *Alternative:* release on every merge (rejected by the maintainer's decision (b)).
 
 **8. Level 2: each agent has a graph.** In `design.md` a new agent or skill lists nodes with a type (fixed code, model call, agent), edges (deterministic or conditional), state, cycles with limits and human interruptions. For an agent that produces findings, the graph ends with a **verifier node that is code, not a model**: it checks that each finding has `file:line` evidence and that the file exists and has that line (and, where cheap, that the cited text matches). This is the generalization of what the `stacks-auditor` already does with its engine: the model reads, the engine reports with evidence. Output with no evidence is dropped or marked "not verified" and never counts toward a verdict. Example, for an auditor-style agent:
 
@@ -138,7 +138,47 @@ Alternatives considered. Pros and cons marked "(ours)" are our own assessment; t
 4. **Escalation rate.** More than a quarter of the last 20 merged changes exhausted the 3-cycle limit, which suggests the bounds need mechanical enforcement.
 5. **Engagement audit.** A consultancy engagement needs an audit trail or enforcement that git and pull requests cannot provide.
 
-The thresholds are starting values for the maintainer to adjust, not measured quantities. No criterion commits the project to adopting a runtime.
+The maintainer accepted the thresholds as a starting point; they are not measured quantities and can be adjusted later. No criterion commits the project to adopting a runtime.
+
+**12. Protection of `main` and of the tags, as a recommended release prerequisite.** Measured on 2026-11-23, the ruleset `main-protection` (branch) has: `deletion`; `non_fast_forward`; `required_status_checks` with an **empty** list and strict `true`; `code_scanning` (CodeQL, `high_or_higher`) while the CodeQL default setup is `not-configured`, so the rule would block any pull request that has no bypass; `pull_request` with 0 required approvals; an administrator bypass in mode `always`. There is **no ruleset for tags**, and the tags `v0.2.0` to `v0.5.0` exist. Because the checks list is empty, the protection does not yet stop a red pull request, and the `always` bypass lets an administrator push to `main` directly.
+
+*Recommended configuration (documented here, applied by the maintainer, not part of this diff):*
+
+| Item | Recommended | Why |
+|---|---|---|
+| Required status checks | List the 15 Actions jobs: `validate`; `test` on ubuntu, macos and windows with Node 20, 22 and 24 (9 jobs); `docs-generator` on Node 20 and 24; `azure-terraform-stacks` on Node 20 and 24; `azure-terraform-stacks-deep` | An empty list makes "green CI" in the graph meaningless. The exact check names are confirmed from a recent run before saving the ruleset |
+| CodeQL | Enable the default setup with languages `actions` and `javascript-typescript` | Makes the `code_scanning` rule satisfiable, so it does not block every pull request |
+| Administrator bypass | Mode `pull_request`, not `always` | An administrator may bypass through a pull request but cannot push straight to `main` |
+| Tag ruleset | A ruleset on `refs/tags/v*` restricting creation, update and deletion | Published tags are immutable, and a tag (which triggers `publish.yml`) cannot be created by accident |
+| Publish gate (extra) | A GitHub environment with a required reviewer on the npm publish job | A second human check before an irreversible publish. It needs edits to `publish.yml` and the trusted publisher configuration: a separate workflow change, outside this one |
+
+*Honest limit.* The agents act under the maintainer's identity, who is an administrator. These rules prevent accidents and shortcuts (a direct push, a retagged release, a merge with a red check); they do **not** stop a hostile or compromised agent, because the same identity can edit the ruleset. Real separation needs an identity of its own for the agents (a GitHub App or a bot account without administrator permission and without the right to create tags). This is recommended as a future change, and it is the condition under which release automation could be considered. Until then, release stays behind gate 2 and manual.
+
+*Alternative:* leave protection undocumented and rely on instructions (rejected: the graph's "green CI" and "no push to `main`" claims would rest on nothing). *Alternative:* require approvals (rejected for now: a single maintainer cannot approve their own pull request, and 0 approvals is a deliberate setting).
+
+**13. Engagement workspaces: one private repository per engagement, from a template.** Terms. **Engagement**: a client project (an assessment, a design, a delivery). **Workspace**: the isolated area that holds everything of one engagement: the client's artifacts, the state of the runs, the reports, credentials scoped to that client only, an audit log, and a retention and disposal policy. Decision: each engagement gets its own **private repository**, created from a template. The skills and agents of this public repository are **installed into it by the CLI**; nothing of the client enters this repository, and the template is not stored here yet.
+
+| Option | Pros | Cons |
+|---|---|---|
+| A. One private repository per engagement, from a template (chosen) | Access, credentials, audit log and disposal are per client; the repository can be archived or deleted when the engagement ends; the catalog stays public and generic | A template to maintain (a future change); several repositories to administer; updates to the catalog are pulled by the CLI, not shared by git |
+| B. One private monorepo with a folder per engagement (rejected) | One place to administer | Risk of leaking one client's data to another (a wrong path, a shared search or context, an agent with the whole tree); access is all or nothing; disposal of one client means rewriting history |
+| C. Engagement data inside this public repository (rejected) | Simplest | Violates confidentiality; the repository is public and MIT |
+
+This change **does not create the template** (out of scope). It is a future change, listed in Open Questions. The per-engagement isolation gap stays listed as a gap of this repository; the decision says where it will be closed, not that it is.
+
+**14. Context budget, measured with a tokenizer.** Every capability (a skill or an agent) has a **loaded-context cost** in tokens and a **declared budget**. What counts: for a skill, what Claude loads when it triggers (its `SKILL.md`, and referenced files that are loaded with it); for an agent, the size of the agent file itself plus what it pre-loads through `skills:`. A deterministic helper compares the measured cost with the declared budget and fails when the cost is above it.
+
+*What the official documentation says (read on 2026-11-23, [token counting](https://platform.claude.com/docs/en/build-with-claude/token-counting)):* the Messages API has a token counting endpoint (`/v1/messages/count_tokens`) that takes the same inputs as message creation (system prompt, tools, images, PDFs) and returns `input_tokens`; the page shows requests with an `x-api-key` header, so **it needs an API key**; counting is **free** but subject to requests-per-minute limits by usage tier (5,000, 10,000 and 20,000 for the Start, Build and Scale tiers); the count is described as **an estimate** that can differ by a small amount from the real use, and may include tokens added by Anthropic that are not billed; the count is made under the tokenizer of the `model` passed, and Claude 4.7 and later models use a newer tokenizer that produces **about 30 percent more tokens** than earlier models for the same text, so counts must be redone for the model that will be used. The page names no offline tokenizer.
+
+*Offline option (read on the same date, [README of `anthropic-tokenizer-typescript`](https://github.com/anthropics/anthropic-tokenizer-typescript), the source of the npm package `@anthropic-ai/tokenizer`):* it says the algorithm is no longer accurate from the Claude 3 models and "can be used as a very rough approximation", and suggests relying on `usage` in the response body. The repository is archived (read-only) per the GitHub page. So there is **no accurate offline tokenizer for current models** in what was read, and this package is not used. What was not read: the npm package page itself (only the registry listing of its versions, latest `0.0.4`), and the API reference page of `count_tokens` (the token counting guide links to it).
+
+*Method, tool-agnostic.* The requirement does not name a tool. (1) **Official count**: when an API key is available (for example run manually and locally by the maintainer), the endpoint above, with the model named. (2) **Offline estimate**: in CI without a key, an approximation (for example bytes divided by 4), always **labeled as an approximation**. (3) **Never** present the estimate as an exact measure, and **always record the method next to each number** (`official:<model>` or `estimate:bytes/4`, with the date). A budget check in CI uses the estimate with a stated margin; the official count is the reference when disputed. No runtime dependency is added to the repository.
+
+*Example only, not a measurement:* `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md` has 12,258 bytes in `main`, which is about 3,065 tokens by the bytes/4 estimate (`estimate:bytes/4`). Given the roughly 30 percent difference between tokenizer generations, the real figure for a current model may be higher. The real measurement uses the method defined above.
+
+*Alternative:* adopt the npm tokenizer package in CI (rejected: not accurate for current models per its own README, and it adds a dependency). *Alternative:* no budget (rejected: pre-loading skills through an agent's `skills:` has a cost that nothing makes visible).
+
+**15. Roles as installable subagents: a future change with a trigger.** Approved as its own later change. Trigger: after the release of the agents CLI and after the `stacks-auditor` fix (pull request #17) is merged. The first role is the **independent reviewer**, which is read-only and so does not need an identity that can write. The implementer and the integrator, which write, come later, and depend on the agent identity of Decision 12.
 
 ## Risks / Trade-offs
 
@@ -148,6 +188,9 @@ The thresholds are starting values for the maintainer to adjust, not measured qu
 - [Roles are instructions, and `Bash` can change files despite allowlists] → The scope check and CI catch writes outside scope on the branch; the roles page states what is and is not enforced; only repository settings give a hard guarantee.
 - [Process overhead for tiny changes (a typo)] → Level 1 applies to changes under `openspec/`, `plugins/`, `src/` and workflows; the maintainer decided that documentation-only fixes do not skip `propose`, so even a typo fix has a branch, a draft pull request, review and CI; the cost is accepted, and the proposal for such a change can be a few lines.
 - [The article is a vendor's blog about its own framework] → Used only for framing (nodes, edges, cycles, fan-out, graph versus harness), not for claims about effectiveness; the spec makes no such claim.
+- [Protection rules are applied by the maintainer, and the maintainer's identity can change them] → Stated as the honest limit in Decision 12; the rules are documented as a checklist, and separation needs an identity of the agents' own.
+- [The context estimate is approximate and tokenizers differ across model generations] → Every number carries its method; CI uses a labeled estimate with a margin and never claims exactness; the official count is the reference.
+- [A repository per engagement multiplies administration] → Accepted for isolation; a template (future change) keeps setup uniform.
 - [Release queue derived from `git log` is approximate] → It lists merged changes since the last tag; the maintainer still approves a named version at gate 2.
 
 ## Migration Plan
@@ -159,12 +202,13 @@ The thresholds are starting values for the maintainer to adjust, not measured qu
 
 ## Open Questions
 
-Resolved by the maintainer (defaults approved, now in the spec): (1) the same 3-cycle bound for `propose`/`validate`; (2) the verdict as a pull request label plus a comment; (4) the `delivery-check` helper runs in `validate.yml`, as an implementation task; (5) documentation-only fixes do not skip `propose`.
+Resolved by the maintainer (now in the spec and in Decisions 7, 11 to 15): (1) the same 3-cycle bound for `propose`/`validate`; (2) the verdict as a pull request label plus a comment; (4) the `delivery-check` helper runs in `validate.yml`, as an implementation task; (5) documentation-only fixes do not skip `propose`; (6) the release queue is derived from `git log`; (7) roles as installable subagents are a future change with a trigger; (8) engagement workspaces are one private repository per engagement; (9) the reevaluation thresholds are accepted as a starting point.
 
-Still open, with a recommendation:
+Still open (future changes or maintainer actions, none blocks this change):
 
-3. **Integrator identity and protection of `main` and `v*` tags.** Recommendation and prerequisite for any release automation: a separate integrator identity, branch protection on `main` (required checks, no direct pushes) and tag protection for `v*`. A repository setting that only the maintainer can change.
-6. **Release queue location.** Recommendation: derive it from `git log` since the last tag; add a file such as `CHANGELOG.md` only if that proves too coarse.
-7. **Roles as installable subagents.** Recommendation: a separate later change, out of scope here.
-8. **Consultancy isolation.** Where do engagement workspaces live, and how are they kept apart from this public catalog? Not decided and not designed here; listed so the gap is visible.
-9. **Reevaluation thresholds.** Are the starting values in Decision 11 (5 changes in flight, 2 resume failures, a quarter of the last 20 changes) acceptable to the maintainer?
+- **Applying the protection checklist** (Decision 12): the maintainer edits the ruleset, enables CodeQL and adds the tag ruleset; the exact check names are confirmed from a CI run.
+- **Agent identity** (a GitHub App or a bot account without administrator or tag rights): a future change; the condition for any release automation.
+- **Protected publish environment** (`publish.yml` and the trusted publisher): a separate workflow change.
+- **Engagement repository template**: a future change.
+- **Roles as subagents, starting with the reviewer**: a future change after the agents CLI release and the `stacks-auditor` fix.
+- **Where the declared context budgets live** (a committed file, or a field next to each capability) and the margin used by the CI estimate: decided at apply, task 3.4.
