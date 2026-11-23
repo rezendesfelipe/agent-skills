@@ -10,7 +10,7 @@ Each group ends with how to verify it. Paths refer to the repository at 0.5.0.
 - [x] 1.1 Add `templates/agent/agent-name.md`: a valid, read-only agent (`tools: Read, Grep, Glob`, `model: inherit`) whose body has the "Rules you never break", "Findings" (each with `file:line`) and "Not verified" sections. **Verify:** `validateRepo` accepts the template under its placeholder name and a test fails if its effective tools contain `Edit`, `Write`, `Bash` or `NotebookEdit`.
 - [x] 1.2 Add agent fixtures under `test/fixtures/repo/plugins/demo/agents/` (unrestricted, read-only `tools: Read, Grep`, `model: haiku` with a Claude-only field, one with `skills: [alpha]`, one with an MCP tool, one with a `Bash(...)` entry in `disallowedTools`, and bad ones for `hooks`, `mcpServers`, `permissionMode` and `initialPrompt`, a reserved name, a newline in the description). **Verify:** each fixture is used by at least one test named in tasks 3 to 6. *Implementation note: the bad fixtures live in `test/fixtures/bad-agents/` (not under `repo/plugins/demo/agents/`) so they do not appear in the fixture catalog that the CLI tests list and navigate; the reserved-name case is also tested without a file named `aux.md`, which Windows cannot check out.*
 - [x] 1.3 Add `plugins/*/agents/**` to the `files` whitelist in `package.json`, and add every new test file to the explicit file list of the `test` script. **Verify:** `npm test` runs the new files (the count of test files in the output grows), and `npm pack --dry-run` lists `plugins/azure-terraform-stacks/agents/stacks-auditor.md`.
-- [ ] 1.4 Add `.gitattributes` with `test/fixtures/** text eol=lf` (and the golden files' folder). **Verify:** on the Windows job of the `test` matrix the golden-file tests pass.
+- [x] 1.4 Add `.gitattributes` with `test/fixtures/** text eol=lf` (and the golden files' folder). **Verify:** on the Windows job of the `test` matrix the golden-file tests pass.
 
 ## 2. Parsing and catalog
 
@@ -31,7 +31,7 @@ Each group ends with how to verify it. Paths refer to the repository at 0.5.0.
 - [x] 4.4 Dropped-field and note reporting (`model`, Claude-only fields, Cursor read-only note, overlap warning). **Verify:** tests on the text output and on `--json`.
 - [x] 4.5 One serializer for YAML scalars (JSON-style quoting, escaping U+0085, U+2028, U+2029) and TOML basic and multi-line strings, and a test-side decoder for the emitted subset. **Verify:** hostile-value tests from the "Values are escaped" requirement for every tool, and prompts with quotes, backslashes, `"""`, control characters and a trailing backslash round-trip exactly.
 - [x] 4.6 Marker line with the SHA-256 of the LF-normalized preceding content, optional `broadened=tools`, strict parsing. **Verify:** tests for valid, malformed, CRLF-only change, edited and forged-hash cases.
-- [ ] 4.7 Golden-file tests per tool and one test per scenario in `specs/agent-conversion/spec.md`. **Verify:** `npm test` on Ubuntu, macOS and Windows runners.
+- [x] 4.7 Golden-file tests per tool and one test per scenario in `specs/agent-conversion/spec.md`. **Verify:** `npm test` on Ubuntu, macOS and Windows runners.
 
 ## 5. Install and remove
 
@@ -57,7 +57,7 @@ Each group ends with how to verify it. Paths refer to the repository at 0.5.0.
 
 ## 8. Verification
 
-- [ ] 8.1 Run `npm test`, `node scripts/validate-skills.mjs` and `npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive`. **Verify:** all pass locally and in the `validate` workflow, including Windows and Node 20, 22 and 24.
+- [x] 8.1 Run `npm test`, `node scripts/validate-skills.mjs` and `npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive`. **Verify:** all pass locally and in the `validate` workflow, including Windows and Node 20, 22 and 24.
 - [x] 8.2 Check `npm pack --dry-run` contents with an agent fixture present, and confirm the marketplace manifest still lists every plugin (no new plugin is added by this change). **Verify:** the agent files are in the list; `validate-skills` passes.
 
 ## 9. Release
