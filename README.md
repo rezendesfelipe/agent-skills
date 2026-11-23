@@ -51,15 +51,15 @@ If an agent lists `skills`, installing it also installs those skills for the sam
 
 **Permissions are never silently widened.** Every agent declares the `tools` it may use. The CLI carries that restriction only where the tool can express it, and otherwise refuses to install the agent for that tool, writes nothing, and exits with a non-zero code.
 
-| Tool | Tool restriction | Written as |
+| Tool | Can express the restriction | Written as |
 |-------|------------------|------------|
-| Claude Code | yes | the source `tools` and `disallowedTools`, unchanged |
-| Gemini CLI | yes, for the eight tools below | `tools`, translated to Gemini names (`read_file`, `grep_search`, `glob`, `replace`, `write_file`, `run_shell_command`, `web_fetch`, `google_web_search`) |
-| GitHub Copilot | yes, for the eight tools below | `tools`, with Claude Code's names (Copilot accepts them as aliases) |
-| Cursor | only a read-only agent | `readonly: true`; Cursor's read-only mode also allows commands that do not change state |
-| OpenAI Codex | **no** | nothing is expressible, so every agent that restricts its tools is refused |
+| Claude Code | yes, documented by the vendor | the source `tools` and `disallowedTools`, unchanged |
+| Gemini CLI | documented by the vendor for the eight tools below; not yet verified in a real tool | `tools`, translated to Gemini names (`read_file`, `grep_search`, `glob`, `replace`, `write_file`, `run_shell_command`, `web_fetch`, `google_web_search`) |
+| GitHub Copilot | documented by the vendor for the eight tools below; not yet verified in a real tool (Copilot CLI may need `strict-tools-list`) | `tools`, with Claude Code's names (Copilot accepts them as aliases) |
+| Cursor | only a read-only agent, documented by the vendor; not yet verified in a real tool | `readonly: true`; Cursor's read-only mode also allows commands that do not change state |
+| OpenAI Codex | **no**, by the vendor's documentation | nothing is expressible, so every agent that restricts its tools is refused |
 
-The eight tools are `Read`, `Grep`, `Glob`, `Edit`, `Write`, `Bash`, `WebFetch` and `WebSearch`. Any other entry (an MCP tool, `NotebookEdit`, a tool name with a specifier) cannot leave Claude Code. A `disallowedTools` entry with a specifier such as `Bash(git push *)` removes the whole `Bash` tool, as Claude Code does; the CLI reports each such entry.
+The CLI writes the restriction; whether each tool enforces it is that tool's behavior, and "not yet verified" means the maintainer has not tried it in the real tool yet. The eight tools are `Read`, `Grep`, `Glob`, `Edit`, `Write`, `Bash`, `WebFetch` and `WebSearch`. Any other entry (an MCP tool, `NotebookEdit`, a tool name with a specifier) cannot leave Claude Code. A `disallowedTools` entry with a specifier such as `Bash(git push *)` removes the whole `Bash` tool, as Claude Code does; the CLI reports each such entry.
 
 To install a refused agent anyway, pass `--allow-broader-access`. The agent is then written **without** the restriction the tool cannot express, so it can use more than its source asks; the output says so and the install marker records `broadened=tools`. `--yes` never implies this flag, and the interactive summary lists every agent that will be installed with broader access. For Codex you need the flag for nearly every agent.
 

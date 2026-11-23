@@ -400,3 +400,34 @@ test("an agent that depends on a skill that is not in the catalog is refused for
   }
   assert.equal(convert(fixture("skilled-agent"), "claude", { knownSkills: new Set(["alpha"]) }).ok, true);
 });
+
+describe("Defense in depth for characters (review cycle 1)", () => {
+  const bidi = ["\u202a", "\u202e", "\u2066", "\u2069"];
+  const base = (extra) => `---\nname: x-agent\ndescription: ${extra.description ?? "d"}\ntools: Read\n---\n${extra.body ?? "Prompt.\n"}`;
+  test("a bidirectional control character anywhere in the source is refused for every tool", () => {
+    for (const ch of bidi) {
+      for (const text of [base({ description: JSON.stringify(`a${ch}b`) }), base({ body: `Prompt ${ch} text\n` })]) {
+        for (const tool of TOOL_IDS) {
+          const r = convert(agentFromText(text), tool, { allowBroader: true });
+          assert.equal(r.ok, false, `${tool} ${JSON.stringify(ch)}`);
+          assert.match(r.message, /bidirectional control character/);
+        }
+      }
+    }
+  });
+  test("the serializers escape bidirectional characters too", () => {
+    for (const ch of bidi) {
+      assert.ok(!yamlString(`a${ch}b`).includes(ch));
+      assert.ok(!tomlString(`a${ch}b`).includes(ch));
+      assert.ok(!tomlMultiline(`a${ch}b`).includes(ch));
+    }
+    assert.equal(JSON.parse(yamlString("a\u202eb")), "a\u202eb");
+  });
+  test("line breaks and control characters in the description stay one escaped value", () => {
+    for (const ch of ["\n", "\u0085", "\u2028", "\u2029", "\u0007"]) {
+      const a = agentFromText(base({ description: JSON.stringify(`a${ch}b`) }));
+      for (const tool of ["gemini", "cursor", "copilot"]) assert.equal(decodeMarkdown(convert(a, tool).content).front.description, `a${ch}b`);
+      assert.equal(decodeToml(convert(a, "codex", { allowBroader: true }).content).values.description, `a${ch}b`);
+    }
+  });
+});

@@ -293,3 +293,54 @@ test("the fixture demo agents are valid", () => {
   const skillNames = new Set(["alpha", "beta"]);
   for (const f of readdirSync(dir)) assert.deepEqual(validateAgent(join(dir, f), { root: FIXTURE_ROOT, skillNames }), [], f);
 });
+
+// ---- forbidden fields written in YAML syntax the reader does not recognize ----------------------
+import { agentFromText } from "../src/lib/agents/model.mjs";
+import { convertAgent } from "../src/lib/agents/convert.mjs";
+import { TOOL_IDS } from "../src/lib/tools.mjs";
+
+const BAD = join(FIXTURE_ROOT, "..", "bad-agents");
+const EVASIONS = {
+  "bad-hooks-space": "hooks",
+  "bad-mcp-quoted": "mcpServers",
+  "bad-permission-quoted": "permissionMode",
+  "bad-initial-explicit": "initialPrompt",
+  "bad-indented-continuation": "permissionMode",
+  "bad-flow": "hooks",
+};
+
+for (const [file, field] of Object.entries(EVASIONS)) {
+  test(`evasion ${file}: validation fails`, () => {
+    const errors = validateAgent(join(BAD, `${file}.md`), { root: join(BAD, "..") });
+    assert.ok(errors.length >= 1, "must not pass");
+    assert.ok(
+      errors.some((e) => e.includes(`field "${field}" is not allowed`)) || errors.some((e) => /not in the accepted "key: value" form/.test(e)),
+      errors.join("\n"),
+    );
+  });
+  test(`evasion ${file}: the converter refuses it for every tool, claude included`, () => {
+    const agent = agentFromText(readFileSync(join(BAD, `${file}.md`), "utf8"));
+    for (const tool of TOOL_IDS) {
+      const r = convertAgent(agent, tool, { version: "1.0.0", allowBroader: true });
+      assert.equal(r.ok, false, `${file} for ${tool}`);
+      assert.equal(r.content, undefined);
+    }
+  });
+}
+
+test("evasion: the reviewer's reproduction (`hooks :` after tools) is rejected by validateRepo", () => {
+  const root = repo([["a", "one"]], [["a", "spacekey.md", "---\nname: spacekey\ndescription: x\ntools: Read\nhooks :\nPreToolUse: []\n---\nBody.\n"]]);
+  const { errors } = validateRepo(root);
+  assert.ok(errors.length >= 1, "validateAgent must not return []");
+  rmSync(root, { recursive: true });
+});
+
+test("a description that merely mentions a field name is not flagged", () => {
+  assert.deepEqual(errorsFor("x-agent.md", doc("name: x-agent\ndescription: Explains hooks and permissionMode to users.\ntools: Read")), []);
+});
+
+test("unrecognized lines are reported by the reader; comments, blanks and column-0 list items are not", () => {
+  const d = parseDocument("---\n# comment\nname: x\n\ntools:\n- Read\n- Grep\n? k\n---\n");
+  assert.deepEqual(d.unrecognized, ["? k"]);
+  assert.deepEqual(d.list("tools").slice(0, 2), ["Read", "Grep"]);
+});

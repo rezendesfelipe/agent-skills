@@ -4,7 +4,7 @@
 // was dropped, and the exact file content. An agent never gets more access than its author gave
 // it: when a tool cannot express the restriction the agent is refused, and only
 // --allow-broader-access (`allowBroader`) writes it without the restriction.
-import { FORBIDDEN_AGENT_FIELDS } from "../validate.mjs";
+import { BIDI_RE, FORBIDDEN_AGENT_FIELDS, forbiddenFieldHits } from "./rules.mjs";
 import { agentNameProblem } from "../names.mjs";
 import { TOOLS } from "../tools.mjs";
 import { effectiveTools, isRestricted, restrictionFor, specifierNotes } from "./permissions.mjs";
@@ -43,9 +43,15 @@ export function convertAgent(agent, tool, { version, allowBroader = false, known
 
   if (!agent) return refuse("frontmatter", "the file has no YAML frontmatter");
   // The same fields validation rejects, checked again for every tool, claude included.
+  if (agent.unrecognized?.length)
+    return refuse("frontmatter", `the line "${agent.unrecognized[0]}" is not in the accepted "key: value" form, so a field such as hooks could hide there`);
+  const forbidden = new Set([...FORBIDDEN_AGENT_FIELDS.filter((f) => agent.keys.includes(f)), ...forbiddenFieldHits(agent.raw ?? "")]);
   for (const field of FORBIDDEN_AGENT_FIELDS)
-    if (agent.keys.includes(field))
+    if (forbidden.has(field))
       return refuse(field, "Claude Code ignores it for plugin agents but honors it for installed agents, so the installed file would be more powerful than the marketplace one");
+  // Same rule as validation: hidden direction changes make a file read differently from what the model sees.
+  const bidi = [agent.text, agent.name, agent.description].find((t) => t && BIDI_RE.test(t));
+  if (bidi) return refuse("prompt", "the file contains a Unicode bidirectional control character");
   const problem = agentNameProblem(agent.name);
   if (problem) return refuse("name", problem);
   if (!agent.description) return refuse("description", "it is missing");

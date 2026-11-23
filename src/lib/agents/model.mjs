@@ -14,6 +14,8 @@ export function agentFromText(text) {
     text: doc.text,
     body: doc.body,
     keys: doc.keys,
+    raw: doc.raw,
+    unrecognized: doc.unrecognized,
     name: doc.scalar("name") ?? "",
     description: doc.scalar("description") ?? "",
     tools: doc.has("tools") ? doc.list("tools") : null,

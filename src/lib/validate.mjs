@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { parseDocument, parseFrontmatter } from "./frontmatter.mjs";
 import { effectiveTools } from "./agents/permissions.mjs";
+import { BIDI_RE, FORBIDDEN_AGENT_FIELDS, forbiddenFieldHits } from "./agents/rules.mjs";
 import { MAX_NAME_LENGTH, NAME_RE, WINDOWS_RESERVED_RE } from "./names.mjs";
 import { subdirs } from "./catalog.mjs";
 
@@ -28,12 +29,8 @@ export function validateSkill(skillDir, { root, expectedName = skillDir.split(/[
   return out;
 }
 
-// Fields Claude Code ignores for plugin agents but honors in ~/.claude/agents and .claude/agents,
-// which is where the CLI installs them: the installed file would be more powerful than the
-// marketplace one, so they are not allowed in repository agents.
-export const FORBIDDEN_AGENT_FIELDS = ["hooks", "mcpServers", "permissionMode", "initialPrompt"];
+export { FORBIDDEN_AGENT_FIELDS };
 const MAX_PROMPT_CHARS = 30000; // GitHub Copilot's limit, the smallest among the supported tools
-const BIDI_RE = /[\u202A-\u202E\u2066-\u2069]/u;
 // C0 and C1 controls (U+0085 included) and the Unicode line and paragraph separators
 const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/u;
 const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:/\[\]-]*$/;
@@ -98,8 +95,11 @@ export function validateAgent(file, { root, expectedName, skillNames } = {}) {
       if (!skillNames.has(skill)) out.push(`${rel}: skills lists "${skill}", which is not a skill in this repository`);
   }
 
+  for (const line of fm.unrecognized)
+    out.push(`${rel}: frontmatter line "${line}" is not in the accepted "key: value" form (a key written as "key :", in quotes, as "? key" or inside a {flow mapping} is not read, so it could hide a field such as hooks)`);
+  const forbidden = new Set([...FORBIDDEN_AGENT_FIELDS.filter((f) => fm.keys.includes(f)), ...forbiddenFieldHits(fm.raw)]);
   for (const field of FORBIDDEN_AGENT_FIELDS) {
-    if (fm.keys.includes(field))
+    if (forbidden.has(field))
       out.push(`${rel}: field "${field}" is not allowed in repository agents: Claude Code ignores it for plugin agents but honors it for agents in ~/.claude/agents and .claude/agents, so the installed file would be more powerful than the marketplace one`);
   }
 

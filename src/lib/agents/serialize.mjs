@@ -16,7 +16,7 @@ const u4 = (code) => "\\u" + code.toString(16).toUpperCase().padStart(4, "0");
  */
 export function yamlString(value) {
   if (hasLoneSurrogate(value)) throw new RangeError("a lone surrogate cannot be written");
-  return JSON.stringify(value).replace(/[\u007F-\u009F\u2028\u2029]/g, (ch) => u4(ch.charCodeAt(0)));
+  return JSON.stringify(value).replace(/[\u007F-\u009F\u2028\u2029\u202A-\u202E\u2066-\u2069]/g, (ch) => u4(ch.charCodeAt(0)));
 }
 
 const TOML_ESCAPES = { "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r", '"': '\\"', "\\": "\\\\" };
@@ -28,7 +28,7 @@ function tomlEscape(value, { keepNewlines }) {
     const code = ch.codePointAt(0);
     if (ch === "\n" && keepNewlines) out += "\n";
     else if (TOML_ESCAPES[ch]) out += TOML_ESCAPES[ch];
-    else if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) out += u4(code);
+    else if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029 || (code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069)) out += u4(code);
     else out += ch;
   }
   return out;
