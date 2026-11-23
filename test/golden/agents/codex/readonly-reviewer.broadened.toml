@@ -1,0 +1,7 @@
+name = "readonly-reviewer"
+description = "Fixture read-only agent. Use in tests."
+developer_instructions = """
+
+Review the code and report findings with `file:line`.
+"""
+# agent-skills: sha256=975839c3cb9b2fa17bc6e0d0a6e2583effa23da436243c57d1952449192c2611 version=1.2.3 broadened=tools

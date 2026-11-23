@@ -1,0 +1,7 @@
+name = "full-access"
+description = "Fixture agent with every tool. Use in tests."
+developer_instructions = """
+
+You may do anything. Say what you did.
+"""
+# agent-skills: sha256=7d6a6493bd423c2710831ee9155b5725b734d756aa8ba8296f26346be39f4766 version=1.2.3
