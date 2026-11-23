@@ -1,0 +1,14 @@
+# Fixture: a GitHub Actions workflow that applies on every push and stores a client secret.
+name: deploy
+on:
+  push:
+    branches: [main]
+env:
+  ARM_CLIENT_ID: ${{ vars.CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: terraform apply -auto-approve

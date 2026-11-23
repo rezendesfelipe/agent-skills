@@ -5,7 +5,7 @@ Lets an agent audit an existing Azure infrastructure repository against the stac
 ## ADDED Requirements
 
 ### Requirement: Auditor subagent
-The `azure-terraform-stacks` plugin SHALL ship a Claude Code subagent at `plugins/azure-terraform-stacks/agents/stacks-auditor.md` with a `name`, a third-person `description` that says when to use it, an allowlist `tools: Read, Grep, Glob, Bash` (no `Write`, `Edit` or `NotebookEdit`) and a `disallowedTools` list that removes `Bash` commands that change state: `terraform *`, `kubectl *`, `az *`, `gh *`, `git commit *`, `git push *`, `git checkout *`, `git reset *`, `git clean *`, `rm *`, `mv *`, `cp *`, `tee *` and `sed -i *`. Its instructions SHALL limit `Bash` to running the engine's `audit` command and read-only inspection commands, and SHALL forbid changing the audited repository, running Terraform or `kubectl`, and writing anywhere except a temporary directory. The file SHALL NOT rely on `hooks`, `mcpServers` or `permissionMode`, which Claude Code ignores for plugin subagents.
+The `azure-terraform-stacks` plugin SHALL ship a Claude Code subagent at `plugins/azure-terraform-stacks/agents/stacks-auditor.md` with a `name`, a third-person `description` that says when to use it, an allowlist `tools: Read, Grep, Glob, Bash` (no `Write`, `Edit` or `NotebookEdit`) and a `disallowedTools` list that removes `Bash` commands that change state: `terraform *`, `kubectl *`, `az *`, `gh *`, `git commit *`, `git push *`, `git checkout *`, `git reset *`, `git clean *`, `rm *`, `mv *`, `cp *`, `tee *` and `sed -i *`. Its instructions SHALL limit `Bash` to running the engine's `audit` command and read-only inspection commands, and SHALL forbid changing the audited repository and running Terraform or `kubectl`. The single permitted write is `npm ci --omit=dev` in the skill's folder (the folder that contains `scripts/`) when its `node_modules` is missing (the engine needs the `yaml` package and plugin installs do not ship `node_modules`); it SHALL NOT run it in the audited repository, SHALL report that it did, and SHALL stop with an instruction to the user when it fails. The file SHALL NOT rely on `hooks`, `mcpServers` or `permissionMode`, which Claude Code ignores for plugin subagents.
 
 #### Scenario: Frontmatter present
 - **WHEN** the repository is validated
@@ -39,7 +39,11 @@ The engine SHALL provide `node scripts/stacks.mjs audit [--root <repo>] [--json]
 - **THEN** `git status` shows the same state before and after
 
 ### Requirement: Discovery
-`audit` SHALL discover, from file contents and not from folder names alone: Terraform roots (a directory with `.tf` files that declares a `terraform {}` block or a `backend` block), the backend type and the `key` of each root when it is literal, the Azure DevOps and GitHub Actions pipelines that run Terraform, and Argo CD `Application` manifests. The inventory SHALL list, per root, the number of `resource` blocks and the Azure resource types it creates, and SHALL mark every deduced value as inferred.
+`audit` SHALL discover, from file contents and not from folder names alone: Terraform roots (a directory with `.tf` files that declares a `backend` block, or declares a `provider` or `terraform {}` block and is not used as a module by a relative `source` in another folder), the backend type and the `key` of each root when it is literal, the Azure DevOps and GitHub Actions pipelines that run Terraform, and Argo CD `Application` manifests. The inventory SHALL list, per root, the number of `resource` blocks and the Azure resource types it creates, and SHALL mark every deduced value as inferred.
+
+#### Scenario: Modules are not roots
+- **WHEN** a folder with `.tf` files is used as a module by a relative `source` and declares no `backend` block
+- **THEN** it is listed under modules and not as a root
 
 #### Scenario: Roots and backends
 - **WHEN** the repository has three directories with a `backend "azurerm"` block
@@ -47,14 +51,14 @@ The engine SHALL provide `node scripts/stacks.mjs audit [--root <repo>] [--json]
 
 #### Scenario: Backend with partial configuration
 - **WHEN** a root declares `backend "azurerm" {}` and the key is passed by a script or pipeline
-- **THEN** the inventory marks the key as "passed at init" and tries to read it from literal `-backend-config="key=..."` arguments in scripts and pipelines, otherwise marks it "unknown"
+- **THEN** the inventory marks the key as inferred and reads it from literal `*.tfstate` names in scripts and pipelines that contain the root's folder name (ignoring `-` and `_`): one match is "inferred", several (one per environment or instance) are "per-instance", none is "unknown"
 
 #### Scenario: Pipelines
 - **WHEN** a workflow or pipeline file runs `terraform` or `tf.sh`
 - **THEN** the inventory lists the file, its trigger, and its inputs or parameters with their defaults
 
 ### Requirement: Rules without a manifest
-`audit` SHALL evaluate every rule of the `check` command that does not need the manifest, reusing the same rule ids and references, and SHALL list every other rule as "not evaluated" with the reason. The rules evaluated are: `backend-partial`, `versions`, `rg-owned`, `oidc`, `no-prod-destroy`, `manual-trigger`, `plan-default` (the `action` default; boolean defaults when the inputs are recognizable as stack selectors), `gha-inputs`, `argocd-finalizer`, `argocd-prod-sync`, `argocd-pinned`, `argocd-apply-only` and `wi-subject` (best effort, from literals). The rules `state-key`, `pipeline-params`, `pipeline-deps`, `lz-dns-zone-group`, `lz-no-local-privatelink-zone` and `drift` SHALL be listed as "not evaluated: needs infra/stacks.yaml".
+`audit` SHALL evaluate every rule of the `check` command that does not need the manifest, reusing the same rule ids and references, and SHALL list every other rule as "not evaluated" with the reason. The rules evaluated are: `backend-partial`, `versions`, `rg-owned`, `oidc` (stored credentials in pipelines, scripts and Terraform), `no-prod-destroy` (when the pipeline mentions `prod`), `manual-trigger` (entry pipelines only: not Azure DevOps templates or reusable GitHub workflows), `plan-default` (the plan/apply input's default; boolean inputs are inferred to be stack selectors only when the pipeline also has such an input, and are then only a warning), `gha-inputs`, `argocd-finalizer`, `argocd-prod-sync` (not applied to an app of apps, which syncs by itself on purpose; it is the Applications it creates that must wait in production), `argocd-pinned` (any script that installs Argo CD from an `install.yaml` URL), `argocd-apply-only` (entry pipelines only) and `wi-subject` (best effort, from literals, as a warning). The rules `state-key`, `pipeline-params`, `pipeline-deps`, `lz-dns-zone-group`, `lz-no-local-privatelink-zone` and `drift` SHALL be listed as "not evaluated: needs infra/stacks.yaml".
 
 #### Scenario: Shared rule, same id
 - **WHEN** a pipeline offers `destroy` as an `action` value and can target an environment named `prod`
@@ -69,11 +73,15 @@ The engine SHALL provide `node scripts/stacks.mjs audit [--root <repo>] [--json]
 - **THEN** `audit` reports `oidc` with the file and line
 
 ### Requirement: Audit-only rules
-`audit` SHALL also report: `state-shared`, when two roots resolve to the same backend storage account, container and literal key; `state-local`, when a root has no `backend` block, so it uses local state; and `state-unknown`, as a warning, when a root's key cannot be determined. It SHALL NOT report a verdict on how to split a root: it only shows the counts and resource-type groups per root in the inventory.
+`audit` SHALL also report: `state-shared`, as an error when two roots have the same literal key in the same literal storage account and container, and as a warning when the account or container is not stated or a key was inferred; `state-local`, as a warning, when a root has no `backend` block, so it uses local state; and `state-unknown`, as a warning, when a root has a backend whose key cannot be determined. It SHALL NOT report a verdict on how to split a root: it only shows the counts and resource-type groups per root in the inventory.
 
 #### Scenario: Shared state
-- **WHEN** two roots use the same storage account, container and key
+- **WHEN** two roots use the same literal storage account, container and key
 - **THEN** `audit` reports `state-shared` as an error and names both roots
+
+#### Scenario: Possibly shared state
+- **WHEN** two roots resolve to the same key but the storage account or container is not stated, or a key was inferred
+- **THEN** `audit` reports `state-shared` as a warning marked inferred
 
 #### Scenario: Local state
 - **WHEN** a root has no `backend` block

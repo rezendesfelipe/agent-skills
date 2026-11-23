@@ -1,0 +1,26 @@
+// Mutations of a scaffolded "full" repository, each of which `check` must flag with the given rule.
+// Shared by check.test.mjs and the golden-findings test.
+export const CASES = [
+  ["state-key", "infra/scripts/tf.sh", 'echo "aks-core-prod-brs-01.tfstate"', 'echo "aks.tfstate"'],
+  ["backend-partial", "infra/stacks/aks-core/versions.tf", 'backend "azurerm" {}', 'backend "azurerm" {\n    key = "x.tfstate"\n  }'],
+  ["versions", "infra/stacks/aks-core/versions.tf", '">= 1.12, < 2.0"', '"~> 1.9"'],
+  ["versions", "infra/stacks/app-orders/versions.tf", '">= 4.65, < 5.0"', '"~> 4.0"'],
+  ["rg-owned", "infra/stacks/aks-core/main.tf", 'name     = "rg-aks-core-', 'name     = "rg-cluster-'],
+  ["no-prod-destroy", "infra/pipelines/azure-pipelines.yml", "values: [plan, apply]", "values: [plan, apply, destroy]"],
+  ["no-prod-destroy", ".github/workflows/infra.yml", "options: [plan, apply]", "options: [plan, apply, destroy]"],
+  ["manual-trigger", "infra/pipelines/azure-pipelines.yml", "trigger: none", "trigger: [main]"],
+  ["manual-trigger", ".github/workflows/infra.yml", "on:\n  workflow_dispatch:", "on:\n  push:\n  workflow_dispatch:"],
+  ["plan-default", "infra/pipelines/azure-pipelines.yml", "default: plan", "default: apply"],
+  ["pipeline-params", ".github/workflows/infra.yml", "      app_orders:\n", "      app_payments:\n"],
+  ["pipeline-deps", ".github/workflows/infra.yml", "needs: [vnet-core, aks-core]", "needs: [aks-core]"],
+  ["pipeline-deps", "infra/pipelines/azure-pipelines.yml", "            - ${{ if eq(parameters.vnetCore, true) }}:\n                - vnet_core\n            - ${{ if eq(parameters.aksCore, true) }}:\n                - aks_core", "            - ${{ if eq(parameters.aksCore, true) }}:\n                - aks_core"],
+  ["argocd-apply-only", "infra/pipelines/azure-pipelines.yml", "${{ if and(eq(parameters.argocd, true), eq(parameters.action, 'apply')) }}", "${{ if eq(parameters.argocd, true) }}"],
+  ["argocd-apply-only", ".github/workflows/infra.yml", "inputs.argocd && inputs.action == 'apply'", "inputs.argocd"],
+  ["oidc", ".github/workflows/terraform-stack.yml", "      ARM_TENANT_ID:", "      ARM_CLIENT_SECRET: ${{ secrets.X }}\n      ARM_TENANT_ID:"],
+  ["oidc", ".github/workflows/infra.yml", "  id-token: write\n", "  id-token: none\n"],
+  ["wi-subject", "infra/stacks/app-orders/main.tf", 'service_account_name = "orders"', 'service_account_name = "orders-api"'],
+  ["wi-subject", "infra/argocd/apps/prod-brs-01/orders.yaml", "    namespace: orders", "    namespace: shop"],
+  ["argocd-finalizer", "infra/argocd/apps/prod-brs-01/orders.yaml", "    - resources-finalizer.argocd.argoproj.io", "    - other"],
+  ["argocd-prod-sync", "infra/argocd/apps/prod-brs-01/orders.yaml", "  syncPolicy:\n", "  syncPolicy:\n    automated: {}\n"],
+  ["argocd-pinned", "infra/scripts/bootstrap-argocd.sh", 'argocd_version="v3.6.2"', 'argocd_version="stable"'],
+];

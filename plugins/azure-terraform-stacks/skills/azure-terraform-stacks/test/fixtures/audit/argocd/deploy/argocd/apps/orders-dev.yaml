@@ -1,0 +1,18 @@
+# Fixture: a dev Application that is fine: finalizer present, automated sync allowed outside prod.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/platform.git
+    path: deploy/orders/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders-dev
+  syncPolicy:
+    automated: {}

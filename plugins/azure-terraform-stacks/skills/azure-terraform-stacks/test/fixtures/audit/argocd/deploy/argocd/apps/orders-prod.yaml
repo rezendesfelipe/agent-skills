@@ -1,0 +1,16 @@
+# Fixture: a production Application that syncs by itself and has no finalizer.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/platform.git
+    path: deploy/orders/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: orders
+  syncPolicy:
+    automated: {}

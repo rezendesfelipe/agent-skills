@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // azure-terraform-stacks engine. Usage: node scripts/stacks.mjs <command> [options]
-// Commands: check-manifest, plan, scaffold, add-stack, check, bridge, diagram, check-diagram
+// Commands: check-manifest, plan, scaffold, add-stack, check, audit, bridge, diagram, check-diagram
 // Every command accepts --root <repo> (default: current directory) and --json.
 // Exit codes: 0 success, 1 validation or check failure, 2 usage error.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -10,6 +10,7 @@ import { loadManifest, validateManifest } from "./lib/manifest.mjs";
 import { generateAll } from "./lib/generate.mjs";
 import { planFiles, writePlan } from "./lib/files.mjs";
 import { runCheck, runDeep } from "./lib/check.mjs";
+import { audit, formatAudit } from "./lib/audit.mjs";
 import { bridge } from "./lib/bridge.mjs";
 import { generateDiagrams, checkDiagram, untouched, exportDiagram } from "./lib/diagram.mjs";
 
@@ -21,6 +22,7 @@ const HELP = `azure-terraform-stacks engine
   add-stack --name <type-owner> --type <t> --owner <o> [--depends-on a,b] [--remote-state]
                                       add a stack to the manifest and write only what changes
   check [--deep]                      check the repository against the rules (--deep runs terraform, actionlint, kustomize, shellcheck when installed)
+  audit                               read-only audit of a repository WITHOUT infra/stacks.yaml: inventory plus the rules that need no manifest
   bridge --stack <s> --env <e> --instance <i> --outputs <file> [--open-pr] [--provider github|azure-repos] [--base <branch>]
                                       write Terraform outputs into the Kustomize overlay; --open-pr opens (never merges) a pull request
   diagram [--env <e>] [--instance <i>] [--all] [--export svg,png] [--draft] [--force]
@@ -133,6 +135,12 @@ switch (cmd) {
       deep ? `\ndeep checks:\n${deep.results.map((r) => `  ${r.ok ? "✓" : "✗"} ${r.check}${r.ok ? "" : `\n${r.output.split("\n").map((l) => `      ${l}`).join("\n")}`}`).join("\n")}${deep.skipped.length ? `\n  skipped: ${deep.skipped.join("; ")}` : ""}` : "",
     ].join("");
     done(ok ? 0 : 1, { ok, findings, deep }, text);
+    break;
+  }
+  case "audit": {
+    // Works without a manifest, writes nothing and runs no external tool.
+    const r = audit(root);
+    done(r.ok ? 0 : 1, r, formatAudit(r));
     break;
   }
   case "bridge": {

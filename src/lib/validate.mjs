@@ -1,5 +1,5 @@
 // Repository checks for skills and the plugin marketplace manifest.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { parseFrontmatter } from "./frontmatter.mjs";
 import { subdirs } from "./catalog.mjs";
@@ -28,7 +28,28 @@ export function validateSkill(skillDir, { root, expectedName = skillDir.split(/[
   return out;
 }
 
-/** @returns {{errors: string[], skillCount: number}} */
+// A Claude Code subagent shipped by a plugin: plugins/<plugin>/agents/<name>.md.
+// Stricter than Claude Code on two points: `name` is at most 64 characters and `tools` is required,
+// because an agent without `tools` inherits every tool of the session.
+export function validateAgent(file, { root }) {
+  const rel = relPath(root, file);
+  const out = [];
+  const fm = parseFrontmatter(readFileSync(file, "utf8"));
+  if (!fm) return [`${rel}: missing YAML frontmatter`];
+  const expected = file.split(/[\\/]/).pop().replace(/\.md$/, "");
+  if (!fm.name) out.push(`${rel}: frontmatter is missing "name"`);
+  else {
+    if (!NAME_RE.test(fm.name)) out.push(`${rel}: name "${fm.name}" must be kebab-case`);
+    if (fm.name.length > 64) out.push(`${rel}: name is longer than 64 characters`);
+    if (fm.name !== expected) out.push(`${rel}: name "${fm.name}" does not match the file name "${expected}"`);
+  }
+  if (!fm.description) out.push(`${rel}: frontmatter is missing "description"`);
+  else if (fm.description.length > 1024) out.push(`${rel}: description is longer than 1024 characters`);
+  if (!fm.tools) out.push(`${rel}: frontmatter is missing "tools" (an agent without it inherits every tool of the session)`);
+  return out;
+}
+
+/** @returns {{errors: string[], skillCount: number, agentCount: number}} */
 export function validateRepo(root, { template = "skill-name" } = {}) {
   const rel = (p) => relPath(root, p);
   const errors = [];
@@ -48,6 +69,25 @@ export function validateRepo(root, { template = "skill-name" } = {}) {
   }
   for (const [name, dirs] of byName) {
     if (dirs.length > 1) errors.push(`skill name "${name}" is used more than once: ${dirs.join(", ")}`);
+  }
+
+  // Subagents, and unique names across plugins
+  let agentCount = 0;
+  const agentsByName = new Map();
+  for (const plugin of subdirs(pluginsDir)) {
+    const agentsDir = join(pluginsDir, plugin, "agents");
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir).filter((x) => x.endsWith(".md")).sort()) {
+      agentCount++;
+      const file = join(agentsDir, f);
+      errors.push(...validateAgent(file, { root }));
+      const name = parseFrontmatter(readFileSync(file, "utf8"))?.name ?? f.replace(/\.md$/, "");
+      if (!agentsByName.has(name)) agentsByName.set(name, []);
+      agentsByName.get(name).push(rel(file));
+    }
+  }
+  for (const [name, files] of agentsByName) {
+    if (files.length > 1) errors.push(`agent name "${name}" is used more than once: ${files.join(", ")}`);
   }
 
   // Template (validated against its placeholder name)
@@ -82,5 +122,5 @@ export function validateRepo(root, { template = "skill-name" } = {}) {
       }
     }
   }
-  return { errors, skillCount };
+  return { errors, skillCount, agentCount };
 }
