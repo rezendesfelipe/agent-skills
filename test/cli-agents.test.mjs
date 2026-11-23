@@ -388,3 +388,40 @@ describe("Interactive selection with agents", () => {
     assert.match(r.stderr, /readonly-reviewer/);
   });
 });
+
+describe("The published stacks-auditor agent through the CLI", () => {
+  const audit = (...args) => {
+    const r = runBin(["add", "stacks-auditor", ...args, "--dry-run", "--json"], { ...box, root: REPO_ROOT });
+    return { ...r, data: JSON.parse(r.stdout) };
+  };
+  test("its Bash(...) entries remove Bash: effective tools are Read, Grep and Glob, and every result says so", () => {
+    const r = audit("--tool", "claude,gemini,cursor,copilot");
+    assert.equal(r.code, 0, r.stderr);
+    for (const x of r.data.results) {
+      assert.equal(x.status, "would-install", x.tools[0]);
+      assert.match(x.notes[0], /removed the whole Bash tool/);
+      assert.match(x.notes[0], /"Bash\(terraform \*\)"/);
+      assert.match(x.notes[0], /"Bash\(sed -i \*\)"/);
+    }
+  });
+  test("it converts to read-only forms and is refused for Codex without the flag", () => {
+    const real = (tool, ...extra) => {
+      const r = runBin(["add", "stacks-auditor", "--tool", tool, ...extra], { ...box, root: REPO_ROOT });
+      return r;
+    };
+    assert.equal(real("gemini").code, 0);
+    assert.deepEqual(decodeMarkdown(read(".gemini/agents/stacks-auditor.md")).front.tools, ["read_file", "grep_search", "glob"]);
+    assert.equal(real("cursor").code, 0);
+    assert.equal(decodeMarkdown(read(".cursor/agents/stacks-auditor.md")).front.readonly, true);
+    assert.deepEqual(decodeMarkdown((real("copilot"), read(".copilot/agents/stacks-auditor.agent.md"))).front.tools, ["Read", "Grep", "Glob"]);
+    const codex = real("codex");
+    assert.equal(codex.code, 1);
+    assert.match(codex.stdout, /a Codex agent cannot restrict its tools/);
+    assert.ok(!existsSync(home(".codex")));
+    assert.equal(real("codex", "--allow-broader-access").code, 0);
+  });
+  test("it lists no skills to install, so the CLI cannot bring azure-terraform-stacks along (known gap)", () => {
+    const r = audit("--tool", "claude");
+    assert.deepEqual(r.data.results.map((x) => x.kind), ["agent"]);
+  });
+});

@@ -7,7 +7,7 @@
 import { FORBIDDEN_AGENT_FIELDS } from "../validate.mjs";
 import { agentNameProblem } from "../names.mjs";
 import { TOOLS } from "../tools.mjs";
-import { effectiveTools, isRestricted, restrictionFor, specifierNote } from "./permissions.mjs";
+import { effectiveTools, isRestricted, restrictionFor, specifierNotes } from "./permissions.mjs";
 import { markerFormat, stamp } from "./marker.mjs";
 import { hasLoneSurrogate, tomlMultiline, tomlString, yamlString } from "./serialize.mjs";
 
@@ -60,7 +60,7 @@ export function convertAgent(agent, tool, { version, allowBroader = false, known
     if (unknown.length) return refuse("skills", `the skill(s) ${unknown.join(", ")} are not in the catalog`);
   }
 
-  const notes = specifierRemovals.map(specifierNote);
+  const notes = specifierNotes(specifierRemovals);
   const restricted = isRestricted(effective);
   let restriction = restrictionFor(tool, effective);
   let broadened = false;

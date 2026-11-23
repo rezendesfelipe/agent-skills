@@ -43,10 +43,14 @@ export function effectiveTools(tools = [], disallowed = []) {
 export const isRestricted = (effective) => !VOCABULARY.every((tool) => effective.includes(tool));
 export const unmappedTools = (effective) => effective.filter((tool) => !VOCABULARY.includes(tool));
 
-export function specifierNote({ entry, tool }) {
-  return (
-    `disallowedTools entry "${entry}" removed the whole ${tool} tool, because Claude Code does not narrow a tool by a specifier. ` +
-    `To keep ${tool} and block only some commands, use permissions.deny in settings.`
+/** One note per tool that lost its whole tool to specifier entries, naming every entry. */
+export function specifierNotes(removals) {
+  const byTool = new Map();
+  for (const { entry, tool } of removals) byTool.set(tool, [...(byTool.get(tool) ?? []), entry]);
+  return [...byTool].map(
+    ([tool, entries]) =>
+      `disallowedTools ${entries.length > 1 ? "entries" : "entry"} ${entries.map((e) => `"${e}"`).join(", ")} removed the whole ${tool} tool, ` +
+      `because Claude Code does not narrow a tool by a specifier. To keep ${tool} and block only some commands, use permissions.deny in settings.`,
   );
 }
 
