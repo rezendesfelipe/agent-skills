@@ -24,6 +24,8 @@ Options:
   --budgets <file>  Declared budgets (default: ${DEFAULT_BUDGETS}, relative to the root)
   -h, --help        Show this help
 
+Line endings are normalized to LF before counting bytes, so the result is the same on every OS.
+
 Cost: a skill is its SKILL.md plus the files listed in "loadedWith"; an agent is the agent file plus
 the SKILL.md of every skill in its "skills:" field. Without an official count the cost is an
 ESTIMATE, bytes / 4 (method "${ESTIMATE}"), which is an approximation: no offline tokenizer is
@@ -58,7 +60,14 @@ function discover(root) {
   return { skills, agents };
 }
 
-const size = (file) => statSync(file).size;
+// Bytes of a file with line endings normalized (CRLF and a lone CR become LF): the line ending is an
+// artifact of the checkout (Windows may convert LF to CRLF), not content, so the estimate must be the same on
+// every operating system.
+export function normalizedBytes(text) {
+  return Buffer.byteLength(text.replace(/\r\n?/g, "\n"), "utf8");
+}
+
+const size = (file) => normalizedBytes(readFileSync(file, "utf8"));
 
 export function estimateTokens(bytes) {
   return Math.ceil(bytes / 4);

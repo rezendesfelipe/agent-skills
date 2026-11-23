@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -116,4 +116,49 @@ test("measure reads no network and the repository's committed budgets pass", () 
   assert.deepEqual(errors, []);
   assert.ok(rows.length >= 3);
   assert.ok(rows.every((r) => !r.over));
+});
+
+// ---- Line endings are a checkout artifact, not content ----
+
+test("the same content with LF, CRLF or lone CR line endings gives the same estimate", () => {
+  const body = Array.from({ length: 50 }, (_, i) => `line ${i}`);
+  const make = (eol) => {
+    const root = fixture({ "skill:big": { budget: 2000 }, "skill:small": { budget: 200 }, "agent:pre": { budget: 500 } });
+    write(root, "plugins/p/skills/big/SKILL.md", `---${eol}name: big${eol}description: d${eol}---${eol}${body.join(eol)}${eol}`);
+    return root;
+  };
+  const tokens = (root) => measure(root).rows.find((r) => r.id === "skill:big").tokens;
+  const roots = ["\n", "\r\n", "\r"].map(make);
+  const [lf, crlf, cr] = roots.map(tokens);
+  assert.equal(crlf, lf);
+  assert.equal(cr, lf);
+  for (const r of roots) rmSync(r, { recursive: true });
+});
+
+test("the committed budgets keep at least 10 percent of headroom over the margin-adjusted estimate", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const { rows } = measure(root);
+  for (const r of rows.filter((x) => x.method.startsWith("estimate:")))
+    assert.ok(r.budget >= r.compared * 1.1, `${r.id}: budget ${r.budget} < 110% of ${r.compared}`);
+});
+
+test("measuring a copy of the committed catalog with CRLF line endings gives the same numbers (Windows checkout)", () => {
+  const src = fileURLToPath(new URL("..", import.meta.url));
+  const dst = mkdtempSync(join(tmpdir(), "context-budget-crlf-"));
+  const copy = (rel) => {
+    const text = readFileSync(join(src, rel), "utf8");
+    write(dst, rel, text.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n"));
+  };
+  for (const rel of [
+    "plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md",
+    "plugins/docs-generator/skills/docs-generator/SKILL.md",
+    "plugins/azure-terraform-stacks/agents/stacks-auditor.md",
+    "docs/aep/context-budgets.json",
+  ])
+    copy(rel);
+  const a = measure(src).rows.map((r) => [r.id, r.tokens, r.compared]);
+  const b = measure(dst);
+  assert.deepEqual(b.errors, []);
+  assert.deepEqual(b.rows.map((r) => [r.id, r.tokens, r.compared]), a);
+  rmSync(dst, { recursive: true });
 });

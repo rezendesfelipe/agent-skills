@@ -55,9 +55,13 @@ node scripts/context-budget.mjs --help   # options
 
 It exits 1 when a cost is over its budget (naming the capability, the cost, the budget and the method), when a capability has no declared budget, or when a declared budget matches nothing.
 
+## Line endings
+
+The helper normalizes line endings (CRLF and a lone CR become LF) before counting bytes. The line ending is an artifact of the checkout (Git on Windows may convert LF to CRLF, which adds one byte per line), not content, so the estimate is the same on Linux, macOS and Windows. Without this, the Windows CI jobs measured about 1 percent more and failed a tight budget. Tests prove that LF, CRLF and CR copies of the same content give the same estimate.
+
 ## Declared budgets and the margin
 
-The budgets live in [`context-budgets.json`](context-budgets.json), one committed file. The `margin` (0.3) is added to an offline estimate before the comparison. It is our choice, inspired by the roughly 30 percent difference between tokenizer generations in the guide; it is not a measured quantity. The initial budgets are the estimate with the margin, rounded up to the next 500 tokens, as a **starting point for the maintainer to revise**; they are not official counts.
+The budgets live in [`context-budgets.json`](context-budgets.json), one committed file. The `margin` (0.3) is added to an offline estimate before the comparison. It is our choice, inspired by the roughly 30 percent difference between tokenizer generations in the guide; it is not a measured quantity. The initial budgets follow one rule: the estimate (on LF-normalized bytes) times (1 + margin) times 1.10, rounded up to the next multiple of 500 tokens, so each budget keeps at least 10 percent of headroom over the margin-adjusted estimate (a test fails if a declared budget has less). They are a **starting point for the maintainer to revise**; they are not official counts. Currently 4500 (`azure-terraform-stacks`), 3500 (`docs-generator`) and 2500 (`stacks-auditor`).
 
 Example only, not a measurement: `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md` has 12,258 bytes, which is about 3,065 tokens by the bytes/4 estimate (`estimate:bytes/4`). Given the roughly 30 percent difference between tokenizer generations, the real figure for a current model may be higher. The real measurement uses the official method above.
 
