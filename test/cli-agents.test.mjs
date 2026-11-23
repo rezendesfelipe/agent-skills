@@ -394,34 +394,50 @@ describe("The published stacks-auditor agent through the CLI", () => {
     const r = runBin(["add", "stacks-auditor", ...args, "--dry-run", "--json"], { ...box, root: REPO_ROOT });
     return { ...r, data: JSON.parse(r.stdout) };
   };
-  test("its Bash(...) entries remove Bash: effective tools are Read, Grep and Glob, and every result says so", () => {
-    const r = audit("--tool", "claude,gemini,cursor,copilot");
+  const real = (tool, ...extra) => runBin(["add", "stacks-auditor", "--tool", tool, ...extra], { ...box, root: REPO_ROOT });
+  test("it keeps Bash: no result carries a note that Bash was removed", () => {
+    const r = audit("--tool", "claude,gemini,copilot");
     assert.equal(r.code, 0, r.stderr);
     for (const x of r.data.results) {
-      assert.equal(x.status, "would-install", x.tools[0]);
-      assert.match(x.notes[0], /removed the whole Bash tool/);
-      assert.match(x.notes[0], /"Bash\(terraform \*\)"/);
-      assert.match(x.notes[0], /"Bash\(sed -i \*\)"/);
+      assert.equal(x.status, "would-install", `${x.kind} ${x.name}`);
+      for (const n of x.notes ?? []) assert.ok(!/removed the whole Bash tool/.test(n), n);
     }
   });
-  test("it converts to read-only forms and is refused for Codex without the flag", () => {
-    const real = (tool, ...extra) => {
-      const r = runBin(["add", "stacks-auditor", "--tool", tool, ...extra], { ...box, root: REPO_ROOT });
-      return r;
-    };
+  test("Gemini lists the shell tool and Copilot lists Bash, and the skill goes with each", () => {
     assert.equal(real("gemini").code, 0);
-    assert.deepEqual(decodeMarkdown(read(".gemini/agents/stacks-auditor.md")).front.tools, ["read_file", "grep_search", "glob"]);
-    assert.equal(real("cursor").code, 0);
-    assert.equal(decodeMarkdown(read(".cursor/agents/stacks-auditor.md")).front.readonly, true);
-    assert.deepEqual(decodeMarkdown((real("copilot"), read(".copilot/agents/stacks-auditor.agent.md"))).front.tools, ["Read", "Grep", "Glob"]);
-    const codex = real("codex");
-    assert.equal(codex.code, 1);
-    assert.match(codex.stdout, /a Codex agent cannot restrict its tools/);
-    assert.ok(!existsSync(home(".codex")));
-    assert.equal(real("codex", "--allow-broader-access").code, 0);
+    assert.deepEqual(decodeMarkdown(read(".gemini/agents/stacks-auditor.md")).front.tools, ["read_file", "grep_search", "glob", "run_shell_command"]);
+    assert.ok(existsSync(home(".gemini/skills/azure-terraform-stacks/scripts/stacks.mjs")));
+    assert.equal(real("copilot").code, 0);
+    assert.deepEqual(decodeMarkdown(read(".copilot/agents/stacks-auditor.agent.md")).front.tools, ["Read", "Grep", "Glob", "Bash"]);
+    assert.ok(existsSync(home(".copilot/skills/azure-terraform-stacks/scripts/stacks.mjs")));
   });
-  test("it lists no skills to install, so the CLI cannot bring azure-terraform-stacks along (known gap)", () => {
+  test("Cursor and Codex are refused without --allow-broader-access, and install with it (skill included)", () => {
+    for (const [tool, agentFile, skillsDir, who] of [
+      ["cursor", ".cursor/agents/stacks-auditor.md", ".cursor/skills", /Cursor can only express a read-only agent, and the agent can use Bash/],
+      ["codex", ".codex/agents/stacks-auditor.toml", ".agents/skills", /a Codex agent cannot restrict its tools/],
+    ]) {
+      const refused = real(tool);
+      assert.equal(refused.code, 1, tool);
+      assert.match(refused.stdout, who);
+      assert.ok(!existsSync(home(agentFile)), `${tool}: nothing written when refused`);
+      const ok = real(tool, "--allow-broader-access");
+      assert.equal(ok.code, 0, ok.stderr);
+      assert.match(ok.stdout, /broader access/);
+      assert.ok(existsSync(home(agentFile)), tool);
+      assert.ok(existsSync(home(skillsDir, "azure-terraform-stacks/scripts/stacks.mjs")), `${tool}: the skill is installed with the agent`);
+    }
+  });
+  test("add stacks-auditor also installs the skill azure-terraform-stacks, as a dependency of the agent", () => {
     const r = audit("--tool", "claude");
-    assert.deepEqual(r.data.results.map((x) => x.kind), ["agent"]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.deepEqual(r.data.results.map((x) => `${x.kind}:${x.name}`).sort(), ["agent:stacks-auditor", "skill:azure-terraform-stacks"]);
+    const skill = r.data.results.find((x) => x.kind === "skill");
+    assert.equal(skill.dependency, true);
+    assert.deepEqual(skill.requiredBy, ["stacks-auditor"]);
+  });
+  test("no forbidden field (hooks, mcpServers, permissionMode, initialPrompt) is in the published file", () => {
+    const text = readFileSync(join(REPO_ROOT, "plugins/azure-terraform-stacks/agents/stacks-auditor.md"), "utf8");
+    const front = /^---\n([\s\S]*?)\n---\n/.exec(text)[1];
+    for (const k of ["hooks", "mcpServers", "permissionMode", "initialPrompt", "disallowedTools"]) assert.ok(!new RegExp(`^${k}:`, "m").test(front), k);
   });
 });
