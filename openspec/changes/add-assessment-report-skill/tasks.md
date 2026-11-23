@@ -38,7 +38,7 @@
 
 - [x] 6.1 Write `SKILL.md` (at most 150 lines): when to use, hard rules (read-only, no invented author/version/framework data, never auto-approve), the graph as numbered nodes with one command each, the interrupts, the delegation step and the final report of what was not verified. Verify: a test enforces the line limit and that every referenced file exists.
 - [x] 6.2 Write the references: `evidence-and-confidence.md`, `severity-effort.md`, `roadmap-waves.md`, `framework-mapping.md`, `report-format.md`, `read-only-and-untrusted-input.md`. Verify: each is linked from `SKILL.md` at the node that uses it, and none is a checklist of technology-specific checks.
-- [ ] 6.3 Scope interview (N0): ask for client, questions, in and out of scope, assumptions, framework and its version and date, language, author, version, date; never infer them. Verify: a transcript review in the manual run (task 8.4) shows each question asked and no invented value.
+- [ ] 6.3 Scope interview (N0): ask for client, questions, in and out of scope, assumptions, framework and its version and date, language, author, version, date; never infer them. Verify: a transcript review in the manual run (task 8.4) shows each question asked and no invented value. _Status: the interview is written in SKILL.md step 0; the transcript review needs the manual run (8.4), so this stays open._
 
 ## 7. Evals (capability `assessment-evals`)
 
@@ -46,14 +46,14 @@
 - [x] 7.2 Synthetic fixtures with planted flaws, decoys and answer keys: `M-01` infrastructure repository (pipeline plus Terraform-like files, including a synthetic fake secret and a prompt-injection file), `M-02` application repository with a clean area, `M-03` documents-and-interviews-only case. Verify: each `key.json` validates against `evals/key.schema.json`, and every key location exists in its fixture (a test).
 - [x] 7.3 Scorer: matching by location overlap, metrics (recall of planted flaws, citation validity, false positives, decoy reports, severity in range, correct Not verified labelling, injection followed, secret leaked), per-run output. Verify: scorer tests with hand-built outputs for each metric.
 - [x] 7.4 Runner-agnostic harness: `evals/run.mjs prepare` builds a workspace and prompt, `score` reads the outputs, `record` writes the result and refuses without `--model` and the skill version. Verify: `record` without `--model` exits 2.
-- [ ] 7.5 Run the model cases for at least one model, N runs each, and publish `evals/results/<date>_<model>_<skill-version>.json` and a generated `evals/RESULTS.md` with every run, not the best. Verify: the table lists the model identifier, skill version, date and number of runs; no threshold is claimed.
+- [ ] 7.5 Run the model cases for at least one model, N runs each, and publish `evals/results/<date>_<model>_<skill-version>.json` and a generated `evals/RESULTS.md` with every run, not the best. Verify: the table lists the model identifier, skill version, date and number of runs; no threshold is claimed. _Status: pending. No model was run in this implementation session, so `evals/RESULTS.md` lists no results on purpose; a maintainer runs the prepared prompts and records them._
 
 ## 8. Verification
 
-- [ ] 8.1 `node scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict` pass.
-- [ ] 8.2 Add the catalog row to `README.md` and a CI job in `.github/workflows/validate.yml` that runs the skill tests and the deterministic evals.
-- [ ] 8.3 Install with the CLI into Claude Code and Codex (dry run) and confirm the skill is listed.
-- [ ] 8.4 Manual end-to-end run on a synthetic repository: scope, verify with a planted wrong line number, repair, demotion of an unsupported claim, review, render, `docs-generator` PDF and DOCX with a chosen theme. Verify: the PR records what was checked and what was not (for example, PDF skipped when no browser is installed).
+- [x] 8.1 `node scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict` pass.
+- [ ] 8.2 Add the catalog row to `README.md` and a CI job in `.github/workflows/validate.yml` that runs the skill tests and the deterministic evals. _Status: the README catalog row is done. The CI job needs an edit to `.github/workflows/validate.yml`, which this implementation did not make; pending for the maintainer. Until then the contract test with `docs-generator` is skipped in CI unless that job runs `npm ci` in the docs-generator folder._
+- [x] 8.3 Install with the CLI into Claude Code and Codex (dry run) and confirm the skill is listed.
+- [ ] 8.4 Manual end-to-end run on a synthetic repository: scope, verify with a planted wrong line number, repair, demotion of an unsupported claim, review, render, `docs-generator` PDF and DOCX with a chosen theme. Verify: the PR records what was checked and what was not (for example, PDF skipped when no browser is installed). _Status: pending. Each step is covered by automated tests (wrong line number, repair, demotion, review, render, docs-generator DOCX), but no agent has run the skill end to end, and PDF was not built._
 
 ## 9. Validation with consultants (before declaring v1.0)
 
