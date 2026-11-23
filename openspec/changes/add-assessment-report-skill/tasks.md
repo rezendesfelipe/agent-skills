@@ -13,12 +13,12 @@
 
 ## 3. Inventory and verifier
 
-- [ ] 3.1 `inventory`: list files in scope with size and SHA-256, git revision when present, exclusions (`.git`, `node_modules`, binary, over the size cap), no network. Verify: golden `inventory.json` for the synthetic repository.
-- [ ] 3.2 `verify` for `file` evidence: path containment with symlink resolution, text and size checks, range check, quote comparison with line-ending and trailing-space normalization, excerpt cap, `excerptSha256`, `drift`. Verify: one fixture per failure code (`path-escape`, `not-found`, `not-text`, `too-large`, `range-invalid`, `quote-mismatch`, `drift`) plus CRLF and Unicode passes.
-- [ ] 3.3 `verify` for `absence` evidence: in-house glob (`*`, `**`, `?`), empty scope fails, matches fail with the first matches shown, regex cost bound. Verify: fixtures for pass, `absence-violated`, `scope-empty`, `pattern-too-costly`.
-- [ ] 3.4 `verify` for `output`, `document`, `url` (snapshot only) and `statement` evidence. Verify: a `url` without snapshot is reported as not machine-checked and never fetched (test with the network disabled).
+- [x] 3.1 `inventory`: list files in scope with size and SHA-256, git revision when present, exclusions (`.git`, `node_modules`, binary, over the size cap), no network. Verify: golden `inventory.json` for the synthetic repository.
+- [x] 3.2 `verify` for `file` evidence: path containment with symlink resolution, text and size checks, range check, quote comparison with line-ending and trailing-space normalization, excerpt cap, `excerptSha256`, `drift`. Verify: one fixture per failure code (`path-escape`, `not-found`, `not-text`, `too-large`, `range-invalid`, `quote-mismatch`, `drift`) plus CRLF and Unicode passes.
+- [x] 3.3 `verify` for `absence` evidence: in-house glob (`*`, `**`, `?`), empty scope fails, matches fail with the first matches shown, regex cost bound. Verify: fixtures for pass, `absence-violated`, `scope-empty`, `pattern-too-costly`.
+- [x] 3.4 `verify` for `output`, `document`, `url` (snapshot only) and `statement` evidence. Verify: a `url` without snapshot is reported as not machine-checked and never fetched (test with the network disabled).
 - [ ] 3.5 Secret handling: redacted evidence, pattern scan of every string in `assessment.json`, `secret-in-quote`. Verify: fixture with a synthetic fake secret fails unredacted and passes redacted, and the report never contains the value.
-- [ ] 3.6 Computed-field tamper check. Verify: editing `confidence` or `severity` by hand makes `verify` fail.
+- [x] 3.6 Computed-field tamper check. Verify: editing `confidence` or `severity` by hand makes `verify` fail.
 
 ## 4. Classification and roadmap
 

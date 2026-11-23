@@ -13,7 +13,7 @@ export const SECRET_PATTERNS = [
   R("stripe-key", /\b[sr]k_live_[0-9A-Za-z]{16,}\b/),
   R("jwt", /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/),
   // name = "long random-looking value"; values that look like references or placeholders are ignored
-  R("generic-credential", /\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)\w*["']?\s*[:=]\s*["']?(?![<{$(]|var\.|local\.|data\.|module\.|env\.|secrets\.|os\.|process\.)(?=[A-Za-z0-9/+_\-.]*\d)(?=[A-Za-z0-9/+_\-.]*[A-Za-z])[A-Za-z0-9/+_\-.]{16,}/i),
+  R("generic-credential", /(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|client[_-]?secret)\w*["']?\s*[:=]\s*["']?(?![<{$(]|var\.|local\.|data\.|module\.|env\.|secrets\.|os\.|process\.)(?=[A-Za-z0-9/+_\-.]*\d)(?=[A-Za-z0-9/+_\-.]*[A-Za-z])[A-Za-z0-9/+_\-.]{16,}/i),
 ];
 
 export const SECRET_KINDS = SECRET_PATTERNS.map((p) => p.kind);
