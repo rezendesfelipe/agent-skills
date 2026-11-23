@@ -1,0 +1,202 @@
+{
+  "suite": "confidence",
+  "cases": [
+    {
+      "id": "C-verified-one-pass",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "file",
+          "path": "a",
+          "startLine": 1,
+          "endLine": 1,
+          "quote": "x"
+        }
+      ],
+      "results": {
+        "E-001": "pass"
+      },
+      "cites": [
+        "E-001"
+      ],
+      "expect": {
+        "confidence": "verified"
+      }
+    },
+    {
+      "id": "C-verified-pass-and-fail",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "file",
+          "path": "a",
+          "startLine": 1,
+          "endLine": 1,
+          "quote": "x"
+        },
+        {
+          "id": "E-002",
+          "kind": "file",
+          "path": "a",
+          "startLine": 1,
+          "endLine": 1,
+          "quote": "x"
+        }
+      ],
+      "results": {
+        "E-001": "pass",
+        "E-002": "fail"
+      },
+      "cites": [
+        "E-001",
+        "E-002"
+      ],
+      "expect": {
+        "confidence": "verified"
+      }
+    },
+    {
+      "id": "C-corroborated-two-sources",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "statement",
+          "source": "CTO",
+          "date": "2026-01-01",
+          "text": "t"
+        },
+        {
+          "id": "E-002",
+          "kind": "statement",
+          "source": "SRE",
+          "date": "2026-01-01",
+          "text": "t"
+        }
+      ],
+      "results": {
+        "E-001": "unchecked",
+        "E-002": "unchecked"
+      },
+      "cites": [
+        "E-001",
+        "E-002"
+      ],
+      "expect": {
+        "confidence": "corroborated"
+      }
+    },
+    {
+      "id": "C-reported-one-source",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "statement",
+          "source": "CTO",
+          "date": "2026-01-01",
+          "text": "t"
+        }
+      ],
+      "results": {
+        "E-001": "unchecked"
+      },
+      "cites": [
+        "E-001"
+      ],
+      "expect": {
+        "confidence": "reported"
+      }
+    },
+    {
+      "id": "C-reported-same-source-twice",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "statement",
+          "source": "CTO",
+          "date": "2026-01-01",
+          "text": "t"
+        },
+        {
+          "id": "E-002",
+          "kind": "statement",
+          "source": "CTO",
+          "date": "2026-01-01",
+          "text": "t"
+        }
+      ],
+      "results": {
+        "E-001": "unchecked",
+        "E-002": "unchecked"
+      },
+      "cites": [
+        "E-001",
+        "E-002"
+      ],
+      "expect": {
+        "confidence": "reported"
+      }
+    },
+    {
+      "id": "C-reported-failed-item-is-not-a-source",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "file",
+          "path": "a",
+          "startLine": 1,
+          "endLine": 1,
+          "quote": "x"
+        },
+        {
+          "id": "E-002",
+          "kind": "statement",
+          "source": "CTO",
+          "date": "2026-01-01",
+          "text": "t"
+        }
+      ],
+      "results": {
+        "E-001": "fail",
+        "E-002": "unchecked"
+      },
+      "cites": [
+        "E-001",
+        "E-002"
+      ],
+      "expect": {
+        "confidence": "reported"
+      }
+    },
+    {
+      "id": "C-unverified-all-failed",
+      "evidence": [
+        {
+          "id": "E-001",
+          "kind": "file",
+          "path": "a",
+          "startLine": 1,
+          "endLine": 1,
+          "quote": "x"
+        }
+      ],
+      "results": {
+        "E-001": "fail"
+      },
+      "cites": [
+        "E-001"
+      ],
+      "expect": {
+        "confidence": "unverified"
+      }
+    },
+    {
+      "id": "C-unverified-no-evidence",
+      "evidence": [],
+      "results": {},
+      "cites": [],
+      "expect": {
+        "confidence": "unverified"
+      }
+    }
+  ]
+}

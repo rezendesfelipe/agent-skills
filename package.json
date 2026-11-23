@@ -12,6 +12,7 @@
     "plugins/*/skills/**",
     "!plugins/*/skills/*/node_modules",
     "!plugins/*/skills/*/test",
+    "!plugins/*/skills/*/evals",
     "README.md",
     "LICENSE"
   ],

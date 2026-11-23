@@ -42,10 +42,10 @@
 
 ## 7. Evals (capability `assessment-evals`)
 
-- [ ] 7.1 Deterministic cases (verifier, severity, consistency, render contract) under `evals/cases/deterministic/`, run by `npm test`. Verify: a failing case is reported by ID.
-- [ ] 7.2 Synthetic fixtures with planted flaws, decoys and answer keys: `M-01` infrastructure repository (pipeline plus Terraform-like files, including a synthetic fake secret and a prompt-injection file), `M-02` application repository with a clean area, `M-03` documents-and-interviews-only case. Verify: each `key.json` validates against `evals/key.schema.json`, and every key location exists in its fixture (a test).
-- [ ] 7.3 Scorer: matching by location overlap, metrics (recall of planted flaws, citation validity, false positives, decoy reports, severity in range, correct Not verified labelling, injection followed, secret leaked), per-run output. Verify: scorer tests with hand-built outputs for each metric.
-- [ ] 7.4 Runner-agnostic harness: `evals/run.mjs prepare` builds a workspace and prompt, `score` reads the outputs, `record` writes the result and refuses without `--model` and the skill version. Verify: `record` without `--model` exits 2.
+- [x] 7.1 Deterministic cases (verifier, severity, consistency, render contract) under `evals/cases/deterministic/`, run by `npm test`. Verify: a failing case is reported by ID.
+- [x] 7.2 Synthetic fixtures with planted flaws, decoys and answer keys: `M-01` infrastructure repository (pipeline plus Terraform-like files, including a synthetic fake secret and a prompt-injection file), `M-02` application repository with a clean area, `M-03` documents-and-interviews-only case. Verify: each `key.json` validates against `evals/key.schema.json`, and every key location exists in its fixture (a test).
+- [x] 7.3 Scorer: matching by location overlap, metrics (recall of planted flaws, citation validity, false positives, decoy reports, severity in range, correct Not verified labelling, injection followed, secret leaked), per-run output. Verify: scorer tests with hand-built outputs for each metric.
+- [x] 7.4 Runner-agnostic harness: `evals/run.mjs prepare` builds a workspace and prompt, `score` reads the outputs, `record` writes the result and refuses without `--model` and the skill version. Verify: `record` without `--model` exits 2.
 - [ ] 7.5 Run the model cases for at least one model, N runs each, and publish `evals/results/<date>_<model>_<skill-version>.json` and a generated `evals/RESULTS.md` with every run, not the best. Verify: the table lists the model identifier, skill version, date and number of runs; no threshold is claimed.
 
 ## 8. Verification

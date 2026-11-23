@@ -16,7 +16,7 @@ Every finding lists at least one evidence ID. A finding with none is rejected by
 | `output` | `path` (under `evidence/`), `command`, `capturedAt`, `quote` | Run `capture --file evidence/<name> --command "<cmd>"` first; the file's SHA-256 must still match the capture and contain the quote. The command is never re-run |
 | `document` | `path`, `startLine`, `endLine`, `quote`, `source` | As `file`. PDF, DOCX and images are not read: ask the user for a text extraction |
 | `url` | `url`, `accessed`, `quote`, optional `snapshot` (+ `startLine`, `endLine`) | Only with a snapshot saved under `evidence/`, then as a file. The URL is never fetched |
-| `statement` | `source` (a role or name), `date`, `text` | Nothing; recorded with who said it and when. Interviews, tickets, chat |
+| `statement` | `source` (a role or name), `date`, `text`; optionally `path`, `startLine`, `endLine` of the saved note it comes from | Nothing; recorded with who said it and when. Interviews, tickets, chat. The optional location says where the note is saved; it is not checked, and the item stays not machine-checked |
 
 Two items with different `source` values are independent; two with the same `source` count once. An evidence item no finding cites is a warning.
 

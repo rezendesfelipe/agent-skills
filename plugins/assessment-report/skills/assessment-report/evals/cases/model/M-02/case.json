@@ -1,0 +1,13 @@
+{
+  "id": "M-02",
+  "title": "Application repository with a clean area",
+  "root": "repo",
+  "client": "Synthetic Billing Co",
+  "lang": "en",
+  "scope": {
+    "in": ["src/billing/**", "README.md"],
+    "out": ["src/legacy/**", "test/**"],
+    "questions": ["Is the billing code safe against injection and does it validate its input?"],
+    "assumptions": ["The legacy importer is being retired and is out of scope."]
+  }
+}

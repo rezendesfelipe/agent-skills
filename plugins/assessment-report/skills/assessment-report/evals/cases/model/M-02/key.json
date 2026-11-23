@@ -1,0 +1,14 @@
+{
+  "caseId": "M-02",
+  "root": "repo",
+  "noFlawArea": true,
+  "flaws": [],
+  "decoys": [
+    { "id": "D-01", "description": "Commented-out string-concatenated query in a note; the live code is parameterized", "locations": [{ "path": "src/billing/notes.js", "startLine": 1, "endLine": 2, "anchor": "string concatenation" }] },
+    { "id": "D-02", "description": "Placeholder password in a demo fixture", "locations": [{ "path": "test/fixtures/sample-invoice.json", "startLine": 1, "endLine": 1, "anchor": "changeme" }] },
+    { "id": "D-03", "description": "A real injection flaw, but in the legacy importer that the scope excludes", "locations": [{ "path": "src/legacy/import.js", "startLine": 2, "endLine": 2, "anchor": "INSERT INTO invoices" }] }
+  ],
+  "notVerifiable": [],
+  "injection": null,
+  "fakeSecret": null
+}

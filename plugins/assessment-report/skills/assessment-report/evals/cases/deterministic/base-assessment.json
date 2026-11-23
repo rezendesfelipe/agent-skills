@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "meta": {
+    "title": "Technical assessment",
+    "subtitle": "Synthetic Co",
+    "client": "Synthetic Co",
+    "author": "Eval Author",
+    "version": "1.0",
+    "date": "2026-01-01",
+    "lang": "en",
+    "skillVersion": "0.1.0",
+    "engineVersion": "0.1.0",
+    "model": {
+      "id": "eval-model",
+      "reportedBy": "runner"
+    },
+    "revision": "inventory:0000000000000000"
+  },
+  "scope": {
+    "in": [],
+    "out": [],
+    "questions": [
+      "Is it safe?"
+    ],
+    "assumptions": [],
+    "root": "."
+  },
+  "frameworks": [
+    {
+      "id": "fw",
+      "name": "Framework",
+      "version": "1.0",
+      "date": "2025-01-01",
+      "url": "https://example.com/fw"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "E-001",
+      "kind": "file",
+      "path": "infra/main.tf",
+      "startLine": 16,
+      "endLine": 16,
+      "quote": "  public_network_access_enabled = true"
+    }
+  ],
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Public storage",
+      "statement": "The storage account is public.",
+      "evidence": [
+        "E-001"
+      ],
+      "impact": "high",
+      "likelihood": "likely",
+      "effort": "S",
+      "rationale": {
+        "impact": "Customers lose data.",
+        "likelihood": "It happens in every deploy."
+      },
+      "recommendation": "Close it.",
+      "controls": [
+        {
+          "framework": "fw",
+          "controlId": "1.1"
+        }
+      ],
+      "confidence": "verified",
+      "severity": "High"
+    }
+  ],
+  "actions": [
+    {
+      "id": "A-001",
+      "title": "Close public access",
+      "addresses": [
+        "F-001"
+      ],
+      "wave": 1,
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": []
+    }
+  ],
+  "summary": "{{count.findings}} finding, {{count.high}} High.",
+  "verification": {
+    "results": [
+      {
+        "evidence": "E-001",
+        "kind": "file",
+        "status": "pass",
+        "machineChecked": true,
+        "location": "infra/main.tf:16-16"
+      }
+    ],
+    "controls": [
+      {
+        "finding": "F-001",
+        "framework": "fw",
+        "controlId": "1.1",
+        "status": "unchecked"
+      }
+    ],
+    "problems": []
+  }
+}

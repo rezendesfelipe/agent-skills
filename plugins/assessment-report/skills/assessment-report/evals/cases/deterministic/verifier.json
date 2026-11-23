@@ -1,0 +1,291 @@
+{
+  "suite": "verifier",
+  "fixture": "M-01",
+  "cases": [
+    {
+      "id": "V-pass-file",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 16,
+        "endLine": 16,
+        "quote": "  public_network_access_enabled = true"
+      },
+      "expect": {
+        "status": "pass"
+      }
+    },
+    {
+      "id": "V-pass-file-trailing-space",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 16,
+        "endLine": 16,
+        "quote": "  public_network_access_enabled = true   "
+      },
+      "expect": {
+        "status": "pass"
+      }
+    },
+    {
+      "id": "V-pass-redacted-secret",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/terraform.tfvars",
+        "startLine": 2,
+        "endLine": 2,
+        "redacted": true,
+        "secretKind": "generic-credential"
+      },
+      "expect": {
+        "status": "pass"
+      }
+    },
+    {
+      "id": "V-pass-absence",
+      "evidence": {
+        "id": "E-001",
+        "kind": "absence",
+        "scope": [
+          "infra/**/*.tf"
+        ],
+        "pattern": "azurerm_monitor_diagnostic_setting"
+      },
+      "expect": {
+        "status": "pass"
+      }
+    },
+    {
+      "id": "V-pass-statement-unchecked",
+      "evidence": {
+        "id": "E-001",
+        "kind": "statement",
+        "source": "CTO",
+        "date": "2026-01-01",
+        "text": "x"
+      },
+      "expect": {
+        "status": "unchecked"
+      }
+    },
+    {
+      "id": "V-pass-url-unchecked",
+      "evidence": {
+        "id": "E-001",
+        "kind": "url",
+        "url": "https://example.com",
+        "accessed": "2026-01-01",
+        "quote": "x"
+      },
+      "expect": {
+        "status": "unchecked"
+      }
+    },
+    {
+      "id": "V-path-escape-parent",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "../secrets.txt",
+        "startLine": 1,
+        "endLine": 1,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "path-escape"
+      }
+    },
+    {
+      "id": "V-path-escape-git",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": ".git/config",
+        "startLine": 1,
+        "endLine": 1,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "path-escape"
+      }
+    },
+    {
+      "id": "V-not-found",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/missing.tf",
+        "startLine": 1,
+        "endLine": 1,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "not-found"
+      }
+    },
+    {
+      "id": "V-not-text",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "blob.bin",
+        "startLine": 1,
+        "endLine": 1,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "not-text"
+      }
+    },
+    {
+      "id": "V-too-large",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 1,
+        "endLine": 1,
+        "quote": "terraform {"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "too-large"
+      },
+      "maxBytes": 100
+    },
+    {
+      "id": "V-range-invalid-beyond-end",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 400,
+        "endLine": 401,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "range-invalid"
+      }
+    },
+    {
+      "id": "V-range-invalid-over-20-lines",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 1,
+        "endLine": 25,
+        "quote": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "range-invalid"
+      }
+    },
+    {
+      "id": "V-quote-mismatch-wrong-lines",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 17,
+        "endLine": 17,
+        "quote": "  public_network_access_enabled = true"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "quote-mismatch"
+      }
+    },
+    {
+      "id": "V-drift",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/main.tf",
+        "startLine": 16,
+        "endLine": 16,
+        "quote": "  public_network_access_enabled = true"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "drift"
+      },
+      "mutate": [
+        {
+          "path": "infra/main.tf",
+          "append": "# edited after the inventory\n"
+        }
+      ]
+    },
+    {
+      "id": "V-scope-empty",
+      "evidence": {
+        "id": "E-001",
+        "kind": "absence",
+        "scope": [
+          "nothing/**"
+        ],
+        "pattern": "x"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "scope-empty"
+      }
+    },
+    {
+      "id": "V-absence-violated",
+      "evidence": {
+        "id": "E-001",
+        "kind": "absence",
+        "scope": [
+          "infra/*.tf"
+        ],
+        "pattern": "public_network_access_enabled"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "absence-violated"
+      }
+    },
+    {
+      "id": "V-pattern-too-costly",
+      "evidence": {
+        "id": "E-001",
+        "kind": "absence",
+        "scope": [
+          "**/*.tf"
+        ],
+        "pattern": "(a+)+$"
+      },
+      "expect": {
+        "status": "fail",
+        "code": "pattern-too-costly"
+      }
+    },
+    {
+      "id": "V-secret-in-quote",
+      "evidence": {
+        "id": "E-001",
+        "kind": "file",
+        "path": "infra/terraform.tfvars",
+        "startLine": 2,
+        "endLine": 2,
+        "quote": "db_admin_password = \"Vq7Lm2Xz9RtK4WnB8yPc\""
+      },
+      "expect": {
+        "status": "fail",
+        "code": "secret-in-quote"
+      }
+    }
+  ]
+}
