@@ -5,19 +5,20 @@
 
 ## 2. Documentation of the graph
 
-- [ ] 2.1 Create `docs/aep/delivery-graph.md` with: the working-definition statement and the AEP mapping table, the node table of Decision 1, the edges including the conditional ones, the cycle limit, the gates, and the Mermaid diagram from `design.md` (verify: the page labels AEP as a working definition and contains no claim of a third-party definition; all twelve nodes are present with a type)
+- [ ] 2.1 Create `docs/aep/delivery-graph.md` with: the working-definition statement with the two cited sources and the line between source and adaptation, the consultancy adaptation, the AEP mapping table, the honest gaps list, the node table of Decision 1, the edges including the conditional ones, the cycle limit, the gates, and the Mermaid diagram from `design.md` (verify: the page labels AEP as a working definition, cites both sources, claims no endorsement or conformance, lists the gaps without promising them and says client data does not belong in the repository; all twelve nodes are present with a type)
 - [ ] 2.2 Add to the page the roles table (author, implementer, reviewer, integrator) with what each may write and must not do, plus a "what is enforced and by what" table: tool allowlist, CI, repository settings, instructions only (verify: each permission in the roles table appears in exactly one enforcement row)
 - [ ] 2.3 Add to the page the state table (`tasks.md`, pull request labels `node:*`, `cycle:1..3`, `review:*`, `needs:maintainer`, `.openspec.yaml`) and how a new session resumes from it (verify: following only the page, a reader can say where a change stands from a pull request and its `tasks.md`)
 - [ ] 2.4 Add the parallelism rules: worktree and branch `claude/<name>` per change, rebase before merge, rules for `README.md`, `.claude-plugin/marketplace.json` and `package.json` (version changes only in a release change) (verify: the rules match the `Parallel changes` requirement)
 - [ ] 2.5 Add the level 2 convention to the page and to `templates/skill/` guidance if it has a design checklist: the graph section for each agent or skill, node types, the verifier node and the evidence rule (verify: `CONTRIBUTING.md` links to the section and the skill checklist mentions it)
 - [ ] 2.6 Update `CONTRIBUTING.md`: link to the page, name the two gates, and change step 6 ("the maintainer runs `/opsx:archive`") to say that the integrator archives after merge with an approved verdict and green CI; keep the release steps and state that a tag needs the maintainer's explicit OK (verify: `git grep -n "maintainer runs"` in `CONTRIBUTING.md` finds nothing stale; Conventional Commits and the `claude/` branch rule are stated)
 - [ ] 2.7 Add `.github/pull_request_template.md` with a checklist that mirrors the gates: change name, gate 1 approval link, `tasks.md` complete, checks run, review verdict, cycle count, "no version bump" unless a release change (verify: opening a draft pull request shows the template)
+- [ ] 2.8 Add to the page the "No graph runtime" decision: alternatives, pros and cons, and the reevaluation criteria of `design.md` Decision 11 (verify: the page states that no LangGraph or LangChain runtime is used, and `git grep -il "langgraph\|langchain" package.json src scripts` finds nothing)
 
 ## 3. Deterministic helper
 
 - [ ] 3.1 Create `scripts/delivery-check.mjs` (no new dependency) with `scope <change>` (the diff against `main` touches only `openspec/changes/<change>/`; exits 1 and lists offending paths otherwise), `tasks <change>` (exits 1 and names the first unticked `- [ ]`) and `evidence <file>` (every `file:line` reference in the file exists; exits 1 and lists missing ones; lines marked "not verified" are reported, not failed) (verify: `node scripts/delivery-check.mjs --help` lists the three subcommands)
 - [ ] 3.2 Tests in `test/` using temporary git repositories: one passing and one failing case per subcommand and per scenario of the `Human gate 1 before implementation`, `Roles and permissions` and `Verifier node for findings` requirements (verify: `npm test` passes, and each test fails when the helper's check is removed)
-- [ ] 3.3 Decide with the maintainer (Open Question 4) whether `validate.yml` runs `scope` on `claude/*` proposal branches; if yes, add the step with the same pinned versions style as the existing workflow (verify: a deliberately out-of-scope pull request fails the job; skip this task and record the decision if the answer is no)
+- [ ] 3.3 Run `delivery-check` in `.github/workflows/validate.yml` (the maintainer approved this default): add a step with the same pinned-versions style as the existing workflow, running `scope` on `claude/*` proposal branches (verify: a deliberately out-of-scope pull request fails the job). The workflow is edited at apply only, not in this proposal
 
 ## 4. Roles as instructions
 
@@ -27,7 +28,7 @@
 ## 5. GitHub settings (maintainer actions)
 
 - [ ] 5.1 The maintainer creates the labels `node:*`, `cycle:1`, `cycle:2`, `cycle:3`, `review:approved`, `review:changes-requested` and `needs:maintainer`, and decides on branch protection for `main` (required checks `validate`, `test`, no direct pushes) (verify: the labels exist; the maintainer records the branch protection decision in the pull request; this task cannot be completed by an agent and stays unticked until the maintainer confirms)
-- [ ] 5.2 Record which GitHub identity the integrator uses and confirm it cannot push a tag without the maintainer's OK (for example by tag protection rules) (verify: the decision is written in `docs/aep/roles.md`)
+- [ ] 5.2 Record which GitHub identity the integrator uses and confirm it cannot push a tag without the maintainer's OK (for example by tag protection rules) (verify: the decision is written in `docs/aep/roles.md`). This is a recommendation and a prerequisite: no release automation is built before the maintainer has put protection on `main` and on the `v*` tags in place
 
 ## 6. Diagram
 

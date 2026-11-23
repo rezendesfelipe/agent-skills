@@ -1,19 +1,45 @@
 ## Purpose
 
-Defines how a change travels from idea to published capability in this repository as an explicit graph (level 1), and the convention every agent or skill follows to describe its own graph (level 2). "AEP" (Agentic Engineering Platform) is a working definition of this project, not an established market term.
+Defines how a change travels from idea to published capability in this repository as an explicit graph (level 1), and the convention every agent or skill follows to describe its own graph (level 2). "AEP" (Agentic Engineering Platform) is a working definition of this project, anchored in two cited sources and adapted for consultancies, not an established standard. The graphs are specifications; no graph runtime is used.
 
 ## ADDED Requirements
 
 ### Requirement: Working definition of AEP
-The repository documentation that describes the graph SHALL present "AEP" as a working definition of this project: an evolution of an internal developer platform in which agents are first-class consumers and producers. It MUST NOT present AEP as an established industry term or cite a source that defines it. It SHALL state the mapping from platform concepts to repository parts: capability catalog to the repository and marketplace, control plane to OpenSpec specs, orchestration to graphs, guardrails to read-only defaults, the CLI's `refused` status and human gates, quality to evals, CI and the evidence verifier, distribution to the `agent-skills` CLI and the marketplace.
+The repository documentation that describes the graph SHALL present "AEP" as a working definition of this project, not as an established industry standard. It SHALL cite the two sources it is anchored in, Weave Intelligence, "What is an Agentic Engineering Platform?", and the CNCF blog post "Platform engineering for the agentic enterprise: managing applications, resources, and AI agents", and SHALL distinguish what each source states from what this project adapts. It SHALL state the adaptation for a consultancy: reusable, versioned and verifiable capabilities plus the paths and guardrails through which people and agents deliver engagements to third parties, with evidence and an audit trail per engagement. It SHALL state the mapping from platform concepts to repository parts: capability catalog to the repository and marketplace, contract to OpenSpec specs, orchestration to graphs, guardrails to read-only defaults, the CLI's `refused` status and human gates, quality to evals, CI and the evidence verifier, distribution to the `agent-skills` CLI and the marketplace. It MUST NOT claim that either source endorses this project's definition or that this repository conforms to a source's architecture.
 
 #### Scenario: Reader opens the delivery graph page
 - **WHEN** a contributor reads the page that documents the delivery graph
-- **THEN** it labels AEP as a working definition and lists the mapping of platform concepts to repository parts
+- **THEN** it labels AEP as a working definition, cites the two sources, separates source statements from our adaptation, and lists the mapping of platform concepts to repository parts
 
-#### Scenario: No claim of an industry definition
+#### Scenario: No claim of an industry definition or endorsement
 - **WHEN** the documentation is reviewed
-- **THEN** it contains no statement that AEP is defined or standardized by a third party
+- **THEN** it contains no statement that AEP is standardized, that a source endorses this definition, or that the repository conforms to a source's layers
+
+### Requirement: Consultancy adaptation and stated gaps
+The documentation SHALL describe what an AEP means for a consultancy that delivers assessments, architectures and platforms to third parties, covering reusable capabilities across engagements, contracts as specs, verifiable evidence, governance, audit trail, multi-client isolation and deliverables, and SHALL say which of these this repository provides. It SHALL list the capabilities that the sources describe and this repository lacks, at least: distinct agent identities with scoped credentials, agent sandboxing, agent observability and cost attribution, evaluation with goldens and replay, a context layer, a tool gateway, a models plane, output guardrails and per-engagement isolation of context and data. The list SHALL NOT promise to build them. The documentation SHALL state that client data and engagement outputs do not belong in this public repository.
+
+#### Scenario: Gaps are listed honestly
+- **WHEN** a contributor reads the documentation
+- **THEN** it lists the missing capabilities and does not state or imply that they are planned or committed
+
+#### Scenario: Client data
+- **WHEN** a contributor asks where engagement data should live
+- **THEN** the documentation says it does not belong in this repository
+
+### Requirement: No graph runtime
+Graph engineering SHALL be used in this project as a design discipline (typed nodes, conditional edges, explicit state, bounded cycles and human interruptions), and the delivery graph and the level 2 graphs SHALL be specifications executed by Claude Code subagents, the OpenSpec CLI, deterministic scripts and CI. The repository SHALL NOT add a graph runtime (LangGraph, LangChain or any other) as a dependency or service because of this change. The design SHALL record the alternatives considered (adopting a runtime with checkpointing and durable interrupts, a single-agent harness) with their pros and cons, and SHALL state objective criteria for reevaluating the decision, including orchestration that must run durably outside an interactive session and parallelism above a stated number of changes. Meeting a criterion SHALL start a new change that evaluates a runtime; it SHALL NOT adopt one by itself.
+
+#### Scenario: No runtime dependency
+- **WHEN** the change is implemented
+- **THEN** `package.json` and the repository contain no LangGraph or LangChain dependency, service or code
+
+#### Scenario: Reevaluation criteria present
+- **WHEN** a contributor reads the design
+- **THEN** it lists objective criteria for reconsidering a runtime and states that meeting one starts a new change rather than adopting a runtime
+
+#### Scenario: Criterion met
+- **WHEN** a criterion is met, for example orchestration that must run unattended and survive a restart
+- **THEN** the maintainer is told and a new OpenSpec change is proposed before any runtime is added
 
 ### Requirement: Delivery graph of the repository
 Every change to this repository SHALL travel through the level 1 delivery graph. Its nodes, in order, are: `explore`, `propose`, `validate`, `human-gate-1`, `apply`, `test-and-validate`, `review`, `pr-and-ci`, `merge`, `archive`, `release-queue` and `human-gate-2`. `propose`, `apply` and `review` SHALL be agent nodes; every other node SHALL be deterministic code, a command or a human decision. The documentation SHALL state the edges, including the conditional ones: `validate` fails then back to `propose`; `test-and-validate` fails then back to `apply`; `review` with reservations then back to `apply`; a change that exhausts its cycle limit goes to the maintainer.
