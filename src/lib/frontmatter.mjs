@@ -119,7 +119,7 @@ function listOf(entry) {
 
 /**
  * Reads an agent file (or any Markdown file with YAML frontmatter).
- * @returns {null | {text: string, raw: string, body: string, keys: string[], duplicates: string[],
+ * @returns {null | {text: string, raw: string, body: string, keys: string[], duplicates: string[], unrecognized: string[],
  *   has(key: string): boolean, scalar(key: string): string|undefined, list(key: string): string[]|undefined}}
  */
 export function parseDocument(input) {
@@ -128,7 +128,13 @@ export function parseDocument(input) {
   if (!m) return null;
   const raw = m[1] ?? "";
   const entries = [];
+  const unrecognized = [];
   for (const line of raw.split("\n")) {
+    // A top-level line that is not `key: value` (nor a comment, a blank line or a list item) is YAML
+    // this reader does not understand (`key :`, a quoted key, `? key`, a flow mapping ...), so it
+    // could hide a field from `keys`. It is reported and callers reject the file.
+    if (line !== "" && !/^\s/.test(line) && !line.startsWith("#") && !/^-(\s|$)/.test(line) && !/^([A-Za-z0-9_-]+):(?:[ \t]|$)/.test(line))
+      unrecognized.push(line);
     const kv = line.match(/^([A-Za-z0-9_-]+):(?:[ \t]+([^\n]*)|[ \t]*)$/);
     if (kv) entries.push({ key: kv[1], inline: (kv[2] ?? "").trimEnd(), rest: [] });
     else if (entries.length) entries.at(-1).rest.push(line);
@@ -145,6 +151,7 @@ export function parseDocument(input) {
     body: text.slice(m[0].length),
     keys: [...byKey.keys()],
     duplicates: [...new Set(duplicates)],
+    unrecognized,
     has: (key) => byKey.has(key),
     scalar: (key) => (byKey.has(key) ? scalarOf(byKey.get(key)) : undefined),
     list: (key) => (byKey.has(key) ? listOf(byKey.get(key)) : undefined),
