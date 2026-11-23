@@ -26,3 +26,19 @@ From the two articles' "traps" sections and the 2026-11-22 code review (design D
 | Private network closes the pipeline's door | Microsoft-hosted agents cannot reach ACR, the API or the state | Self-hosted agents in the VNet (prerequisite) |
 | Splitting too much | Twenty states, twenty dependencies | Split by lifecycle and owner (manifest review) |
 | Parameters are not a vault | Values expand in logs | No secrets in parameters; Key Vault and OIDC |
+
+## Which rules `audit` evaluates
+
+`audit` (no manifest) runs the rules that need none and lists the others as not evaluated.
+
+| Rule | `check` | `audit` |
+|---|---|---|
+| `backend-partial`, `versions`, `rg-owned`, `oidc` | yes | yes |
+| `no-prod-destroy`, `manual-trigger`, `plan-default`, `gha-inputs`, `argocd-apply-only` | yes | yes, on pipelines that run Terraform; a boolean input is inferred to be a stack selector only when the pipeline also has a plan/apply input, and then only a warning |
+| `argocd-finalizer`, `argocd-prod-sync`, `argocd-pinned` | yes | yes (an app of apps is not flagged for automated sync: what must wait in production are the Applications it creates) |
+| `wi-subject` | yes | best effort, as a warning, from literals |
+| `state-key`, `pipeline-params`, `pipeline-deps`, `lz-dns-zone-group`, `lz-no-local-privatelink-zone`, `drift`, `bridge-placeholders` | yes | **not evaluated**: need `infra/stacks.yaml` |
+| `state-shared`, `state-local`, `state-unknown` | n/a | audit only |
+
+`state-shared` is an error when two roots name the same key in the same storage account and container, all literal; it is a warning when the account or container is not stated or the key was inferred from a script.
+

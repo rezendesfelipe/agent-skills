@@ -1,64 +1,28 @@
-// "check": rules from the articles' traps and the code review, run on an existing repository.
-import { existsSync, readFileSync, readdirSync, statSync, mkdtempSync, writeFileSync } from "node:fs";
+// "check": rules from the articles' traps and the code review, run on a repository that has infra/stacks.yaml.
+// The rules that need no manifest live in rules.mjs and are shared with "audit".
+import { existsSync, readFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
 import YAML from "yaml";
-import { camel, snake, transitiveDeps, DEFAULTS } from "./manifest.mjs";
-import { stateKey, literalRg, literalName } from "./naming.mjs";
+import { camel, snake, transitiveDeps } from "./manifest.mjs";
+import { stateKey, literalRg } from "./naming.mjs";
 import { generateAll } from "./generate.mjs";
 import { bootstrapDeps } from "./gen-pipelines.mjs";
-import { FINALIZER } from "./gen-gitops.mjs";
+import { walk, lineOf } from "./util.mjs";
+import {
+  RULE_DOCS, ruleBackendBlock, ruleVersions, ruleRgOwned, ruleCredentials, ruleAdoPipeline, ruleAdoParams,
+  ruleAdoBootstrapStage, ruleGhaWorkflow, ruleGhaInputs, ruleGhaBootstrapJob, ruleArgoFinalizer, ruleArgoProdSync, ruleBootstrapScript,
+} from "./rules.mjs";
 
-export const RULE_DOCS = {
-  "state-key": "references/stacks-and-state.md#state-keys",
-  "backend-partial": "references/stacks-and-state.md#backend",
-  "pipeline-params": "references/pipelines-azure-devops.md",
-  "pipeline-deps": "references/pipelines-azure-devops.md#dependencies",
-  "no-prod-destroy": "references/traps.md#destroy-in-production",
-  "manual-trigger": "references/traps.md#who-can-click-run",
-  "plan-default": "references/traps.md#partial-selection",
-  oidc: "references/pipelines-github-actions.md#oidc",
-  "wi-subject": "references/gitops-argocd.md#workload-identity",
-  "argocd-prod-sync": "references/gitops-argocd.md#sync-policy",
-  "argocd-finalizer": "references/gitops-argocd.md#finalizer",
-  "argocd-pinned": "references/gitops-argocd.md#bootstrap",
-  "argocd-apply-only": "references/gitops-argocd.md#bootstrap",
-  "bridge-placeholders": "references/gitops-argocd.md#bridge",
-  "gha-inputs": "references/pipelines-github-actions.md",
-  "rg-owned": "references/traps.md#resource-groups",
-  versions: "references/stacks-and-state.md#versions",
-  "lz-dns-zone-group": "references/landing-zones.md",
-  "lz-no-local-privatelink-zone": "references/landing-zones.md",
-  drift: "references/manifest-format.md#regenerating",
-  manifest: "references/manifest-format.md",
-};
-
-function walk(dir, root = dir, out = []) {
-  if (!existsSync(dir)) return out;
-  for (const e of readdirSync(dir)) {
-    const p = join(dir, e);
-    if (e === ".terraform" || e === "node_modules" || e === ".git") continue;
-    if (statSync(p).isDirectory()) walk(p, root, out); else out.push(relative(root, p));
-  }
-  return out;
-}
-
-const lineOf = (text, re) => {
-  const lines = text.split("\n");
-  const i = lines.findIndex((l) => (typeof re === "string" ? l.includes(re) : re.test(l)));
-  return i < 0 ? undefined : i + 1;
-};
-
-const semver = (v) => v.replace(/^v/, "").split(".").map(Number);
-const older = (a, b) => { const x = semver(a), y = semver(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i]; return false; };
-const lowerBound = (c) => { const m = />=\s*([\d.]+)/.exec(c ?? ""); return m ? m[1] : null; };
+export { RULE_DOCS };
 
 export function runCheck(root, m) {
   const findings = [];
   const add = (rule, severity, file, line, message) => findings.push({ rule, severity, file, line, message, ref: RULE_DOCS[rule] });
   const read = (p) => (existsSync(join(root, p)) ? readFileSync(join(root, p), "utf8") : null);
   const expected = generateAll(m);
+  const prodPossible = m.envNames.includes("prod");
 
   // drift: files the manifest generates that differ or are missing
   for (const [p, content] of expected) {
@@ -85,35 +49,21 @@ export function runCheck(root, m) {
     }
   }
 
-  // backend-partial and versions
+  // backend-partial and versions, per stack
+  const tfOfStacks = [];
   for (const s of m.stacks) {
     const dir = `infra/stacks/${s.name}`;
-    const tfFiles = walk(join(root, dir), root).filter((f) => f.endsWith(".tf"));
-    const all = tfFiles.map((f) => [f, read(f)]);
-    const backend = all.find(([, t]) => /backend\s+"azurerm"/.test(t));
+    const all = walk(join(root, dir), root).filter((f) => f.endsWith(".tf")).map((f) => ({ file: f, text: read(f) }));
+    tfOfStacks.push(...all);
+    const backend = all.find(({ text }) => /backend\s+"azurerm"/.test(text));
     if (!backend) add("backend-partial", "error", dir, undefined, 'no backend "azurerm" block');
-    else if (!/backend\s+"azurerm"\s*\{\s*\}/.test(backend[1])) add("backend-partial", "error", backend[0], lineOf(backend[1], 'backend "azurerm"'), "the backend block must be empty: values come from terraform init -backend-config");
-    const versions = all.find(([, t]) => /required_version/.test(t));
-    if (versions) {
-      const tv = lowerBound(/required_version\s*=\s*"([^"]+)"/.exec(versions[1])?.[1]);
-      const av = lowerBound(/azurerm\s*=\s*\{[^}]*version\s*=\s*"([^"]+)"/s.exec(versions[1])?.[1]);
-      if (!tv || older(tv, "1.12.0")) add("versions", "error", versions[0], lineOf(versions[1], "required_version"), "Terraform must be >= 1.12 (backend OIDC on Azure DevOps)");
-      if (!av || older(av, "4.65.0")) add("versions", "error", versions[0], lineOf(versions[1], "azurerm"), "azurerm must be >= 4.65 (rbac_authorization_enabled, user_assigned_identity_id)");
-    }
+    else ruleBackendBlock(backend.file, backend.text, add);
+    const versions = all.find(({ text }) => /required_version/.test(text));
+    if (versions) ruleVersions(versions.file, versions.text, add);
   }
 
   // rg-owned: every resource group a data source reads is created by a stack
-  const created = new Set();
-  const readRgs = [];
-  for (const s of m.stacks) for (const f of walk(join(root, `infra/stacks/${s.name}`), root).filter((x) => x.endsWith(".tf"))) {
-    const t = read(f);
-    for (const r of t.matchAll(/resource\s+"azurerm_resource_group"\s+"\w+"\s*\{\s*name\s*=\s*("[^"]+")/g)) created.add(r[1]);
-    for (const d of t.matchAll(/data\s+"azurerm_[a-z_]+"\s+"\w+"\s*\{([\s\S]*?)\n\}/g)) {
-      const rg = /resource_group_name\s*=\s*("[^"]+")/.exec(d[1])?.[1];
-      if (rg) readRgs.push([f, rg, t]);
-    }
-  }
-  for (const [f, rg, t] of readRgs) if (!created.has(rg)) add("rg-owned", "error", f, lineOf(t, rg), `reads resource group ${rg}, which no stack creates`);
+  ruleRgOwned(tfOfStacks, add);
   const boot = read("infra/scripts/bootstrap-argocd.sh");
   if (boot && m.clusterStack) for (const env of m.envNames) for (const inst of m.instances) {
     const want = literalRg(m, "aks", m.clusterStack.owner, env, inst);
@@ -126,25 +76,18 @@ export function runCheck(root, m) {
   if (ado) {
     let doc; try { doc = YAML.parse(ado); } catch (e) { add("pipeline-params", "error", adoFile, undefined, `YAML: ${e.message}`); }
     if (doc) {
-      if (doc.trigger !== "none") add("manual-trigger", "error", adoFile, lineOf(ado, "trigger"), "trigger must be none: a triggered run uses the defaults");
-      const params = new Map((doc.parameters ?? []).map((p) => [p.name, p]));
+      const params = ruleAdoPipeline(adoFile, ado, doc, {}, add);
       const expectedParams = ["environment", "instance", "action", ...m.stacks.map((s) => camel(s.name)), ...(m.gitops ? ["argocd"] : [])];
       for (const n of expectedParams) if (!params.has(n)) add("pipeline-params", "error", adoFile, undefined, `missing parameter ${n}`);
       for (const n of params.keys()) if (!expectedParams.includes(n)) add("pipeline-params", "error", adoFile, lineOf(ado, `name: ${n}`), `parameter ${n} has no stack in the manifest`);
-      const action = params.get("action");
-      if (action && action.default !== "plan") add("plan-default", "error", adoFile, lineOf(ado, "name: action"), "action must default to plan");
-      if (action && m.envNames.includes("prod") && (action.values ?? []).includes("destroy")) add("no-prod-destroy", "error", adoFile, lineOf(ado, "destroy"), "destroy is offered while prod is an environment");
-      for (const s of m.stacks) { const p = params.get(camel(s.name)); if (p && p.default !== false) add("plan-default", "error", adoFile, lineOf(ado, `name: ${camel(s.name)}`), `${camel(s.name)} must default to false`); }
+      ruleAdoParams(adoFile, ado, params, { actionKey: "action", requireAction: true, prodPossible, selectors: m.stacks.map((s) => camel(s.name)) }, add);
+      ruleAdoBootstrapStage(adoFile, ado, doc, add);
       // dependencies
       for (const item of doc.stages ?? []) {
         const [cond, body] = Object.entries(item)[0] ?? [];
         const stackParam = /eq\(parameters\.(\w+), true\)\s*\}\}$/.exec(cond ?? "")?.[1];
         const tpl = Array.isArray(body) ? body[0] : null;
-        if (!tpl?.template) continue;
-        if (/argocd-bootstrap/.test(tpl.template)) {
-          if (!/eq\(parameters\.action, 'apply'\)/.test(cond)) add("argocd-apply-only", "error", adoFile, lineOf(ado, "argocd-bootstrap"), "the bootstrap stage must be inserted only when action is apply");
-          continue;
-        }
+        if (!tpl?.template || /argocd-bootstrap/.test(tpl.template)) continue;
         const s = m.stacks.find((x) => camel(x.name) === stackParam);
         if (!s) continue;
         const want = [...transitiveDeps(m, s.name)].map(snake).sort();
@@ -166,18 +109,11 @@ export function runCheck(root, m) {
   if (gha) {
     let doc; try { doc = YAML.parse(gha); } catch (e) { add("pipeline-params", "error", ghaFile, undefined, `YAML: ${e.message}`); }
     if (doc) {
-      const on = doc.on ?? doc[true];
-      const triggers = typeof on === "string" ? [on] : Object.keys(on ?? {});
-      if (triggers.some((t) => t !== "workflow_dispatch")) add("manual-trigger", "error", ghaFile, lineOf(gha, "on:"), `only workflow_dispatch is allowed, found ${triggers.join(", ")}`);
-      const inputs = on?.workflow_dispatch?.inputs ?? {};
+      const { inputs } = ruleGhaWorkflow(ghaFile, gha, doc, {}, add);
       const expectedInputs = ["environment", "instance", "action", ...m.stacks.map((s) => snake(s.name)), ...(m.gitops ? ["argocd"] : [])];
       for (const n of expectedInputs) if (!inputs[n]) add("pipeline-params", "error", ghaFile, undefined, `missing input ${n}`);
       for (const n of Object.keys(inputs)) if (!expectedInputs.includes(n)) add("pipeline-params", "error", ghaFile, lineOf(gha, `${n}:`), `input ${n} has no stack in the manifest`);
-      if (Object.keys(inputs).length > 25) add("gha-inputs", "error", ghaFile, undefined, `${Object.keys(inputs).length} inputs; workflow_dispatch allows 25`);
-      if (inputs.action?.default !== "plan") add("plan-default", "error", ghaFile, lineOf(gha, "action:"), "action must default to plan");
-      if (m.envNames.includes("prod") && (inputs.action?.options ?? []).includes("destroy")) add("no-prod-destroy", "error", ghaFile, lineOf(gha, "destroy"), "destroy is offered while prod is an environment");
-      for (const s of m.stacks) { const i = inputs[snake(s.name)]; if (i && i.default !== false) add("plan-default", "error", ghaFile, lineOf(gha, `${snake(s.name)}:`), `${snake(s.name)} must default to false`); }
-      if (doc.permissions?.["id-token"] !== "write") add("oidc", "error", ghaFile, lineOf(gha, "permissions"), "needs permissions: id-token: write for OIDC");
+      ruleGhaInputs(ghaFile, gha, doc, inputs, { actionKey: "action", requireAction: true, prodPossible, requireIdToken: true, selectors: m.stacks.map((s) => snake(s.name)) }, add);
       for (const s of m.stacks) {
         const job = doc.jobs?.[s.name];
         if (!job) continue;
@@ -187,8 +123,8 @@ export function runCheck(root, m) {
         if (want.length && !/!cancelled\(\) && !failure\(\)/.test(job.if ?? "")) add("pipeline-deps", "error", ghaFile, lineOf(gha, `  ${s.name}:`), "use !cancelled() && !failure() so the job runs when a dependency was skipped");
       }
       if (m.gitops) {
+        ruleGhaBootstrapJob(ghaFile, gha, doc, add);
         const job = doc.jobs?.argocd;
-        if (job && !/inputs\.action == 'apply'/.test(job.if ?? "")) add("argocd-apply-only", "error", ghaFile, lineOf(gha, "  argocd:"), "the bootstrap job must run only when action is apply");
         if (job) {
           const want = bootstrapDeps(m).map((s) => s.name).sort();
           const got = [].concat(job.needs ?? []).sort();
@@ -199,11 +135,7 @@ export function runCheck(root, m) {
   }
 
   // oidc: no stored credentials anywhere in pipelines or scripts
-  for (const f of [...walk(join(root, "infra/pipelines"), root), ...walk(join(root, ".github/workflows"), root), ...walk(join(root, "infra/scripts"), root)]) {
-    const t = read(f);
-    const bad = /(ARM_CLIENT_SECRET|ARM_ACCESS_KEY|client-secret:|access_key\s*=|servicePrincipalKey)/.exec(t);
-    if (bad) add("oidc", "error", f, lineOf(t, bad[1]), `uses ${bad[1]}; authenticate with workload identity federation (OIDC) instead`);
-  }
+  ruleCredentials([...walk(join(root, "infra/pipelines"), root), ...walk(join(root, ".github/workflows"), root), ...walk(join(root, "infra/scripts"), root)].map((f) => ({ file: f, text: read(f) })), add);
 
   // landing zone
   if (m.landingZone.mode === "alz") {
@@ -233,8 +165,8 @@ export function runCheck(root, m) {
         if (!t) continue;
         const doc = YAML.parse(t);
         if (doc?.spec?.destination?.namespace !== a.namespace) add("wi-subject", "error", f, lineOf(t, "namespace:"), `destination namespace must be ${a.namespace}, the federated credential's namespace`);
-        if (!(doc?.metadata?.finalizers ?? []).includes(FINALIZER)) add("argocd-finalizer", "error", f, lineOf(t, "metadata:"), `add the ${FINALIZER} finalizer`);
-        if (env === "prod" && doc?.spec?.syncPolicy?.automated && !a.autoSync.prod) add("argocd-prod-sync", "error", f, lineOf(t, "automated"), "prod syncs manually unless autoSync.prod is set in the manifest");
+        ruleArgoFinalizer(f, t, doc, add);
+        ruleArgoProdSync(f, t, doc, { isProd: env === "prod", allowAutomated: a.autoSync.prod, message: "prod syncs manually unless autoSync.prod is set in the manifest" }, add);
         const ov = `infra/argocd/manifests/${a.name}/overlays/${env}-${inst}/kustomization.yaml`;
         const ovt = read(ov);
         if (ovt && /<\w+>/.test(ovt)) add("bridge-placeholders", "info", ov, lineOf(ovt, /<\w+>/), `waiting for the outputs of ${a.stack}: run "stacks.mjs bridge --stack ${a.stack} --env ${env} --instance ${inst} --outputs <terraform output -json file>" after apply`);
@@ -243,13 +175,9 @@ export function runCheck(root, m) {
     for (const env of m.envNames) for (const inst of m.instances) {
       const f = `infra/argocd/bootstrap/root-${env}-${inst}.yaml`;
       const t = read(f);
-      if (t && !(YAML.parse(t)?.metadata?.finalizers ?? []).includes(FINALIZER)) add("argocd-finalizer", "error", f, lineOf(t, "metadata:"), `add the ${FINALIZER} finalizer`);
+      if (t) ruleArgoFinalizer(f, t, YAML.parse(t), add);
     }
-    if (boot) {
-      const v = /argocd_version="([^"]+)"/.exec(boot)?.[1];
-      if (!v || !/^v\d+\.\d+\.\d+$/.test(v) || /stable|latest/.test(boot.match(/install\.yaml.*/)?.[0] ?? "")) add("argocd-pinned", "error", "infra/scripts/bootstrap-argocd.sh", lineOf(boot, "argocd_version"), "install a pinned Argo CD version (vX.Y.Z), not stable or latest");
-      else if (older(v, DEFAULTS.argocdVersion)) add("argocd-pinned", "warning", "infra/scripts/bootstrap-argocd.sh", lineOf(boot, "argocd_version"), `${v} is older than ${DEFAULTS.argocdVersion}, the version this skill was tested with; check the current stable release`);
-    }
+    if (boot) ruleBootstrapScript("infra/scripts/bootstrap-argocd.sh", boot, add, { required: true });
   }
 
   const order = { error: 0, warning: 1, info: 2 };

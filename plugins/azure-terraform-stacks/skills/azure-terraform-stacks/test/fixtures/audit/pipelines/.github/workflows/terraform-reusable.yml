@@ -1,0 +1,12 @@
+# Fixture: a reusable workflow. It is called by others, so a missing trigger or action input is not a finding here.
+name: terraform-reusable
+on:
+  workflow_call:
+    inputs:
+      stack: { type: string, required: true }
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: terraform plan

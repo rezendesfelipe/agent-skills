@@ -15,7 +15,7 @@
     {
       "name": "azure-terraform-stacks",
       "source": "./plugins/azure-terraform-stacks",
-      "description": "Terraform on Azure as independent stacks with one parameterized Azure DevOps or GitHub Actions pipeline, private AKS + PostgreSQL profile, Argo CD and a draw.io diagram."
+      "description": "Terraform on Azure as independent stacks with one parameterized Azure DevOps or GitHub Actions pipeline, private AKS + PostgreSQL profile, Argo CD and a draw.io diagram, plus a read-only auditor subagent."
     }
   ]
 }

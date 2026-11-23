@@ -1,0 +1,1068 @@
+{
+ "clean:full": [
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "clean:alz": [
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "clean:none-gha": [],
+ "clean:single": [],
+ "case0:state-key:infra/scripts/tf.sh": [
+  {
+   "rule": "state-key",
+   "severity": "error",
+   "file": "infra/scripts/tf.sh",
+   "line": 18,
+   "message": "aks-core prod brs-01: found aks.tfstate, expected aks-core-prod-brs-01.tfstate",
+   "ref": "references/stacks-and-state.md#state-keys"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/scripts/tf.sh",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case1:backend-partial:infra/stacks/aks-core/versions.tf": [
+  {
+   "rule": "backend-partial",
+   "severity": "error",
+   "file": "infra/stacks/aks-core/versions.tf",
+   "line": 13,
+   "message": "the backend block must be empty: values come from terraform init -backend-config",
+   "ref": "references/stacks-and-state.md#backend"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/aks-core/versions.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case2:versions:infra/stacks/aks-core/versions.tf": [
+  {
+   "rule": "versions",
+   "severity": "error",
+   "file": "infra/stacks/aks-core/versions.tf",
+   "line": 2,
+   "message": "Terraform must be >= 1.12 (backend OIDC on Azure DevOps)",
+   "ref": "references/stacks-and-state.md#versions"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/aks-core/versions.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case3:versions:infra/stacks/app-orders/versions.tf": [
+  {
+   "rule": "versions",
+   "severity": "error",
+   "file": "infra/stacks/app-orders/versions.tf",
+   "line": 5,
+   "message": "azurerm must be >= 4.65 (rbac_authorization_enabled, user_assigned_identity_id)",
+   "ref": "references/stacks-and-state.md#versions"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/app-orders/versions.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case4:rg-owned:infra/stacks/aks-core/main.tf": [
+  {
+   "rule": "rg-owned",
+   "severity": "error",
+   "file": "infra/stacks/app-orders/main.tf",
+   "line": 30,
+   "message": "reads resource group \"rg-aks-core-${var.environment}-${local.region_code}-${local.seq}\", which no stack creates",
+   "ref": "references/traps.md#resource-groups"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/aks-core/main.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case5:no-prod-destroy:infra/pipelines/azure-pipelines.yml": [
+  {
+   "rule": "no-prod-destroy",
+   "severity": "error",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "line": 23,
+   "message": "destroy is offered while prod is an environment",
+   "ref": "references/traps.md#destroy-in-production"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case6:no-prod-destroy:.github/workflows/infra.yml": [
+  {
+   "rule": "no-prod-destroy",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 19,
+   "message": "destroy is offered while prod is an environment",
+   "ref": "references/traps.md#destroy-in-production"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case7:manual-trigger:infra/pipelines/azure-pipelines.yml": [
+  {
+   "rule": "manual-trigger",
+   "severity": "error",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "line": 3,
+   "message": "trigger must be none: a triggered run uses the defaults",
+   "ref": "references/traps.md#who-can-click-run"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case8:manual-trigger:.github/workflows/infra.yml": [
+  {
+   "rule": "manual-trigger",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 4,
+   "message": "only workflow_dispatch is allowed, found push, workflow_dispatch",
+   "ref": "references/traps.md#who-can-click-run"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case9:plan-default:infra/pipelines/azure-pipelines.yml": [
+  {
+   "rule": "plan-default",
+   "severity": "error",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "line": 19,
+   "message": "action must default to plan",
+   "ref": "references/traps.md#partial-selection"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case10:pipeline-params:.github/workflows/infra.yml": [
+  {
+   "rule": "pipeline-params",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "message": "missing input app_orders",
+   "ref": "references/pipelines-azure-devops.md"
+  },
+  {
+   "rule": "pipeline-params",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 29,
+   "message": "input app_payments has no stack in the manifest",
+   "ref": "references/pipelines-azure-devops.md"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case11:pipeline-deps:.github/workflows/infra.yml": [
+  {
+   "rule": "pipeline-deps",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 68,
+   "message": "app-orders needs [aks-core], the manifest says [aks-core, vnet-core]",
+   "ref": "references/pipelines-azure-devops.md#dependencies"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case12:pipeline-deps:infra/pipelines/azure-pipelines.yml": [
+  {
+   "rule": "pipeline-deps",
+   "severity": "error",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "line": 85,
+   "message": "app-orders depends on [aks_core], the manifest says [aks_core, vnet_core]",
+   "ref": "references/pipelines-azure-devops.md#dependencies"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case13:argocd-apply-only:infra/pipelines/azure-pipelines.yml": [
+  {
+   "rule": "argocd-apply-only",
+   "severity": "error",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "line": 100,
+   "message": "the bootstrap stage must be inserted only when action is apply",
+   "ref": "references/gitops-argocd.md#bootstrap"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/pipelines/azure-pipelines.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case14:argocd-apply-only:.github/workflows/infra.yml": [
+  {
+   "rule": "argocd-apply-only",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 33,
+   "message": "the bootstrap job must run only when action is apply",
+   "ref": "references/gitops-argocd.md#bootstrap"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case15:oidc:.github/workflows/terraform-stack.yml": [
+  {
+   "rule": "oidc",
+   "severity": "error",
+   "file": ".github/workflows/terraform-stack.yml",
+   "line": 22,
+   "message": "uses ARM_CLIENT_SECRET; authenticate with workload identity federation (OIDC) instead",
+   "ref": "references/pipelines-github-actions.md#oidc"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/terraform-stack.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case16:oidc:.github/workflows/infra.yml": [
+  {
+   "rule": "oidc",
+   "severity": "error",
+   "file": ".github/workflows/infra.yml",
+   "line": 38,
+   "message": "needs permissions: id-token: write for OIDC",
+   "ref": "references/pipelines-github-actions.md#oidc"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": ".github/workflows/infra.yml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case17:wi-subject:infra/stacks/app-orders/main.tf": [
+  {
+   "rule": "wi-subject",
+   "severity": "error",
+   "file": "infra/stacks/app-orders/main.tf",
+   "line": 81,
+   "message": "federated subject is system:serviceaccount:orders:orders-api, the app expects system:serviceaccount:orders:orders",
+   "ref": "references/gitops-argocd.md#workload-identity"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/app-orders/main.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case18:wi-subject:infra/argocd/apps/prod-brs-01/orders.yaml": [
+  {
+   "rule": "wi-subject",
+   "severity": "error",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "line": 7,
+   "message": "destination namespace must be orders, the federated credential's namespace",
+   "ref": "references/gitops-argocd.md#workload-identity"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case19:argocd-finalizer:infra/argocd/apps/prod-brs-01/orders.yaml": [
+  {
+   "rule": "argocd-finalizer",
+   "severity": "error",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "line": 5,
+   "message": "add the resources-finalizer.argocd.argoproj.io finalizer",
+   "ref": "references/gitops-argocd.md#finalizer"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case20:argocd-prod-sync:infra/argocd/apps/prod-brs-01/orders.yaml": [
+  {
+   "rule": "argocd-prod-sync",
+   "severity": "error",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "line": 20,
+   "message": "prod syncs manually unless autoSync.prod is set in the manifest",
+   "ref": "references/gitops-argocd.md#sync-policy"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/argocd/apps/prod-brs-01/orders.yaml",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "case21:argocd-pinned:infra/scripts/bootstrap-argocd.sh": [
+  {
+   "rule": "argocd-pinned",
+   "severity": "error",
+   "file": "infra/scripts/bootstrap-argocd.sh",
+   "line": 9,
+   "message": "install a pinned Argo CD version (vX.Y.Z), not stable or latest",
+   "ref": "references/gitops-argocd.md#bootstrap"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/scripts/bootstrap-argocd.sh",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "alz-rules": [
+  {
+   "rule": "lz-dns-zone-group",
+   "severity": "error",
+   "file": "infra/stacks/aks-core/main.tf",
+   "line": 41,
+   "message": "dnsByPolicy is on: Private Endpoints must leave the DNS zone group to Azure Policy",
+   "ref": "references/landing-zones.md"
+  },
+  {
+   "rule": "lz-no-local-privatelink-zone",
+   "severity": "error",
+   "file": "infra/stacks/vnet-core/main.tf",
+   "line": 43,
+   "message": "alz mode: privatelink zones are central, do not create them in the spoke",
+   "ref": "references/landing-zones.md"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/aks-core/main.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/stacks/vnet-core/main.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ],
+ "drift": [
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/modules/acr/main.tf",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/modules/aks/outputs.tf",
+   "message": "missing; run scaffold to create it",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "drift",
+   "severity": "warning",
+   "file": "infra/scripts/bootstrap-argocd.sh",
+   "message": "differs from what infra/stacks.yaml generates; regenerate with scaffold --force or move the change into the manifest",
+   "ref": "references/manifest-format.md#regenerating"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/hml-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env hml --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  },
+  {
+   "rule": "bridge-placeholders",
+   "severity": "info",
+   "file": "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml",
+   "line": 18,
+   "message": "waiting for the outputs of app-orders: run \"stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>\" after apply",
+   "ref": "references/gitops-argocd.md#bridge"
+  }
+ ]
+}

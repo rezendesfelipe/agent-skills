@@ -1,0 +1,23 @@
+# Fixture: a hand-written Azure DevOps pipeline: triggered, apply by default, destroy offered, prod available.
+trigger:
+  - main
+
+parameters:
+  - name: environment
+    type: string
+    default: dev
+    values: [dev, prod]
+  - name: action
+    type: string
+    default: apply
+    values: [plan, apply, destroy]
+  - name: network
+    type: boolean
+    default: true
+
+stages:
+  - stage: terraform
+    jobs:
+      - job: run
+        steps:
+          - script: terraform ${{ parameters.action }} -auto-approve
