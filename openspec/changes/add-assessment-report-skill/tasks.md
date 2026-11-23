@@ -7,9 +7,9 @@
 
 ## 2. Schema and state
 
-- [ ] 2.1 Write `schema/assessment.schema.json` (`schemaVersion` 1.0) and the in-house validator; one failing fixture per schema rule (missing evidence list, unknown kind, bad ID pattern, missing framework version or date, computed field present with a wrong value). Verify: each fixture fails with the field path.
-- [ ] 2.2 Implement `scripts/lib/graph.mjs` (nodes, allowed transitions, gates by content hash) and `.state/run.json`; `assess.mjs status` prints the current node and the allowed next nodes. Verify: calling `classify` before `verify`, and `render` before review, exits 1 and names the missing node.
-- [ ] 2.3 Implement `init` (writes a skeleton `assessment.json` from the scope answers; refuses to overwrite) and the output-folder rules (only inside `--out`, refuses `.git`). Verify: a before/after directory snapshot test shows nothing outside `--out` changed.
+- [x] 2.1 Write `schema/assessment.schema.json` (`schemaVersion` 1.0) and the in-house validator; one failing fixture per schema rule (missing evidence list, unknown kind, bad ID pattern, missing framework version or date, computed field present with a wrong value). Verify: each fixture fails with the field path.
+- [x] 2.2 Implement `scripts/lib/graph.mjs` (nodes, allowed transitions, gates by content hash) and `.state/run.json`; `assess.mjs status` prints the current node and the allowed next nodes. Verify: calling `classify` before `verify`, and `render` before review, exits 1 and names the missing node.
+- [x] 2.3 Implement `init` (writes a skeleton `assessment.json` from the scope answers; refuses to overwrite) and the output-folder rules (only inside `--out`, refuses `.git`). Verify: a before/after directory snapshot test shows nothing outside `--out` changed.
 
 ## 3. Inventory and verifier
 

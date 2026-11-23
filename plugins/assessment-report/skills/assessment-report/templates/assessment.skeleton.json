@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "meta": {
+    "title": "[REPLACE: title]",
+    "client": "[REPLACE: client]",
+    "author": "[REPLACE: author]",
+    "version": "[REPLACE: version]",
+    "date": "[REPLACE: date]",
+    "lang": "en",
+    "skillVersion": "0.1.0",
+    "engineVersion": "0.1.0",
+    "model": { "id": "[the model identifier given to init --model]", "reportedBy": "agent" },
+    "revision": ""
+  },
+  "scope": {
+    "in": [],
+    "out": [],
+    "questions": [],
+    "assumptions": [],
+    "root": "[absolute path of the assessed folder]"
+  },
+  "frameworks": [],
+  "evidence": [],
+  "findings": [],
+  "actions": [],
+  "summary": ""
+}
