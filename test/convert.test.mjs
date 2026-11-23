@@ -8,6 +8,7 @@ import { convertAgent, READ_ONLY_NOTE } from "../src/lib/agents/convert.mjs";
 import { inspect, markerLine, sha256, stamp } from "../src/lib/agents/marker.mjs";
 import { tomlMultiline, tomlString, yamlString } from "../src/lib/agents/serialize.mjs";
 import { effectiveTools, restrictionFor } from "../src/lib/agents/permissions.mjs";
+import { forbiddenFieldHits } from "../src/lib/agents/rules.mjs";
 import { TOOLS, TOOL_IDS, agentOverlaps, agentsDir } from "../src/lib/tools.mjs";
 import { decodeMarkdown, decodeToml } from "./decoders.mjs";
 import { FIXTURE_ROOT } from "./helpers.mjs";
@@ -19,6 +20,12 @@ const fixture = (name) => loadAgent(join(AGENTS, `${name}.md`));
 const convert = (agent, tool, opts = {}) => convertAgent(agent, tool, { version: VERSION, ...opts });
 const agentOf = (fm, body = "Prompt.\n") => agentFromText(`---\n${fm}\n---\n${body}`);
 const base = "name: x-agent\ndescription: Does a thing.";
+/**
+ * An agent whose description was set after parsing: what a caller that skipped validation could hand the
+ * converter. Parsing a source that holds such characters is refused (see "Control characters" below), so
+ * the serializers are exercised through this.
+ */
+const handBuilt = (agent, description) => ({ ...agent, description, charProblems: [] });
 
 function checkGolden(relative, actual) {
   const file = join(GOLDEN, relative);
@@ -324,7 +331,7 @@ describe("Values are escaped, not concatenated", () => {
   test("Markdown outputs: one description value, only the keys the converter writes", () => {
     for (const description of hostile) {
       for (const tool of MD_TOOLS) {
-        const source = agentFromText(`---\nname: x-agent\ndescription: ${JSON.stringify(description)}\ntools: Read, Grep\n---\nPrompt.\n`);
+        const source = handBuilt(agentFromText("---\nname: x-agent\ndescription: d\ntools: Read, Grep\n---\nPrompt.\n"), description);
         assert.equal(source.description, description, "the source decodes to the hostile value");
         const r = convert(source, tool);
         assert.ok(r.ok, `${tool}: ${r.message}`);
@@ -336,7 +343,7 @@ describe("Values are escaped, not concatenated", () => {
     }
   });
   test("the description that tries to add a tools key stays one value (Copilot)", () => {
-    const source = agentFromText(`---\nname: x-agent\ndescription: ${JSON.stringify('x\ntools: ["*"]')}\ntools: Read\n---\nPrompt.\n`);
+    const source = handBuilt(agentFromText("---\nname: x-agent\ndescription: d\ntools: Read\n---\nPrompt.\n"), 'x\ntools: ["*"]');
     const d = decodeMarkdown(convert(source, "copilot").content);
     assert.equal(d.front.description, 'x\ntools: ["*"]');
     assert.equal(d.keys.filter((k) => k === "tools").length, 1);
@@ -347,7 +354,7 @@ describe("Values are escaped, not concatenated", () => {
   test("Codex: name, description and prompt round-trip exactly", () => {
     for (const description of hostile) {
       for (const prompt of prompts) {
-        const source = agentFromText(`---\nname: x-agent\ndescription: ${JSON.stringify(description)}\ntools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, WebSearch\n---\n${prompt}`);
+        const source = handBuilt(agentFromText(`---\nname: x-agent\ndescription: d\ntools: Read, Grep, Glob, Edit, Write, Bash, WebFetch, WebSearch\n---\n${prompt}`), description);
         const r = convert(source, "codex");
         const t = decodeToml(r.content);
         assert.deepEqual(t.keys, ["name", "description", "developer_instructions"]);
@@ -425,9 +432,40 @@ describe("Defense in depth for characters (review cycle 1)", () => {
   });
   test("line breaks and control characters in the description stay one escaped value", () => {
     for (const ch of ["\n", "\u0085", "\u2028", "\u2029", "\u0007"]) {
-      const a = agentFromText(base({ description: JSON.stringify(`a${ch}b`) }));
+      const a = handBuilt(agentFromText(base({})), `a${ch}b`);
       for (const tool of ["gemini", "cursor", "copilot"]) assert.equal(decodeMarkdown(convert(a, tool).content).front.description, `a${ch}b`);
       assert.equal(decodeToml(convert(a, "codex", { allowBroader: true }).content).values.description, `a${ch}b`);
     }
+  });
+});
+
+describe("Converter layers, each tested on its own (review cycle 2)", () => {
+  const VT = String.fromCharCode(11);
+  test("only the converter's own check on unrecognized frontmatter lines catches a line that is no key: value", () => {
+    const agent = agentFromText("---\nname: x-agent\ndescription: d\ntools: Read\nweird key: x\n---\nPrompt.\n");
+    assert.deepEqual(agent.keys, ["name", "description", "tools"], "the reader does not see the line as a key");
+    assert.deepEqual(agent.charProblems, []);
+    assert.deepEqual(forbiddenFieldHits(agent.raw), [], "no forbidden field name is involved");
+    for (const tool of TOOL_IDS) {
+      const r = convert(agent, tool, { allowBroader: true });
+      assert.equal(r.ok, false, tool);
+      assert.equal(r.field, "frontmatter");
+      assert.match(r.reason, /"weird key: x" is not in the accepted "key: value" form/);
+    }
+  });
+  test("only the converter's own check on control characters catches a control character that forms no other problem", () => {
+    const agent = agentFromText(`---\nname: x-agent\ndescription: d\ntools: Read\ncolor: a${VT}b\n---\nPrompt.\n`);
+    assert.deepEqual(agent.unrecognized, []);
+    assert.deepEqual(forbiddenFieldHits(agent.raw), []);
+    for (const tool of TOOL_IDS) {
+      const r = convert(agent, tool, { allowBroader: true });
+      assert.equal(r.ok, false, tool);
+      assert.equal(r.field, "frontmatter");
+      assert.match(r.reason, /control or line-separator character U\+000B/);
+    }
+  });
+  test("a control character in a decoded value is refused as well, without being written raw", () => {
+    const agent = agentFromText('---\nname: x-agent\ndescription: "a\\u0007b"\ntools: Read\n---\nPrompt.\n');
+    for (const tool of TOOL_IDS) assert.equal(convert(agent, tool).ok, false, tool);
   });
 });

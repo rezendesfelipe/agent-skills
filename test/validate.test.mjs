@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -101,7 +101,7 @@ test("the same subagent name in two plugins fails and names both files", () => {
 // ---- agent-catalog: location, source format, uniqueness, template -------------------------------
 import { cpSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { FIXTURE_ROOT, REPO_ROOT } from "./helpers.mjs";
+import { FIXTURE_ROOT, REPO_ROOT, runBin, sandbox } from "./helpers.mjs";
 import { validateAgent } from "../src/lib/validate.mjs";
 import { effectiveTools } from "../src/lib/agents/permissions.mjs";
 import { parseDocument } from "../src/lib/frontmatter.mjs";
@@ -213,9 +213,14 @@ test("agent-catalog: newline and separator characters in the description fail, w
   assert.equal(errors.length, 1);
   assert.match(errors[0], /bad-agents\/newline-description\.md: description must be on one line/);
   for (const [label, ch] of [["U+2028", "\u2028"], ["U+0085", "\u0085"], ["U+0007", "\u0007"], ["U+007F", "\u007f"]]) {
-    const e = errorsFor("x-agent.md", doc(`name: x-agent\ndescription: "a${JSON.stringify(ch).slice(1, -1)}b"\ntools: Read`));
-    assert.equal(e.length, 1, `${label}: ${e.join("\n")}`);
-    assert.match(e[0], new RegExp(`control character ${label.replace("+", "\\+")}`));
+    const L = label.replace("+", "\\+");
+    // written raw in the file: reported for the frontmatter as written (YAML may read it as a line break)
+    const raw = errorsFor("x-agent.md", doc(`name: x-agent\ndescription: a${ch}b\ntools: Read`));
+    assert.ok(raw.some((x) => new RegExp(`frontmatter contains the control or line-separator character ${L}`).test(x)), `${label}: ${raw.join("\n")}`);
+    // written as an escape inside quotes: the decoded value is reported
+    const code = ch.codePointAt(0).toString(16).padStart(4, "0");
+    const decoded = errorsFor("x-agent.md", doc(`name: x-agent\ndescription: "a\\u${code}b"\ntools: Read`));
+    assert.ok(decoded.some((x) => new RegExp(`description contains the control or line-separator character ${L}`).test(x)), `${label}: ${decoded.join("\n")}`);
   }
 });
 
@@ -343,4 +348,77 @@ test("unrecognized lines are reported by the reader; comments, blanks and column
   const d = parseDocument("---\n# comment\nname: x\n\ntools:\n- Read\n- Grep\n? k\n---\n");
   assert.deepEqual(d.unrecognized, ["? k"]);
   assert.deepEqual(d.list("tools").slice(0, 2), ["Read", "Grep"]);
+});
+
+// ---- line-break characters that hide a field (review cycle 2) ------------------------------------
+import { frontmatterCharProblems, forbiddenFieldHits } from "../src/lib/agents/rules.mjs";
+
+const BREAK_FIXTURES = {
+  "bad-cr-isolated": "\r",
+  "bad-cr-description": "\r",
+  "bad-cr-model": "\r",
+  "bad-cr-extra-key": "\r",
+  "bad-nel-hooks": "\u0085",
+  "bad-ls-hooks": "\u2028",
+  "bad-ps-hooks": "\u2029",
+  "bad-nel-plain": "\u0085",
+  "bad-ls-plain": "\u2028",
+  "bad-ps-plain": "\u2029",
+};
+
+for (const [file, ch] of Object.entries(BREAK_FIXTURES)) {
+  const label = "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+  test(`line-break fixture ${file}: validation fails and names ${label}`, () => {
+    const errors = validateAgent(join(BAD, `${file}.md`), { root: join(BAD, "..") });
+    assert.ok(errors.some((e) => e.includes(`control or line-separator character ${label}`)), errors.join("\n"));
+  });
+  test(`line-break fixture ${file}: the converter refuses it for all five tools`, () => {
+    const agent = agentFromText(readFileSync(join(BAD, `${file}.md`), "utf8"));
+    for (const tool of TOOL_IDS) {
+      const r = convertAgent(agent, tool, { version: "1.0.0", allowBroader: true });
+      assert.equal(r.ok, false, `${file} for ${tool}`);
+      assert.equal(r.content, undefined);
+    }
+  });
+}
+
+test("line-break fixtures: add installs nothing for any tool", () => {
+  const root = mkdtempSync(join(tmpdir(), "agent-skills-breaks-"));
+  const dir = join(root, "plugins/p/agents");
+  mkdirSync(dir, { recursive: true });
+  for (const file of Object.keys(BREAK_FIXTURES)) cpSync(join(BAD, `${file}.md`), join(dir, `${file}.md`));
+  const box = sandbox();
+  for (const file of Object.keys(BREAK_FIXTURES)) {
+    const r = runBin(["add", file, "--tool", "claude,codex,gemini,cursor,copilot", "--yes", "--allow-broader-access"], { ...box, root });
+    assert.equal(r.code, 1, `${file}: ${r.stdout}`);
+    assert.ok(!existsSync(join(box.home, ".claude")) && !existsSync(join(box.home, ".gemini")) && !existsSync(join(box.home, ".codex")), file);
+  }
+  box.cleanup();
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("reader: a lone CR, NEL, U+2028 and U+2029 are line breaks in the frontmatter, so the hidden key is seen", () => {
+  for (const ch of ["\r", "\u0085", "\u2028", "\u2029"]) {
+    const d = parseDocument(`---\nname: x\ntools: Read${ch}hooks: {}\n---\nBody\u2028stays\n`);
+    assert.deepEqual(d.keys, ["name", "tools", "hooks"], JSON.stringify(ch));
+    assert.equal(d.body, "Body\u2028stays\n", "the body is not altered");
+  }
+  assert.deepEqual(parseDocument("---\nname: x\r---\nBody\n").keys, ["name"], "a lone CR can close the frontmatter, as in YAML");
+});
+
+test("forbiddenFieldHits splits on every YAML line break", () => {
+  for (const ch of ["\r", "\u0085", "\u2028", "\u2029"]) assert.deepEqual(forbiddenFieldHits(`tools: Read${ch}hooks: {}`), ["hooks"], JSON.stringify(ch));
+  assert.deepEqual(forbiddenFieldHits("tools: Read hooks"), []);
+});
+
+test("frontmatterCharProblems covers decoded values of every field the converter reads", () => {
+  const p = (fm) => frontmatterCharProblems(parseDocument(`---\n${fm}\n---\nBody\n`));
+  assert.deepEqual(p("name: x\ndescription: d\ntools: Read"), []);
+  assert.match(p('name: "a\\u0007b"')[0], /name contains the control or line-separator character U\+0007/);
+  assert.match(p('model: "a\\u2029b"')[0], /model contains/);
+  assert.match(p('tools: ["Read\\u0085x"]')[0], /entry of "tools" contains .*U\+0085/);
+  assert.match(p('skills: ["a\\u000bb"]')[0], /entry of "skills" contains/);
+  assert.match(p('disallowedTools: ["a\\nb"]')[0], /entry of "disallowedTools" contains/);
+  assert.match(p('description: "a\\nb"')[0], /description must be on one line/);
+  assert.deepEqual(p("description: a\tb"), [], "a tab is allowed");
 });

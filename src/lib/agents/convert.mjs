@@ -43,6 +43,7 @@ export function convertAgent(agent, tool, { version, allowBroader = false, known
 
   if (!agent) return refuse("frontmatter", "the file has no YAML frontmatter");
   // The same fields validation rejects, checked again for every tool, claude included.
+  if (agent.charProblems?.length) return refuse("frontmatter", agent.charProblems[0]);
   if (agent.unrecognized?.length)
     return refuse("frontmatter", `the line "${agent.unrecognized[0]}" is not in the accepted "key: value" form, so a field such as hooks could hide there`);
   const forbidden = new Set([...FORBIDDEN_AGENT_FIELDS.filter((f) => agent.keys.includes(f)), ...forbiddenFieldHits(agent.raw ?? "")]);

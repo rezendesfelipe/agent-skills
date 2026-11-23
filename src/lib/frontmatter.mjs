@@ -39,6 +39,9 @@ export function normalizeText(text) {
 }
 
 // `.` does not match U+2028 and U+2029 in JavaScript, so [^\n] is used wherever a line may carry them.
+const LINE_BREAKS = /[\r\u0085\u2028\u2029]/g;
+// Controls other than tab and LF, DEL, the C1 controls (U+0085 included) and U+2028/U+2029.
+const RAW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u2028\u2029]/g;
 const QUOTED = /^("(?:[^"\\]|\\[^\n])*"|'(?:[^']|'')*')\s*(?:#[^\n]*)?$/;
 
 function unquote(s) {
@@ -119,14 +122,22 @@ function listOf(entry) {
 
 /**
  * Reads an agent file (or any Markdown file with YAML frontmatter).
- * @returns {null | {text: string, raw: string, body: string, keys: string[], duplicates: string[], unrecognized: string[],
+ * @returns {null | {text: string, raw: string, body: string, keys: string[], duplicates: string[], unrecognized: string[], badChars: string[],
  *   has(key: string): boolean, scalar(key: string): string|undefined, list(key: string): string[]|undefined}}
  */
 export function parseDocument(input) {
   const text = normalizeText(input);
-  const m = text.match(/^---\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)/);
+  // YAML treats a lone CR, NEL (U+0085), U+2028 and U+2029 as line breaks, so a reader that only
+  // splits on LF would see one line where the vendor's parser sees two. The frontmatter is read
+  // with all of them as breaks. Each is one character, so the offsets stay the same as in `text`.
+  const unified = text.replace(LINE_BREAKS, "\n");
+  const m = unified.match(/^---\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)/);
   if (!m) return null;
   const raw = m[1] ?? "";
+  // Characters in the frontmatter as written (before they were read as line breaks): controls other
+  // than tab and LF, and the separators. Callers reject the file.
+  const written = text.slice(0, m[0].length);
+  const badChars = [...new Set(written.match(RAW_CONTROL) ?? [])];
   const entries = [];
   const unrecognized = [];
   for (const line of raw.split("\n")) {
@@ -148,6 +159,7 @@ export function parseDocument(input) {
   return {
     text,
     raw,
+    badChars,
     body: text.slice(m[0].length),
     keys: [...byKey.keys()],
     duplicates: [...new Set(duplicates)],

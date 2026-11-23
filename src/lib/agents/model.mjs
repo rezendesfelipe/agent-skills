@@ -1,6 +1,7 @@
 // Reads an agent source file (Claude Code's subagent format) into the fields conversion needs.
 import { readFileSync } from "node:fs";
 import { parseDocument } from "../frontmatter.mjs";
+import { frontmatterCharProblems } from "./rules.mjs";
 
 /**
  * @param {string} text contents of plugins/<plugin>/agents/<name>.md
@@ -16,6 +17,7 @@ export function agentFromText(text) {
     keys: doc.keys,
     raw: doc.raw,
     unrecognized: doc.unrecognized,
+    charProblems: frontmatterCharProblems(doc),
     name: doc.scalar("name") ?? "",
     description: doc.scalar("description") ?? "",
     tools: doc.has("tools") ? doc.list("tools") : null,

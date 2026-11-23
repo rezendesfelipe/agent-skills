@@ -2,3 +2,8 @@
 test/fixtures/** text eol=lf
 test/golden/** text eol=lf
 templates/** text eol=lf
+# These fixtures hold lone CR, NEL, U+2028 and U+2029 on purpose: keep their bytes as they are.
+test/fixtures/bad-agents/bad-cr-*.md -text
+test/fixtures/bad-agents/bad-nel-*.md -text
+test/fixtures/bad-agents/bad-ls-*.md -text
+test/fixtures/bad-agents/bad-ps-*.md -text

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { parseDocument, parseFrontmatter } from "./frontmatter.mjs";
 import { effectiveTools } from "./agents/permissions.mjs";
-import { BIDI_RE, FORBIDDEN_AGENT_FIELDS, forbiddenFieldHits } from "./agents/rules.mjs";
+import { BIDI_RE, FORBIDDEN_AGENT_FIELDS, forbiddenFieldHits, frontmatterCharProblems } from "./agents/rules.mjs";
 import { MAX_NAME_LENGTH, NAME_RE, WINDOWS_RESERVED_RE } from "./names.mjs";
 import { subdirs } from "./catalog.mjs";
 
@@ -31,8 +31,6 @@ export function validateSkill(skillDir, { root, expectedName = skillDir.split(/[
 
 export { FORBIDDEN_AGENT_FIELDS };
 const MAX_PROMPT_CHARS = 30000; // GitHub Copilot's limit, the smallest among the supported tools
-// C0 and C1 controls (U+0085 included) and the Unicode line and paragraph separators
-const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/u;
 const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:/\[\]-]*$/;
 const hex = (ch) => "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
 
@@ -63,9 +61,6 @@ export function validateAgent(file, { root, expectedName, skillNames } = {}) {
   if (!description) out.push(`${rel}: frontmatter is missing "description"`);
   else {
     if (description.length > 1024) out.push(`${rel}: description is longer than 1024 characters`);
-    if (/[\r\n]/.test(description)) out.push(`${rel}: description must be on one line`);
-    const bad = description.replace(/[\r\n]/g, "").match(CONTROL_RE);
-    if (bad) out.push(`${rel}: description contains the control character ${hex(bad[0])}`);
   }
 
   // tools: required, and something must be left after disallowedTools
@@ -95,6 +90,7 @@ export function validateAgent(file, { root, expectedName, skillNames } = {}) {
       if (!skillNames.has(skill)) out.push(`${rel}: skills lists "${skill}", which is not a skill in this repository`);
   }
 
+  for (const problem of frontmatterCharProblems(fm)) out.push(`${rel}: ${problem}`);
   for (const line of fm.unrecognized)
     out.push(`${rel}: frontmatter line "${line}" is not in the accepted "key: value" form (a key written as "key :", in quotes, as "? key" or inside a {flow mapping} is not read, so it could hide a field such as hooks)`);
   const forbidden = new Set([...FORBIDDEN_AGENT_FIELDS.filter((f) => fm.keys.includes(f)), ...forbiddenFieldHits(fm.raw)]);
