@@ -118,7 +118,9 @@ flowchart TD
     esc -. "instructs" .-> apply
 ```
 
-Editable source: [`delivery-graph.drawio`](delivery-graph.drawio), in the project's design system. <!-- PNG-EXPORT -->
+![The level 1 delivery graph: twelve nodes, three loops, two human gates](delivery-graph.png)
+
+Editable source: [`delivery-graph.drawio`](delivery-graph.drawio), in the project's design system. The PNG is rendered from that file with draw.io's viewer (not drawn separately); regenerate it after editing the source.
 
 ### Cycle limits and escalation
 
