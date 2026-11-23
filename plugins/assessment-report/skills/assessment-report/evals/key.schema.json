@@ -38,8 +38,8 @@
     "fakeSecret": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["path", "line", "value"],
-      "properties": { "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 }, "value": { "type": "string", "minLength": 8 } }
+      "required": ["path", "line", "marker"],
+      "properties": { "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 }, "marker": { "const": "{{FAKE_SECRET}}", "description": "The fixture holds this marker; evals/fake-secret.mjs builds the value at run time." } }
     }
   },
   "$defs": {

@@ -5,7 +5,7 @@
 | Versión de la skill | 0.1.0 |
 | Versión del motor | 0.1.0 |
 | Modelo | test-model; identificador informado por: el propio agente, que puede equivocarse |
-| Revisión evaluada | inventory:0e6da176a1aecf04 |
+| Revisión evaluada | inventory:148fa871b3c11fb6 |
 | Fecha | 2026-11-20 |
 | Revisor | Marcos Lima, 2026-11-21 |
 

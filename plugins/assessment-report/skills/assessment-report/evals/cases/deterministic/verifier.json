@@ -280,7 +280,7 @@
         "path": "infra/terraform.tfvars",
         "startLine": 2,
         "endLine": 2,
-        "quote": "db_admin_password = \"Vq7Lm2Xz9RtK4WnB8yPc\""
+        "quote": "db_admin_password = \"{{FAKE_SECRET}}\""
       },
       "expect": {
         "status": "fail",

@@ -123,7 +123,7 @@ test("redacted evidence shows the location and kind, never the value", () => {
   const all = Object.values(files).join("\n");
   assert.match(files["annex-findings.md"], /`infra\/key\.pem:1-2`, redacted secret of kind private-key; only the location is shown/);
   assert.ok(!all.includes(fakeSecret.privateKeyHeader()));
-  assert.ok(!all.includes("MIIBOgIBAAJB"));
+  assert.ok(!all.includes(fakeSecret.keyBody().slice(0, 12)));
   assert.deepEqual(scanRendered(files), []);
 });
 

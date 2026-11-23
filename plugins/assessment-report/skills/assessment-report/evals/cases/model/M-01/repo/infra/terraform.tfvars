@@ -1,2 +1,2 @@
 location = "eastus2"
-db_admin_password = "Vq7Lm2Xz9RtK4WnB8yPc"
+db_admin_password = "{{FAKE_SECRET}}"

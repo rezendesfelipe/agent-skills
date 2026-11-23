@@ -8,7 +8,7 @@ import { edit, fakeSecret, file, finding, rationale, readJson, repoCopy, run, sn
 const TLS = '  min_tls_version          = "TLS1_0"';
 function toReview({ lang = "en" } = {}) {
   const repo = repoCopy();
-  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\n`);
+  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\n${fakeSecret.keyBody()}\n`);
   const { out } = startRun(repo, ["--lang", lang]);
   edit(out, (a) => {
     a.evidence.push(file("E-001", "infra/main.tf", 11, 11, TLS));
@@ -67,7 +67,7 @@ test("the planted secret never appears in assessment.json or in any rendered fil
     .map((p) => readFileSync(p, "utf8"))
     .join("\n");
   assert.ok(all.length > 1000);
-  assert.ok(!all.includes("MIIBOgIBAAJB"));
+  assert.ok(!all.includes(fakeSecret.keyBody().slice(0, 12)));
   assert.ok(!all.includes(fakeSecret.privateKeyHeader()));
 });
 

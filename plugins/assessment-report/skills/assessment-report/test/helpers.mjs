@@ -45,8 +45,10 @@ export function snapshot(dir) {
 export const fakeSecret = {
   privateKeyHeader: () => ["-----BEGIN", "RSA PRIVATE KEY-----"].join(" "),
   awsKey: () => ["AKIA", "IOSFODNN7", "EXAMPLE"].join(""),
-  githubToken: () => ["ghp", "_", "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"].join(""),
-  generic: () => ["db_password", " = ", '"', "Zx9fQ2mK7vLp4Rt8Wy3N", '"'].join(""),
+  githubToken: () => ["ghp", "_", "a1B2c3D4e5", "F6g7H8i9J0", "k1L2m3N4o5", "P6q7R8"].join(""),
+  genericValue: () => ["Zx9fQ2", "mK7vLp", "4Rt8Wy", "3N"].join(""),
+  generic: () => ["db_password", " = ", '"', fakeSecret.genericValue(), '"'].join(""),
+  keyBody: () => ["MIIBOgIB", "AAJBAKj3", "4GkxFhD9", "0vcNLYLI", "nFEX6Ppy"].join(""),
 };
 
 /** init + inventory on a repository copy. @returns {{repo: string, out: string}} */

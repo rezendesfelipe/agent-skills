@@ -174,7 +174,7 @@ test("a url with a snapshot is verified as a file; output evidence needs a match
 
 test("secrets: a quote with a private key header fails with secret-in-quote; redacted evidence passes", () => {
   const repo = repoCopy();
-  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\n-----END RSA PRIVATE KEY-----\n`);
+  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\n${fakeSecret.keyBody()}\n-----END RSA PRIVATE KEY-----\n`);
   writeFileSync(join(repo, "infra", "settings.tfvars"), `${fakeSecret.generic()}\n`);
   const r = verifyEvidence([
     file("E-001", "infra/key.pem", 1, 1, fakeSecret.privateKeyHeader()),
@@ -191,7 +191,7 @@ test("secrets: a quote with a private key header fails with secret-in-quote; red
   assert.equal(r["E-004"].code, "secret-in-quote");
   assert.equal(r["E-005"].status, "pass");
   assert.equal(r["E-006"].code, "secret-in-quote");
-  assert.ok(!JSON.stringify(r).includes("Zx9fQ2mK7vLp4Rt8Wy3N"), "the secret value never reaches the verification result");
+  assert.ok(!JSON.stringify(r).includes(fakeSecret.genericValue()), "the secret value never reaches the verification result");
 });
 
 test("a secret in a free-text field is a problem; a secret in the file never leaks through a mismatch message", () => {

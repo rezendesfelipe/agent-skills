@@ -5,7 +5,7 @@
 | Skill version | 0.1.0 |
 | Engine version | 0.1.0 |
 | Model | test-model; identifier reported by: the agent itself, which may be wrong |
-| Assessed revision | inventory:0e6da176a1aecf04 |
+| Assessed revision | inventory:148fa871b3c11fb6 |
 | Date | 2026-11-20 |
 | Reviewer | Marcos Lima, 2026-11-21 |
 

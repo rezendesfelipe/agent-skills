@@ -1,6 +1,6 @@
 // Deterministic eval cases: run without a model, as part of `npm test`. A failing case is reported by its ID
 // with the expected and the actual result.
-import { cpSync, mkdtempSync, readFileSync, readdirSync, appendFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import { buildInventory } from "../scripts/lib/inventory.mjs";
 import { renderReport } from "../scripts/lib/render.mjs";
 import { checkRoadmap } from "../scripts/lib/roadmap.mjs";
 import { verifyAssessment } from "../scripts/lib/verify.mjs";
+import { materialize, substituteDeep } from "./fake-secret.mjs";
 import { fixtureRoot } from "./keys.mjs";
 
 export const DET_DIR = fileURLToPath(new URL("./cases/deterministic/", import.meta.url));
@@ -22,7 +23,7 @@ export function loadSuites() {
 /** Applies [{op: "set"|"delete"|"push", path: "findings.0.evidence", value}] to a copy of the base assessment. */
 export function patched(patch = []) {
   const a = structuredClone(readJson("base-assessment.json"));
-  for (const p of patch) {
+  for (const p of substituteDeep(patch)) {
     const keys = p.path.split(".");
     const last = keys.pop();
     const target = keys.reduce((n, k) => n[k], a);
@@ -39,11 +40,10 @@ const strip = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !=
 
 const RUNNERS = {
   verifier(c) {
-    const root = mkdtempSync(join(tmpdir(), "assess-eval-"));
-    cpSync(fixtureRoot(c.fixture ?? "M-01"), root, { recursive: true });
+    const root = materialize(fixtureRoot(c.fixture ?? "M-01"));
     const inventory = buildInventory(root, {});
     for (const m of c.mutate ?? []) appendFileSync(join(root, m.path), m.append);
-    const a = { evidence: [c.evidence], findings: [] };
+    const a = { evidence: [substituteDeep(c.evidence)], findings: [] };
     const r = verifyAssessment(a, { root, outDir: mkdtempSync(join(tmpdir(), "assess-eval-out-")), inventory, maxBytes: c.maxBytes });
     return strip({ status: r.results[0].status, code: r.results[0].code });
   },

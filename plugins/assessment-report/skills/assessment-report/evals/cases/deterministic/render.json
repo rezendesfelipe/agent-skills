@@ -153,7 +153,7 @@
         "redacted secret of kind generic-credential"
       ],
       "notContains": [
-        "Vq7Lm2"
+        "{{FAKE_SECRET}}"
       ]
     }
   ]
