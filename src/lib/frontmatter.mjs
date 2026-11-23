@@ -26,3 +26,146 @@ export function parseFrontmatter(text) {
   }
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Agent files. Unlike `parseFrontmatter` above, which flattens everything to strings for
+// skills, this reader keeps what agent conversion needs: the set of top-level keys, scalars
+// (quoted, plain or block), lists (block, flow or comma-separated), the raw frontmatter text
+// and the body. Line endings are normalized to LF and a leading byte order mark is dropped.
+
+/** LF line endings and no byte order mark. */
+export function normalizeText(text) {
+  return text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
+}
+
+// `.` does not match U+2028 and U+2029 in JavaScript, so [^\n] is used wherever a line may carry them.
+const LINE_BREAKS = /[\r\u0085\u2028\u2029]/g;
+// Controls other than tab and LF, DEL, the C1 controls (U+0085 included) and U+2028/U+2029.
+const RAW_CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u2028\u2029]/g;
+const QUOTED = /^("(?:[^"\\]|\\[^\n])*"|'(?:[^']|'')*')\s*(?:#[^\n]*)?$/;
+
+function unquote(s) {
+  const t = s.trim();
+  if (t.startsWith('"') && t.endsWith('"') && t.length >= 2) {
+    try {
+      return JSON.parse(t);
+    } catch {
+      return t.slice(1, -1); // YAML-only escapes (\x41, \e ...) are kept as written
+    }
+  }
+  if (t.startsWith("'") && t.endsWith("'") && t.length >= 2) return t.slice(1, -1).replace(/''/g, "'");
+  return t;
+}
+
+const stripComment = (s) => s.replace(/(^|\s)#[^\n]*$/, "").trimEnd();
+
+/** Splits on commas that are not inside (), [] or quotes: `Read, Bash(git log, x)` has two entries. */
+export function splitList(s) {
+  const out = [];
+  let depth = 0;
+  let quote = null;
+  let cur = "";
+  for (const ch of s) {
+    if (quote) {
+      cur += ch;
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (ch === "(" || ch === "[") {
+      depth++;
+      cur += ch;
+    } else if (ch === ")" || ch === "]") {
+      depth = Math.max(0, depth - 1);
+      cur += ch;
+    } else if (ch === "," && depth === 0) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map((x) => unquote(x)).filter((x) => x !== "");
+}
+
+function scalarOf({ inline, rest }) {
+  if (/^[>|][+-]?\d?$/.test(inline)) {
+    const lines = [];
+    for (const l of rest) {
+      if (l !== "" && !/^\s/.test(l)) break;
+      lines.push(l.trim());
+    }
+    return (inline.startsWith(">") ? lines.join(" ") : lines.join("\n")).trim();
+  }
+  const q = inline.match(QUOTED);
+  if (q) return unquote(q[1]);
+  const parts = [stripComment(inline)];
+  for (const l of rest) if (/^\s+\S/.test(l) && !/^\s*#/.test(l) && !/^\s*-\s/.test(l)) parts.push(stripComment(l.trim()));
+  return parts.filter(Boolean).join(" ");
+}
+
+function listOf(entry) {
+  const { inline, rest } = entry;
+  if (inline.startsWith("[")) {
+    const joined = stripComment([inline, ...rest.map((l) => l.trim())].join(" ").trim());
+    const m = joined.match(/^\[([\s\S]*)\]$/);
+    return splitList(m ? m[1] : joined.slice(1));
+  }
+  if (inline === "" && rest.some((l) => /^\s*-(\s|$)/.test(l))) {
+    return rest
+      .map((l) => l.match(/^\s*-\s+([^\n]*)$/))
+      .filter(Boolean)
+      .map((m) => unquote(stripComment(m[1])))
+      .filter((x) => x !== "");
+  }
+  return splitList(scalarOf(entry));
+}
+
+/**
+ * Reads an agent file (or any Markdown file with YAML frontmatter).
+ * @returns {null | {text: string, raw: string, body: string, keys: string[], duplicates: string[], unrecognized: string[], badChars: string[],
+ *   has(key: string): boolean, scalar(key: string): string|undefined, list(key: string): string[]|undefined}}
+ */
+export function parseDocument(input) {
+  const text = normalizeText(input);
+  // YAML treats a lone CR, NEL (U+0085), U+2028 and U+2029 as line breaks, so a reader that only
+  // splits on LF would see one line where the vendor's parser sees two. The frontmatter is read
+  // with all of them as breaks. Each is one character, so the offsets stay the same as in `text`.
+  const unified = text.replace(LINE_BREAKS, "\n");
+  const m = unified.match(/^---\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)/);
+  if (!m) return null;
+  const raw = m[1] ?? "";
+  // Characters in the frontmatter as written (before they were read as line breaks): controls other
+  // than tab and LF, and the separators. Callers reject the file.
+  const written = text.slice(0, m[0].length);
+  const badChars = [...new Set(written.match(RAW_CONTROL) ?? [])];
+  const entries = [];
+  const unrecognized = [];
+  for (const line of raw.split("\n")) {
+    // A top-level line that is not `key: value` (nor a comment, a blank line or a list item) is YAML
+    // this reader does not understand (`key :`, a quoted key, `? key`, a flow mapping ...), so it
+    // could hide a field from `keys`. It is reported and callers reject the file.
+    if (line !== "" && !/^\s/.test(line) && !line.startsWith("#") && !/^-(\s|$)/.test(line) && !/^([A-Za-z0-9_-]+):(?:[ \t]|$)/.test(line))
+      unrecognized.push(line);
+    const kv = line.match(/^([A-Za-z0-9_-]+):(?:[ \t]+([^\n]*)|[ \t]*)$/);
+    if (kv) entries.push({ key: kv[1], inline: (kv[2] ?? "").trimEnd(), rest: [] });
+    else if (entries.length) entries.at(-1).rest.push(line);
+  }
+  const byKey = new Map();
+  const duplicates = [];
+  for (const e of entries) {
+    if (byKey.has(e.key)) duplicates.push(e.key);
+    else byKey.set(e.key, e);
+  }
+  return {
+    text,
+    raw,
+    badChars,
+    body: text.slice(m[0].length),
+    keys: [...byKey.keys()],
+    duplicates: [...new Set(duplicates)],
+    unrecognized,
+    has: (key) => byKey.has(key),
+    scalar: (key) => (byKey.has(key) ? scalarOf(byKey.get(key)) : undefined),
+    list: (key) => (byKey.has(key) ? listOf(byKey.get(key)) : undefined),
+  };
+}
