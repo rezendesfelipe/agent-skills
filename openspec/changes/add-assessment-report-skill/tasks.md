@@ -17,22 +17,22 @@
 - [x] 3.2 `verify` for `file` evidence: path containment with symlink resolution, text and size checks, range check, quote comparison with line-ending and trailing-space normalization, excerpt cap, `excerptSha256`, `drift`. Verify: one fixture per failure code (`path-escape`, `not-found`, `not-text`, `too-large`, `range-invalid`, `quote-mismatch`, `drift`) plus CRLF and Unicode passes.
 - [x] 3.3 `verify` for `absence` evidence: in-house glob (`*`, `**`, `?`), empty scope fails, matches fail with the first matches shown, regex cost bound. Verify: fixtures for pass, `absence-violated`, `scope-empty`, `pattern-too-costly`.
 - [x] 3.4 `verify` for `output`, `document`, `url` (snapshot only) and `statement` evidence. Verify: a `url` without snapshot is reported as not machine-checked and never fetched (test with the network disabled).
-- [ ] 3.5 Secret handling: redacted evidence, pattern scan of every string in `assessment.json`, `secret-in-quote`. Verify: fixture with a synthetic fake secret fails unredacted and passes redacted, and the report never contains the value.
+- [x] 3.5 Secret handling: redacted evidence, pattern scan of every string in `assessment.json`, `secret-in-quote`. Verify: fixture with a synthetic fake secret fails unredacted and passes redacted, and the report never contains the value.
 - [x] 3.6 Computed-field tamper check. Verify: editing `confidence` or `severity` by hand makes `verify` fail.
 
 ## 4. Classification and roadmap
 
 - [x] 4.1 `classify`: confidence by the Decision 6 table, severity table, confidence cap with `severityUncapped`, demotion to Not verified with a wave-1 collect-evidence action, `potentialSeverity`. Verify: a table-driven test covers every cell of the severity table and every confidence rule.
-- [ ] 4.2 Severity x effort matrix and the derived quick-wins list. Verify: golden Markdown table.
+- [x] 4.2 Severity x effort matrix and the derived quick-wins list. Verify: golden Markdown table.
 - [x] 4.3 Roadmap checks: acyclic dependencies, wave order, every Medium-or-above finding addressed or with a recorded disposition, Critical after wave 1 needs a reason, wave effort totals and capacity warning. Verify: one failing fixture per rule.
 - [x] 4.4 `check` (consistency): every finding has evidence, ID, severity and confidence; every action has a wave; every cited framework is registered with version and date; catalog check when supplied; no orphan references. Verify: one failing fixture per rule, exit codes 0, 1, 2.
 
 ## 5. Rendering and delegation
 
-- [ ] 5.1 `locales/en.json`, `pt-BR.json`, `es.json` and the label lookup. Verify: a test fails if a key exists in one locale and not in the others.
-- [ ] 5.2 `render`: `report/report.md` (frontmatter with `sources` and `annexes`, executive body) and `annex-*.md`, `report.json`; fence escaping, table pipe escaping, secret scan of the output, stamp for `--unreviewed`. Verify: golden files for the fixtures in the three languages.
-- [ ] 5.3 Contract test: render the fixtures and run the repository's `docs-generator` `check` (and `build --format docx`) on the result. Verify: exit 0; a fixture whose quote contains three backticks and `<script>` also passes.
-- [ ] 5.4 `references/report-format.md` documenting the mapping and what is delegated. Verify: it states that no layout, PDF or DOCX code exists in this skill, and a test greps the skill folder for a PDF or DOCX library import.
+- [x] 5.1 `locales/en.json`, `pt-BR.json`, `es.json` and the label lookup. Verify: a test fails if a key exists in one locale and not in the others.
+- [x] 5.2 `render`: `report/report.md` (frontmatter with `sources` and `annexes`, executive body) and `annex-*.md`, `report.json`; fence escaping, table pipe escaping, secret scan of the output, stamp for `--unreviewed`. Verify: golden files for the fixtures in the three languages.
+- [x] 5.3 Contract test: render the fixtures and run the repository's `docs-generator` `check` (and `build --format docx`) on the result. Verify: exit 0; a fixture whose quote contains three backticks and `<script>` also passes.
+- [x] 5.4 `references/report-format.md` documenting the mapping and what is delegated. Verify: it states that no layout, PDF or DOCX code exists in this skill, and a test greps the skill folder for a PDF or DOCX library import.
 
 ## 6. Skill instructions
 

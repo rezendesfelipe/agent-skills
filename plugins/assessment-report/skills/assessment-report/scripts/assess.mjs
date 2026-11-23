@@ -13,7 +13,6 @@ import { allowedNext, checkGate, checkOrder, logEvent, loadState, newState, NODE
 import { buildInventory } from "./lib/inventory.mjs";
 import { checkRoadmap } from "./lib/roadmap.mjs";
 import { loadSchema, SCHEMA_PATH, validateAssessment } from "./lib/schema.mjs";
-import { scanString } from "./lib/secrets.mjs";
 import { parseCatalog, verifyAssessment } from "./lib/verify.mjs";
 import { ENGINE_VERSION, SCHEMA_VERSION, SKILL_VERSION } from "./lib/version.mjs";
 import { insideGit, isInside, readJson, realOrResolve, sha256, today, UsageError, writeJson } from "./lib/util.mjs";
@@ -477,10 +476,13 @@ async function cmdRender() {
     print(`Refused: ${res.errors.length} problem(s) remain:\n${res.errors.map(fmtErr).join("\n")}`);
     exit(1);
   }
-  const { renderReport } = await import("./lib/render.mjs");
-  const files = renderReport(assessment, { unreviewed: unreviewed && !assessment.meta.review });
-  const leaks = [];
-  for (const [name, text] of Object.entries(files)) for (const kind of scanString(text)) leaks.push({ code: "secret-in-output", where: name, message: `looks like a secret (${kind}); nothing was written` });
+  const { renderReport, scanRendered } = await import("./lib/render.mjs");
+  // An approval counts only if nothing changed after it; otherwise the report says it was not reviewed.
+  const approved = Boolean(assessment.meta.review) && state.reviewedHash === hashAll(assessment);
+  const toRender = structuredClone(assessment);
+  if (!approved) delete toRender.meta.review;
+  const files = renderReport(toRender, { unreviewed: !approved });
+  const leaks = scanRendered(files);
   if (leaks.length) {
     print(`Refused:\n${leaks.map(fmtErr).join("\n")}`);
     exit(1);
@@ -488,7 +490,7 @@ async function cmdRender() {
   const { writeText } = await import("./lib/util.mjs");
   for (const [name, text] of Object.entries(files)) writeText(join(P.report, name), text);
   state.current = "delegate";
-  state.unreviewed = unreviewed && !assessment.meta.review;
+  state.unreviewed = !approved;
   logEvent(state, "render", true, state.unreviewed ? "unreviewed" : undefined);
   saveState(out, state);
   print(`Wrote ${Object.keys(files).length} file(s) in ${P.report}: ${Object.keys(files).join(", ")}`);
@@ -508,7 +510,7 @@ function cmdFinish() {
   const lines = [
     `Done. Files: ${P.report} (report.md, annex-*.md, report.json) and ${P.assessment}.`,
     `Run: skill ${a.meta.skillVersion}, engine ${a.meta.engineVersion}, model ${a.meta.model.id} (reported by ${a.meta.model.reportedBy}), revision ${a.meta.revision}.`,
-    a.meta.review ? `Reviewed by ${a.meta.review.by} on ${a.meta.review.at}.` : "NOT human-reviewed.",
+    a.meta.review && !state.unreviewed ? `Reviewed by ${a.meta.review.by} on ${a.meta.review.at}.` : "NOT human-reviewed.",
     `Not verified (${nv.length}): ${nv.map((f) => f.id).join(", ") || "none"}.`,
     `Not machine-checked evidence: ${a.verification.results.filter((r) => r.status === "unchecked").map((r) => r.evidence).join(", ") || "none"}.`,
   ];

@@ -124,6 +124,7 @@ export function checkAssessment(assessment, { acceptRoadmapViolations = false, r
   const values = tokenValues(assessment);
   for (const t of unknownTokens(assessment.summary ?? "", values)) add("finding", "unknown-token", "summary", `unknown summary token {{${t}}}; known tokens: ${Object.keys(values).map((k) => `{{${k}}}`).join(", ")}`);
   if (/^\s{0,3}#{1,6}\s/m.test(assessment.summary ?? "")) add("finding", "summary-heading", "summary", "the summary cannot contain headings (docs-generator rejects them)");
+  if (/<\/?[a-z][^>]*>/i.test(assessment.summary ?? "")) add("finding", "summary-html", "summary", "the summary cannot contain raw HTML (docs-generator rejects it)");
   if (requireSummary && !String(assessment.summary ?? "").trim()) add("finding", "missing-summary", "summary", "the summary is empty; write it after check passes, then run review");
 
   // 8. Computed fields were not edited by hand (strict: classify must be fresh by now)

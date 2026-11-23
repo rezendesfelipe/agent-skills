@@ -1,0 +1,28 @@
+# Dados da execução
+
+|  |  |
+|---|---|
+| Versão da skill | 0.1.0 |
+| Versão do motor | 0.1.0 |
+| Modelo | test-model; identificador informado por: o próprio agente, que pode estar errado |
+| Revisão avaliada | inventory:0e6da176a1aecf04 |
+| Data | 2026-11-20 |
+| Revisor | Marcos Lima, 2026-11-21 |
+
+# O que o verificador prova e o que não prova
+
+Prova que cada trecho citado existe nas linhas citadas dos arquivos inventariados, que uma busca de ausência não encontrou ocorrência em um escopo não vazio e que a saída salva não mudou desde a captura.
+
+Não prova que um trecho sustenta a afirmação, que uma busca de ausência cobre todos os lugares onde um controle poderia estar, nem que uma declaração, documento ou página web seja verdadeiro.
+
+Uma varredura heurística procura segredos nos dados e neste relatório. Ela não prova que não existam: uma pessoa ainda precisa olhar antes de o relatório sair da equipe.
+
+# Convenções
+
+Confiança, severidade e esforço seguem regras fixas calculadas por código, não pelo modelo. Os limiares são convenções desta skill, não resultados de pesquisa.
+
+Confiança: Verificado significa que ao menos uma citação verificada por máquina passa; Corroborado, duas fontes independentes e nenhuma verificada por máquina; Relatado, uma fonte; Não verificado, nenhuma evidência ou todas as citações falharam. Somente achados Verificados podem ser Críticos ou Altos; Corroborado e Relatado ficam limitados a Média.
+
+Esforço em pessoa-dias: S 1-2; M 3-10; L 11-30; XL \>30.
+
+Foram usadas as escalas padrão de severidade e esforço.

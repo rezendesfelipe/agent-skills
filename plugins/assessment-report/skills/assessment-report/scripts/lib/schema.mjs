@@ -50,6 +50,7 @@ function validate(root, schema, value, path, errors) {
     for (const k of schema.required ?? []) if (!(k in value)) errors.push({ path: path ? `${path}.${k}` : k, message: "is required" });
     const props = schema.properties ?? {};
     for (const [k, v] of Object.entries(value)) {
+      if (v === undefined) continue; // an undefined property is an absent property, as in JSON
       const p = path ? `${path}.${k}` : k;
       if (k in props) validate(root, props[k], v, p, errors);
       else if (schema.additionalProperties === false) errors.push({ path: p, message: "is not a known field" });
