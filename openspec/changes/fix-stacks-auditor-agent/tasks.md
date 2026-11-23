@@ -16,14 +16,14 @@
 
 ## 3. Engine evidence check
 
-- [ ] 3.1 Add the check to `scripts/lib/audit.mjs` and print and return `unverified` (`--json` and text) in `scripts/stacks.mjs`. **How to verify:** existing `audit` tests and golden files still pass unchanged for repositories whose findings are all valid.
-- [ ] 3.2 Tests for the scenarios of "Evidence verified by code" (line beyond the file, `..`, symbolic link out of the root, normal finding); the symlink test skips itself when creating the link fails with `EPERM` on Windows. **How to verify:** `npm test` in the skill folder on Linux and, through CI, on Windows and macOS.
+- [x] 3.1 Add the check to `scripts/lib/audit.mjs` and print and return `unverified` (`--json` and text) in `scripts/stacks.mjs`. **How to verify:** existing `audit` tests and golden files still pass unchanged for repositories whose findings are all valid.
+- [x] 3.2 Tests for the scenarios of "Evidence verified by code" (line beyond the file, `..`, symbolic link out of the root, normal finding); the symlink test skips itself when creating the link fails with `EPERM` on Windows. **How to verify:** `npm test` in the skill folder on Linux and, through CI, on Windows and macOS.
 
 ## 4. Documentation
 
 - [ ] 4.1 `SKILL.md` "Auditing an existing repository": remove the claim that `disallowedTools` filters commands and that the CLI installs skills only; describe the four layers, their limits, and the `permissions.deny` snippet (`Bash(terraform *)`, `Bash(kubectl *)`, `Bash(az *)`, `Bash(gh *)`, `Bash(git push *)`, `Bash(git commit *)`, `Bash(rm *)`, `Bash(mv *)`, `Bash(cp *)`, `Bash(tee *)`, `Bash(sed -i *)`), noting it also applies to the main conversation. **How to verify:** the text matches the "Bash is the residual risk" scenario.
 - [ ] 4.2 `README.md` catalog row for `azure-terraform-stacks`: the subagent is installed by the marketplace or by the CLI, needs `--allow-broader-access` for Cursor and Codex, and the guard exists on Claude Code only. **How to verify:** the row is consistent with the CLI output from task 1.3.
-- [ ] 4.3 `references/traps.md` (or equivalent): mention that findings failing the evidence check are listed as not verified. **How to verify:** grep for the word in the file.
+- [x] 4.3 `references/traps.md` (or equivalent): mention that findings failing the evidence check are listed as not verified. **How to verify:** grep for the word in the file.
 
 ## 5. Preloaded skill budget
 
