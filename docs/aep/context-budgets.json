@@ -1,0 +1,9 @@
+{
+  "note": "Declared context budgets in tokens, checked by scripts/context-budget.mjs. margin 0.3 is applied to an offline estimate (bytes/4); it is our choice, inspired by the roughly 30 percent tokenizer difference in the official token counting guide, and is not a measured quantity. The initial budgets are the estimate with the margin, rounded up to the next 500 tokens, as a starting point for the maintainer to revise; they are not official counts. An official count is recorded under a capability as official: { model, tokens, date, bytes } (task 3.7, run by the maintainer).",
+  "margin": 0.3,
+  "capabilities": {
+    "skill:azure-terraform-stacks": { "budget": 4000 },
+    "skill:docs-generator": { "budget": 3500 },
+    "agent:stacks-auditor": { "budget": 2500 }
+  }
+}
