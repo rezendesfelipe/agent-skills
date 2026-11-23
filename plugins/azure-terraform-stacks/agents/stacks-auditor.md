@@ -36,7 +36,7 @@ npm ci --omit=dev --ignore-scripts
 
 `<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `git` is not on the list: git runs programs that the audited repository's own configuration names (clean filters, fsmonitor), and that repository is untrusted. `npm ci --omit=dev --ignore-scripts` runs only with the skill's folder as the working directory (see step 3).
 
-How firm the read-only promise is: it comes from this design, not from a guarantee. `audit` writes nothing (by construction and by test). On Claude Code the guard hook enforces the list above, but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
+How firm the read-only promise is: it comes from this design, not from a guarantee, because a shell can change files in ways no instruction prevents. `audit` writes nothing (by construction and by test). On Claude Code the guard hook enforces the list above, but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
 
 ## Steps
 

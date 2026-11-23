@@ -115,3 +115,19 @@ test("the only permitted write is the engine's own dependency install, outside t
   assert.match(body, /never in the audited repository/);
   assert.match(body, /This is the only write you may make/);
 });
+
+test("SKILL.md is honest about the auditor: preloaded, layered read-only, deny snippet, no claim that disallowedTools filters commands", () => {
+  const skill = readFileSync(join(PLUGIN, "skills", SKILL, "SKILL.md"), "utf8");
+  assert.match(skill, /preloaded into the auditor/);
+  assert.match(skill, /not for the auditor/);
+  assert.match(skill, /fails open/);
+  assert.match(skill, /--allow-broader-access/);
+  for (const c of ["terraform *", "kubectl *", "az *", "gh *", "git push *", "git commit *", "rm *", "mv *", "cp *", "tee *", "sed -i *"]) assert.ok(skill.includes(`"Bash(${c})"`), `permissions.deny snippet lacks Bash(${c})`);
+  assert.ok(!/removes state-changing commands with `disallowedTools`/.test(skill));
+  assert.ok(!/\*\*not\*\* by the `agent-skills` CLI/.test(skill));
+});
+
+test("the agent's text states the limits of the guard", () => {
+  for (const phrase of ["fails open", "administrator disables plugin hooks", "permissions.deny", "read-only checkout", "Codex, Gemini CLI, Cursor and Copilot only these instructions apply"])
+    assert.ok(body.includes(phrase), `missing: ${phrase}`);
+});
