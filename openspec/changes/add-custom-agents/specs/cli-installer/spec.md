@@ -11,6 +11,21 @@
 
 ## MODIFIED Requirements
 
+### Requirement: Package and command
+The repository SHALL be published to npm as `@frcloudsolutions/agent-skills`, exposing a command named `agent-skills` that runs with `npx @frcloudsolutions/agent-skills <command>` on Node.js 20 or later. The package SHALL bundle every skill folder found under `plugins/<plugin>/skills/` and every agent file found under `plugins/<plugin>/agents/` at publish time.
+
+#### Scenario: Running through npx
+- **WHEN** a user with Node.js 20 runs `npx @frcloudsolutions/agent-skills --help`
+- **THEN** the command prints its usage, listing the `list`, `add` and `remove` commands and the supported tools, and exits with code 0
+
+#### Scenario: Unsupported Node version
+- **WHEN** the command runs on Node.js older than 20
+- **THEN** it prints that Node.js 20 or later is required and exits with a non-zero code
+
+#### Scenario: Agents are in the package
+- **WHEN** the package contents are listed with `npm pack --dry-run`
+- **THEN** every `plugins/<plugin>/agents/<agent>.md` appears, and the packaging test fails if one is missing
+
 ### Requirement: Supported tools and paths
 The CLI SHALL support the tools below. It SHALL install a skill into `<skills-dir>/<skill>/` and an agent as a file in `<agents-dir>` (see the `agent-conversion` capability), where the folders depend on the tool and scope. User scope paths are relative to the user's home directory; project scope paths are relative to the current working directory.
 
@@ -129,3 +144,22 @@ The `remove [<name>...]` command SHALL delete each chosen skill's folder from ea
 #### Scenario: Folder not installed by the CLI
 - **WHEN** the target folder exists but has no install marker
 - **THEN** the command leaves it in place, says it was not installed by `agent-skills`, and exits with a non-zero code
+
+### Requirement: Scriptable behavior
+Every command SHALL accept `--json` (machine-readable result on stdout, messages on stderr) and `add` and `remove` SHALL accept `--yes` (skip the confirmation) and `--dry-run` (report what would be written or deleted, change nothing). The CLI SHALL exit with code 0 only when every requested operation succeeded. Each entry of the `--json` results SHALL carry `kind`, `name` and, for compatibility, `skill` (the item's name), and for agents `dropped`, `notes` and `broader` when they apply. `--dry-run` SHALL include refusals in its plan.
+
+#### Scenario: Dry run
+- **WHEN** a user runs `agent-skills add docs-generator --tool claude --dry-run`
+- **THEN** the planned target path is printed and no file is created
+
+#### Scenario: Partial failure
+- **WHEN** an `add` for two tools succeeds for one and is skipped for the other because the folder exists
+- **THEN** the successful install is kept, both outcomes are reported, and the exit code is non-zero
+
+#### Scenario: Dry run of a refused agent
+- **WHEN** a user runs `agent-skills add <restricted-agent> --tool codex --dry-run`
+- **THEN** the plan reports the refusal and its reason, no file is created, and the exit code is non-zero
+
+#### Scenario: JSON results keep the old field
+- **WHEN** a user runs `agent-skills add docs-generator --tool claude --json`
+- **THEN** each result has `skill` as before, and also `name` and `kind`
