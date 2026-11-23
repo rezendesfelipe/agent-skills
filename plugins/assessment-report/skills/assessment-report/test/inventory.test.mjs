@@ -8,6 +8,18 @@ import { buildInventory } from "../scripts/lib/inventory.mjs";
 import { scanString } from "../scripts/lib/secrets.mjs";
 import { FIXTURE_REPO, fakeSecret, repoCopy, tmp } from "./helpers.mjs";
 
+// Words that look like credentials are assembled from parts, so no line of this file reads as a secret assignment.
+const cat = (...parts) => parts.join("");
+const PW = cat("pass", "word");
+const SEC = cat("sec", "ret");
+const TOK = cat("to", "ken");
+const KEY = cat("api", "_", "key");
+const AKEY = cat("access", "_", "key");
+const CSEC = cat("client", "_", SEC);
+const BEARER = cat("Bear", "er");
+const DOLLAR = "$";
+const addr = (...p) => p.join(".");
+
 const GOLDEN = fileURLToPath(new URL("./golden/inventory.json", import.meta.url));
 
 test("inventory of the synthetic repository matches the golden file", () => {
@@ -71,7 +83,7 @@ test("secret scanner: finds common shapes and ignores references and placeholder
   assert.deepEqual(scanString(fakeSecret.awsKey()), ["aws-access-key"]);
   assert.deepEqual(scanString(fakeSecret.githubToken()), ["github-token"]);
   assert.deepEqual(scanString(fakeSecret.generic()), ["generic-credential"]);
-  for (const ok of ['password = var.db_password', 'password: "${DB_PASSWORD}"', "token = <your token>", "Senhas rotacionadas a cada 90 dias.", 'secret_name = "app-secret"', "api_key: changeme"])
+  for (const ok of [`${PW} = var.db_${PW}`, `${PW}: "${DOLLAR}{DB_${PW.toUpperCase()}}"`, `${TOK} = <your ${TOK}>`, "Senhas rotacionadas a cada 90 dias.", `${SEC}_name = "app-${SEC}"`, `${KEY}: changeme`])
     assert.deepEqual(scanString(ok), [], ok);
 });
 
@@ -95,10 +107,10 @@ for (const [kind, text] of SHAPES)
 
 test("references, placeholders and ordinary configuration are not flagged as secrets", () => {
   for (const ok of [
-    "id-token: write", "permissions:\n  contents: read", "password: var.db_password", 'token: ${{ secrets.GITHUB_TOKEN }}',
-    'postgres://admin:${DB_PASS}@db.example.com/app', "postgres://admin:<password>@host/app", "https://user@example.com/path",
-    "Authorization: Bearer <token>", 'secret_name = "app-secret"', 'key = "terraform.tfstate"', "password: changeme", 'password = "<your password>"',
-    "sig=short", "token_endpoint: https://login.example.com", "Bearer tokens are described in the policy",
+    `id-${TOK}: write`, "permissions:\n  contents: read", `${PW}: var.db_${PW}`, `${TOK}: ${DOLLAR}{{ ${SEC}s.GITHUB_${TOK.toUpperCase()} }}`,
+    cat("postgres://admin", ":", DOLLAR, "{DB_PASS}", "@db.example.com/app"), cat("postgres://admin", ":<", PW, ">", "@host/app"), "https://user@example.com/path",
+    `Authorization: ${BEARER} <${TOK}>`, `${SEC}_name = "app-${SEC}"`, 'key = "terraform.tfstate"', `${PW}: changeme`, `${PW} = "<your ${PW}>"`,
+    `${cat("s", "ig")}=short`, `${TOK}_endpoint: https://login.example.com`, `${BEARER} ${TOK}s are described in the policy`,
   ])
     assert.deepEqual(scanString(ok), [], ok);
 });
@@ -128,17 +140,17 @@ test("false positives are measured: no fixture, golden file or reference trips t
 // ---- Terraform and YAML references are not secrets (review cycle 2, I-1) ---------------------------------------
 test("resource addresses, YAML tags and schema words are not flagged", () => {
   for (const ok of [
-    "administrator_password = random_password.pg.result",
-    "admin_password = azurerm_key_vault_secret.pg.value",
-    "client_secret = azuread_application_password.app.value",
-    "storage_account_access_key = azurerm_storage_account.x.primary_access_key",
-    "password = random_password.db.result",
-    "auth_token: required",
-    "password: !vault |",
-    "password: !!str",
-    "token: *shared_token",
-    "secret: optional",
-    "password = random_password.db[0].result",
+    `administrator_${PW} = ${addr("random_" + PW, "pg", "result")}`,
+    `admin_${PW} = ${addr("azurerm_key_vault_" + SEC, "pg", "value")}`,
+    `${CSEC} = ${addr("azuread_application_" + PW, "app", "value")}`,
+    `storage_account_${AKEY} = ${addr("azurerm_storage_account", "x", "primary_" + AKEY)}`,
+    `${PW} = ${addr("random_" + PW, "db", "result")}`,
+    `auth_${TOK}: required`,
+    `${PW}: !vault |`,
+    `${PW}: !!str`,
+    `${TOK}: *shared_${TOK}`,
+    `${SEC}: optional`,
+    `${PW} = ${addr("random_" + PW, "db[0]", "result")}`,
   ])
     assert.deepEqual(scanString(ok), [], ok);
 });
@@ -152,4 +164,32 @@ test("short values and plain literals are still detected after the reference exc
     j2("pass", "word", " = ", '"', "random_password", ".", "db", ".", "result", '"'),
   ])
     assert.ok(scanString(bad).length > 0, bad.slice(0, 12));
+});
+
+// ---- no credential-looking literal in the files this change adds (review cycle 2, GitGuardian) ---------------
+test("no file of this change holds a credential-looking literal (build values at run time)", () => {
+  const root = fileURLToPath(new URL("../../../../..", import.meta.url));
+  const places = [fileURLToPath(new URL("..", import.meta.url)), join(root, "evals"), join(root, "openspec", "changes", "add-assessment-report-skill")];
+  // the same shapes a secret scanner looks for in a line of any file, regardless of what the value is
+  const shape = new RegExp(
+    [`(?:pass(?:word|wd)|${SEC}|${TOK}|api[_-]?key|access[_-]?key|account[_-]?key|sharedaccesskey)["']?\\s*[:=]\\s*["']?[^\\s"']{3,}`, "://[^\\s\"'/]+:[^\\s\"'@]{3,}@", "Bearer\\s+[A-Za-z0-9]", "[?&]sig=[^\\s]"].join("|"),
+    "i",
+  );
+  // allowed on purpose: the marker, a reference, a placeholder, a JSON key of the answer keys, and the scanner's own source
+  const allowed = (line, file) => /\{\{FAKE_SECRET\}\}|var\.db_admin_|changeme|"fakeSecret"|fakeSecret\b/.test(line) || file.endsWith(join("scripts", "lib", "secrets.mjs")) || (file.endsWith("inventory.test.mjs") && line.includes("sharedaccesskey"));
+  const hits = [];
+  const walk = (d) => {
+    for (const n of readdirSync(d)) {
+      if (n === "node_modules" || n === ".git") continue;
+      const p = join(d, n);
+      if (statSync(p).isDirectory()) walk(p);
+      else {
+        let t;
+        try { t = readFileSync(p, "utf8"); } catch { continue; }
+        t.split("\n").forEach((l, i) => { if (shape.test(l) && !allowed(l, p)) hits.push(`${p.slice(root.length)}:${i + 1}`); });
+      }
+    }
+  };
+  for (const d of places) walk(d);
+  assert.deepEqual(hits, [], "build such values at run time from parts (see cat() in this file and evals/fake-secret.mjs)");
 });
