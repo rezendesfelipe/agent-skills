@@ -1,9 +1,9 @@
 ## 1. Setup
 
-- [ ] 1.1 Create `plugins/assessment-report/skills/assessment-report/` from `templates/skill/` with `name: assessment-report` and a description (at most 1024 characters, third person) that says what it does and when to use it. Verify: `node scripts/validate-skills.mjs` passes.
-- [ ] 1.2 Add `plugins/assessment-report/.claude-plugin/plugin.json` and the plugin entry in `.claude-plugin/marketplace.json`. Verify: the validator reports the plugin and no duplicate skill or agent name.
-- [ ] 1.3 Validate the frontmatter and the marketplace manifest: `node scripts/validate-skills.mjs` and `npm test` pass, and `npx @frcloudsolutions/agent-skills add assessment-report --tool claude,codex --dry-run` lists the skill.
-- [ ] 1.4 Add the skill's `package.json` (`type: module`, Node 20 or later, no dependencies, a `test` script using `node --test`). Verify: `npm ls` shows no dependencies and no `npm ci` is needed to run `node scripts/assess.mjs --help`.
+- [x] 1.1 Create `plugins/assessment-report/skills/assessment-report/` from `templates/skill/` with `name: assessment-report` and a description (at most 1024 characters, third person) that says what it does and when to use it. Verify: `node scripts/validate-skills.mjs` passes.
+- [x] 1.2 Add `plugins/assessment-report/.claude-plugin/plugin.json` and the plugin entry in `.claude-plugin/marketplace.json`. Verify: the validator reports the plugin and no duplicate skill or agent name.
+- [x] 1.3 Validate the frontmatter and the marketplace manifest: `node scripts/validate-skills.mjs` and `npm test` pass, and `npx @frcloudsolutions/agent-skills add assessment-report --tool claude,codex --dry-run` lists the skill.
+- [x] 1.4 Add the skill's `package.json` (`type: module`, Node 20 or later, no dependencies, a `test` script using `node --test`). Verify: `npm ls` shows no dependencies and no `npm ci` is needed to run `node scripts/assess.mjs --help`.
 
 ## 2. Schema and state
 

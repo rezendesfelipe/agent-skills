@@ -1,0 +1,14 @@
+{
+  "name": "assessment-report-engine",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Engine for the assessment-report skill: schema, evidence verifier, classification, roadmap checks and rendering for docs-generator. No runtime dependencies.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "license": "MIT"
+}
