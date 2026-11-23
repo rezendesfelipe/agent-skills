@@ -10,6 +10,7 @@
     "bin/",
     "src/",
     "plugins/*/skills/**",
+    "plugins/*/agents/**",
     "!plugins/*/skills/*/node_modules",
     "!plugins/*/skills/*/test",
     "README.md",

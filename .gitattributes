@@ -1,0 +1,4 @@
+# Golden files and fixtures are compared byte for byte, so they must be LF on every OS.
+test/fixtures/** text eol=lf
+test/golden/** text eol=lf
+templates/** text eol=lf
