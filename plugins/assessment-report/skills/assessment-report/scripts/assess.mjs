@@ -82,8 +82,8 @@ function load() {
   const state = loadState(out);
   const assessment = loadAssessment(out);
   if (!state || !assessment) {
-    print(`No assessment in ${out}. Run \`init\` first (node scripts/assess.mjs init --model <id|unknown> ...).`);
-    exit(1);
+    console.error(`No assessment in ${out}. Check --out, or run \`init\` first (node scripts/assess.mjs init --model <id|unknown> ...).`);
+    exit(2);
   }
   return { state, assessment };
 }
@@ -369,6 +369,7 @@ function cmdCheck() {
   enforceOrder(state, "check");
   enforceGate(state, assessment, "check");
   const rm = checkRoadmap(assessment);
+  const res = checkAssessment(assessment, { acceptRoadmapViolations: true });
   let accepted = false;
   if (rm.errors.length) {
     if (state.roadmapAttempts < 2) {
@@ -376,13 +377,13 @@ function cmdCheck() {
       state.current = "roadmap";
       logEvent(state, "check", false, "roadmap");
       saveState(out, state);
-      if (json) print(JSON.stringify({ ok: false, node: "roadmap", errors: rm.errors }, null, 2));
-      else print(`Roadmap check failed (retry ${state.roadmapAttempts} of 2):\n${rm.errors.map(fmtErr).join("\n")}\nFix the roadmap in assessment.json, then run check again.`);
+      const all = [...rm.errors, ...res.errors];
+      if (json) print(JSON.stringify({ ok: false, node: "roadmap", errors: all, warnings: res.warnings }, null, 2));
+      else print(`Roadmap check failed (retry ${state.roadmapAttempts} of 2):\n${all.map(fmtErr).join("\n")}\nFix the roadmap in assessment.json, then run check again.`);
       exit(1);
     }
     accepted = true;
   }
-  const res = checkAssessment(assessment, { acceptRoadmapViolations: true });
   const next = structuredClone(assessment);
   if (accepted) next.roadmapViolations = rm.errors.map((e) => e.message);
   else delete next.roadmapViolations;

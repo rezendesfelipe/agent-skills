@@ -22,10 +22,10 @@
 
 ## 4. Classification and roadmap
 
-- [ ] 4.1 `classify`: confidence by the Decision 6 table, severity table, confidence cap with `severityUncapped`, demotion to Not verified with a wave-1 collect-evidence action, `potentialSeverity`. Verify: a table-driven test covers every cell of the severity table and every confidence rule.
+- [x] 4.1 `classify`: confidence by the Decision 6 table, severity table, confidence cap with `severityUncapped`, demotion to Not verified with a wave-1 collect-evidence action, `potentialSeverity`. Verify: a table-driven test covers every cell of the severity table and every confidence rule.
 - [ ] 4.2 Severity x effort matrix and the derived quick-wins list. Verify: golden Markdown table.
-- [ ] 4.3 Roadmap checks: acyclic dependencies, wave order, every Medium-or-above finding addressed or with a recorded disposition, Critical after wave 1 needs a reason, wave effort totals and capacity warning. Verify: one failing fixture per rule.
-- [ ] 4.4 `check` (consistency): every finding has evidence, ID, severity and confidence; every action has a wave; every cited framework is registered with version and date; catalog check when supplied; no orphan references. Verify: one failing fixture per rule, exit codes 0, 1, 2.
+- [x] 4.3 Roadmap checks: acyclic dependencies, wave order, every Medium-or-above finding addressed or with a recorded disposition, Critical after wave 1 needs a reason, wave effort totals and capacity warning. Verify: one failing fixture per rule.
+- [x] 4.4 `check` (consistency): every finding has evidence, ID, severity and confidence; every action has a wave; every cited framework is registered with version and date; catalog check when supplied; no orphan references. Verify: one failing fixture per rule, exit codes 0, 1, 2.
 
 ## 5. Rendering and delegation
 
