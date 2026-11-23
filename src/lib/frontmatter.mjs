@@ -35,10 +35,11 @@ export function parseFrontmatter(text) {
 
 /** LF line endings and no byte order mark. */
 export function normalizeText(text) {
-  return text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  return text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
 }
 
-const QUOTED = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s*(?:#.*)?$/;
+// `.` does not match U+2028 and U+2029 in JavaScript, so [^\n] is used wherever a line may carry them.
+const QUOTED = /^("(?:[^"\\]|\\[^\n])*"|'(?:[^']|'')*')\s*(?:#[^\n]*)?$/;
 
 function unquote(s) {
   const t = s.trim();
@@ -53,7 +54,7 @@ function unquote(s) {
   return t;
 }
 
-const stripComment = (s) => s.replace(/(^|\s)#.*$/, "").trimEnd();
+const stripComment = (s) => s.replace(/(^|\s)#[^\n]*$/, "").trimEnd();
 
 /** Splits on commas that are not inside (), [] or quotes: `Read, Bash(git log, x)` has two entries. */
 export function splitList(s) {
@@ -108,7 +109,7 @@ function listOf(entry) {
   }
   if (inline === "" && rest.some((l) => /^\s*-(\s|$)/.test(l))) {
     return rest
-      .map((l) => l.match(/^\s*-\s+(.*)$/))
+      .map((l) => l.match(/^\s*-\s+([^\n]*)$/))
       .filter(Boolean)
       .map((m) => unquote(stripComment(m[1])))
       .filter((x) => x !== "");
@@ -128,7 +129,7 @@ export function parseDocument(input) {
   const raw = m[1] ?? "";
   const entries = [];
   for (const line of raw.split("\n")) {
-    const kv = line.match(/^([A-Za-z0-9_-]+):(?:[ \t]+(.*)|[ \t]*)$/);
+    const kv = line.match(/^([A-Za-z0-9_-]+):(?:[ \t]+([^\n]*)|[ \t]*)$/);
     if (kv) entries.push({ key: kv[1], inline: (kv[2] ?? "").trimEnd(), rest: [] });
     else if (entries.length) entries.at(-1).rest.push(line);
   }
