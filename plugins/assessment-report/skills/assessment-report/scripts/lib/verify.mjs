@@ -5,6 +5,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSyn
 import { isAbsolute, join, resolve } from "node:path";
 import { decodeText, MAX_FILE_BYTES } from "./inventory.mjs";
 import { matchAny } from "./glob.mjs";
+import { REGEX_TIMEOUT_MS, searchWithLimit } from "./regex-limited.mjs";
 import { hasSecretKind, scanString, scanValue } from "./secrets.mjs";
 import { isInside, normLine, sha256, splitLines } from "./util.mjs";
 
@@ -123,13 +124,24 @@ function verifyLines(base, ev, { inventory, requireInventory, maxBytes }) {
   return pass({ location: loc, excerptSha256: sha256(cited.join("\n")) });
 }
 
-/** Cost bound for absence patterns: no nesting of quantifiers, no backreferences, short. */
+/**
+ * Early, cheap refusal of patterns that are known to backtrack badly. This is not the guarantee: the search itself
+ * runs under a real time limit (regex-limited.mjs) and a pattern that exceeds it is also `pattern-too-costly`.
+ */
 export function patternProblem(pattern, flags = "") {
   if (typeof pattern !== "string" || !pattern) return "pattern is empty";
+  if (typeof flags !== "string" || !/^i?$/.test(flags)) return `flags "${flags}" are not allowed; only i is`;
   if (pattern.length > MAX_PATTERN_LENGTH) return `pattern is longer than ${MAX_PATTERN_LENGTH} characters`;
   if (/\\[1-9]|\\k</.test(pattern)) return "backreferences are not allowed";
-  if (/\([^()]*[+*][^()]*\)[+*{]/.test(pattern) || /\([^()]*\{\d+,\d*\}[^()]*\)[+*{]/.test(pattern)) return "nested quantifiers can backtrack without bound";
   if (/\(\?<?[=!]/.test(pattern)) return "lookaround is not allowed";
+  // a quantified group that holds a quantifier or an alternation: (a+)+  (a|a)+  (a|aa)*
+  const quantifiedGroup = /\((?:[^()\\]|\\.)*\)(?:[+*]|\{\d+,\d*\})/g;
+  for (const m of pattern.matchAll(quantifiedGroup)) {
+    const inner = m[0].slice(1, m[0].lastIndexOf(")"));
+    if (/(?<!\\)[+*|]|\{\d+,\d*\}/.test(inner)) return "a repeated group that contains a repetition or an alternation can backtrack without bound";
+  }
+  const unbounded = pattern.match(/(?<!\\)(?:[+*]|\{\d+,\})/g) ?? [];
+  if (unbounded.length > 3) return "more than three unbounded repetitions can backtrack without bound";
   try {
     new RegExp(pattern, flags);
   } catch (e) {
@@ -143,35 +155,26 @@ function verifyAbsence(ev, { root, inventory }) {
   if (problem) return fail("pattern-too-costly", problem);
   const files = (inventory?.files ?? listFiles(root)).map((f) => f.path).filter((p) => matchAny(ev.scope, p));
   if (!files.length) return fail("scope-empty", `the scope ${JSON.stringify(ev.scope)} matches no file`);
-  const re = new RegExp(ev.pattern, ev.flags ?? "");
-  const matches = [];
+  const docs = [];
   let budget = MAX_ABSENCE_BYTES;
-  let total = 0;
   for (const rel of files) {
     const c = containedPath(root, rel);
     if (c.error) continue;
-    let text;
     try {
       const st = statSync(c.full);
       if (st.size > MAX_FILE_BYTES) continue;
       budget -= st.size;
       if (budget < 0) return fail("pattern-too-costly", `the scope covers more than ${MAX_ABSENCE_BYTES} bytes`);
-      text = decodeText(readFileSync(c.full));
+      const text = decodeText(readFileSync(c.full));
+      if (text !== null) docs.push({ path: rel, lines: splitLines(text) });
     } catch {
-      continue;
+      // unreadable file: skipped, as before
     }
-    if (text === null) continue;
-    splitLines(text).forEach((line, i) => {
-      if (re.test(line.slice(0, MAX_LINE_CHARS))) {
-        total++;
-        if (matches.length < MAX_SHOWN_MATCHES) {
-          const shown = scanString(line).length ? "[line withheld: looks like a secret]" : line.trim().slice(0, 120);
-          matches.push(`${rel}:${i + 1}: ${shown}`);
-        }
-      }
-    });
   }
-  if (total) return fail("absence-violated", `the pattern matches ${total} line(s) in the scope; first matches below`, { matches, location: ev.scope.join(", ") });
+  const found = searchWithLimit({ pattern: ev.pattern, flags: ev.flags ?? "", docs, maxLineChars: MAX_LINE_CHARS, maxShown: MAX_SHOWN_MATCHES });
+  if (found.timedOut) return fail("pattern-too-costly", `the search did not finish within ${REGEX_TIMEOUT_MS} ms; the pattern backtracks too much`);
+  const matches = found.matches.map((m) => `${m.path}:${m.line}: ${scanString(m.text).length ? "[line withheld: looks like a secret]" : m.text.trim().slice(0, 120)}`);
+  if (found.total) return fail("absence-violated", `the pattern matches ${found.total} line(s) in the scope; first matches below`, { matches, location: ev.scope.join(", ") });
   return pass({ location: ev.scope.join(", "), message: `not found in ${files.length} file(s) of the scope` });
 }
 

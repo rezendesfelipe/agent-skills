@@ -43,7 +43,13 @@ test("the engine has no runtime dependency", () => {
 
 test("no script has network code or starts a process", () => {
   const banned = /node:(?:http|https|http2|net|tls|dns|dgram|child_process|worker_threads)|\bfetch\s*\(|XMLHttpRequest|WebSocket/;
-  for (const f of scripts()) assert.ok(!banned.test(readFileSync(f, "utf8")), `${relative(SKILL, f)} has network or process code`);
+  // worker threads are allowed only to run the absence regular expression under a time limit
+  const timeLimit = ["regex-limited.mjs", "regex-worker.mjs"];
+  for (const f of scripts()) {
+    const src = readFileSync(f, "utf8");
+    const bannedHere = timeLimit.some((n) => f.endsWith(n)) ? /node:(?:http|https|http2|net|tls|dns|dgram|child_process)|\bfetch\s*\(|XMLHttpRequest|WebSocket/ : banned;
+    assert.ok(!bannedHere.test(src), `${relative(SKILL, f)} has network or process code`);
+  }
 });
 
 test("no rendering code: no import of a PDF or DOCX library, no HTML layout template", () => {

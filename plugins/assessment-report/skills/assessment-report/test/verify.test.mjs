@@ -284,3 +284,80 @@ test("a hand-edited confidence or severity makes verify and check fail", () => {
   assert.equal(r.code, 1);
   assert.match(r.out, /findings\[0\]\.severity/);
 });
+
+// ---- the verification block is gated (review cycle 1, B1) ---------------------------------------------
+function failedThenDemoted() {
+  const { out } = startRun();
+  edit(out, (a) => {
+    a.evidence.push(file("E-001", "infra/main.tf", 3, 3, "this is not on line 3"));
+    a.findings.push(finding("F-001", ["E-001"], { impact: "severe", likelihood: "likely", effort: "S", rationale }));
+  });
+  for (let i = 0; i < 3; i++) run(["verify", "--out", out]);
+  return out;
+}
+
+test("editing verification.results by hand (fail -> pass) refuses classify, check and render, and verify restores the truth", () => {
+  const out = failedThenDemoted();
+  assert.equal(state(out).current, "classify");
+  edit(out, (a) => Object.assign(a.verification.results[0], { status: "pass", machineChecked: true, code: undefined, message: undefined }));
+  let r = run(["classify", "--out", out]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /changed since the last successful verify/);
+  assert.doesNotMatch(r.out, /Critical\s+verified/);
+  assert.equal(state(out).current, "verify");
+  r = run(["verify", "--out", out]);
+  assert.match(r.out, /E-001 \[quote-mismatch\]/, "verify recomputes the result from the file");
+});
+
+test("a verification block edited after classify is refused by check", () => {
+  const { out } = startRun();
+  edit(out, (a) => {
+    a.evidence.push(file("E-001", "infra/main.tf", 11, 11, '  min_tls_version          = "TLS1_0"'));
+    a.findings.push(finding("F-001", ["E-001"], { impact: "high", likelihood: "likely", effort: "S", rationale }));
+  });
+  assert.equal(run(["verify", "--out", out]).code, 0);
+  assert.equal(run(["classify", "--out", out]).code, 0);
+  edit(out, (a) => (a.verification.results[0].location = "infra/main.tf:99-99"));
+  edit(out, (a) => a.actions.push({ id: "A-001", title: "x", addresses: ["F-001"], wave: 1, effort: "S", risk: "low", dependsOn: [] }));
+  const r = run(["check", "--out", out]);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /changed since the last successful verify/);
+});
+
+// ---- ReDoS: a real time limit and a stricter syntax check (review cycle 1, B2) -------------------------
+import { patternProblem } from "../scripts/lib/verify.mjs";
+import { searchWithLimit } from "../scripts/lib/regex-limited.mjs";
+
+test("catastrophic absence patterns come back as pattern-too-costly in bounded time", () => {
+  const repo = repoCopy();
+  writeFileSync(join(repo, "infra", "long.txt"), `${"a".repeat(2000)}\n${"a".repeat(30)}!\n`);
+  for (const pattern of ["^(a|a)+$", "a*a*a*a*a*c", "^(a|aa)+$", "(a+)+$", "(a*)*b"]) {
+    const t0 = Date.now();
+    const r = verifyEvidence([{ id: "E-001", kind: "absence", scope: ["infra/long.txt"], pattern }], { repo });
+    assert.equal(r["E-001"].code, "pattern-too-costly", pattern);
+    assert.ok(Date.now() - t0 < 8000, `${pattern} returned in ${Date.now() - t0} ms`);
+  }
+});
+
+test("the time limit, not the syntax check, is the guarantee: a pattern the syntax check accepts is stopped by time", () => {
+  assert.equal(patternProblem("a*a*a*c"), null, "three unbounded repetitions pass the syntax check");
+  const t0 = Date.now();
+  const r = searchWithLimit({ pattern: "a*a*a*c", docs: [{ path: "x", lines: ["a".repeat(2000)] }], maxLineChars: 2000, maxShown: 5, timeoutMs: 200 });
+  assert.equal(r.timedOut, true);
+  assert.ok(Date.now() - t0 < 5000);
+});
+
+test("a normal absence search still finds its matches through the worker", () => {
+  const r = searchWithLimit({ pattern: "foo\\d+", docs: [{ path: "a", lines: ["x", "foo12", "bar"] }, { path: "b", lines: ["foo3"] }], maxLineChars: 2000, maxShown: 5 });
+  assert.deepEqual([r.timedOut, r.total, r.matches.map((m) => `${m.path}:${m.line}`)], [false, 2, ["a:2", "b:1"]]);
+});
+
+test("patternProblem validates flags itself (the library API accepts y, g, s ...)", () => {
+  for (const flags of ["y", "g", "s", "gi", "m"]) assert.match(patternProblem("abc", flags), /flags .* are not allowed/);
+  assert.equal(patternProblem("abc", "i"), null);
+  assert.equal(patternProblem("abc", ""), null);
+});
+
+test("ordinary patterns are not refused by the stricter syntax check", () => {
+  for (const p of ["password\\s*=", "min_tls_version", "(public|private)_network", "foo.*bar.*baz", "encryption(_at_rest)?", "\\bTLS1_[01]\\b"]) assert.equal(patternProblem(p), null, p);
+});

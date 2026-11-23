@@ -37,9 +37,13 @@ const withoutComputed = (f) => {
   return copy;
 };
 
-/** Hash gated by `verify`: the evidence and the parts of a finding that evidence depends on. */
+/**
+ * Hash gated by `verify`: the evidence, the parts of a finding that evidence depends on, and the verification
+ * block itself. Without the block, an edit of a recorded result (fail -> pass) would go unseen.
+ */
 export function hashCore(a) {
   return hashOf({
+    verification: a.verification ?? null,
     evidence: (a.evidence ?? []).map(withoutExcerptHash),
     findings: (a.findings ?? []).map((f) => ({ id: f.id, title: f.title, statement: f.statement, evidence: f.evidence, controls: f.controls })),
   });
@@ -55,6 +59,7 @@ export function hashChecked(a) {
     evidence: (a.evidence ?? []).map(withoutExcerptHash),
     findings: (a.findings ?? []).map(withoutComputed),
     actions: a.actions,
+    verification: a.verification ?? null,
   });
 }
 
