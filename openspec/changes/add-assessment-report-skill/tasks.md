@@ -36,8 +36,8 @@
 
 ## 6. Skill instructions
 
-- [ ] 6.1 Write `SKILL.md` (at most 150 lines): when to use, hard rules (read-only, no invented author/version/framework data, never auto-approve), the graph as numbered nodes with one command each, the interrupts, the delegation step and the final report of what was not verified. Verify: a test enforces the line limit and that every referenced file exists.
-- [ ] 6.2 Write the references: `evidence-and-confidence.md`, `severity-effort.md`, `roadmap-waves.md`, `framework-mapping.md`, `report-format.md`, `read-only-and-untrusted-input.md`. Verify: each is linked from `SKILL.md` at the node that uses it, and none is a checklist of technology-specific checks.
+- [x] 6.1 Write `SKILL.md` (at most 150 lines): when to use, hard rules (read-only, no invented author/version/framework data, never auto-approve), the graph as numbered nodes with one command each, the interrupts, the delegation step and the final report of what was not verified. Verify: a test enforces the line limit and that every referenced file exists.
+- [x] 6.2 Write the references: `evidence-and-confidence.md`, `severity-effort.md`, `roadmap-waves.md`, `framework-mapping.md`, `report-format.md`, `read-only-and-untrusted-input.md`. Verify: each is linked from `SKILL.md` at the node that uses it, and none is a checklist of technology-specific checks.
 - [ ] 6.3 Scope interview (N0): ask for client, questions, in and out of scope, assumptions, framework and its version and date, language, author, version, date; never infer them. Verify: a transcript review in the manual run (task 8.4) shows each question asked and no invented value.
 
 ## 7. Evals (capability `assessment-evals`)
