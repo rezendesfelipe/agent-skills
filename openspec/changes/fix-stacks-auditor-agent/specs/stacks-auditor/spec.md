@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Auditor subagent
-The `azure-terraform-stacks` plugin SHALL ship a Claude Code subagent at `plugins/azure-terraform-stacks/agents/stacks-auditor.md` with a `name`, a third-person `description` that says when to use it, an allowlist `tools: Read, Grep, Glob, Bash` (no `Write`, `Edit` or `NotebookEdit`) and `skills: [azure-terraform-stacks]`. The file SHALL NOT declare `disallowedTools` with a specifier such as `Bash(git push *)`, because Claude Code removes the whole tool for such an entry and the agent would lose the `Bash` that it needs to run the engine. Its instructions SHALL limit the shell to running the engine's `audit` command and a short list of read-only commands, and SHALL forbid changing the audited repository and running Terraform or `kubectl`. The single permitted write is `npm ci --omit=dev` in the skill's folder (the folder that contains `scripts/`) when its `node_modules` is missing (the engine needs the `yaml` package and plugin installs do not ship `node_modules`); it SHALL NOT run it in the audited repository, SHALL report that it did, and SHALL stop with an instruction to the user when it fails. The file SHALL NOT rely on `hooks`, `mcpServers` or `permissionMode`, which Claude Code ignores for plugin subagents. The agent's text and the skill's documentation SHALL describe the read-only property as a property of its design and its guards, not as a guarantee.
+The `azure-terraform-stacks` plugin SHALL ship a Claude Code subagent at `plugins/azure-terraform-stacks/agents/stacks-auditor.md` with a `name`, a third-person `description` that says when to use it, an allowlist `tools: Read, Grep, Glob, Bash` (no `Write`, `Edit` or `NotebookEdit`) and `skills: [azure-terraform-stacks]`. The file SHALL NOT declare `disallowedTools` with a specifier such as `Bash(git push *)`, because Claude Code removes the whole tool for such an entry and the agent would lose the `Bash` that it needs to run the engine. Its instructions SHALL limit the shell to running the engine's `audit` command and a short list of read-only commands, and SHALL forbid changing the audited repository and running Terraform or `kubectl`. The single permitted write is `npm ci --omit=dev --ignore-scripts` in the skill's folder (the folder that contains `scripts/`) when its `node_modules` is missing (the engine needs the `yaml` package and plugin installs do not ship `node_modules`); it SHALL NOT run it in the audited repository, SHALL report that it did, and SHALL stop with an instruction to the user when it fails. The file SHALL NOT rely on `hooks`, `mcpServers` or `permissionMode`, which Claude Code ignores for plugin subagents. The agent's text and the skill's documentation SHALL describe the read-only property as a property of its design and its guards, not as a guarantee.
 
 #### Scenario: Frontmatter present
 - **WHEN** the repository is validated
@@ -15,9 +15,13 @@ The `azure-terraform-stacks` plugin SHALL ship a Claude Code subagent at `plugin
 - **WHEN** the agent is installed with the `agent-skills` CLI for a tool
 - **THEN** the `skills` field makes the CLI install `azure-terraform-stacks` for the same tool and scope
 
+#### Scenario: Cursor and Codex need the broader-access flag
+- **WHEN** the agent is installed with `agent-skills add stacks-auditor --tool cursor` or `--tool codex`
+- **THEN** the CLI refuses it unless `--allow-broader-access` is given, because the effective tools include `Bash`; with the flag it installs the agent without a tool restriction and says so; Gemini CLI and Copilot install it with their shell tool and no flag
+
 #### Scenario: Bash is the residual risk
 - **WHEN** the agent file and the skill's documentation are reviewed
-- **THEN** they say that `Bash` can change files in ways no instruction prevents; that the engine's `audit` command is read-only by construction and tested; that the plugin's command guard enforces an allowlist only on Claude Code and fails open when it cannot run; that other tools rely on the instructions; and that users who need a hard guarantee can add `permissions.deny` rules in their own Claude Code settings, with a snippet, or run the agent on a read-only checkout
+- **THEN** they say that `Bash` can change files in ways no instruction prevents; that the engine's `audit` command is read-only by construction and tested; that the plugin's command guard enforces an allowlist only on Claude Code and fails open when Node cannot start the script or when an administrator disables plugin hooks; that the preloaded `SKILL.md` describes commands that write (`scaffold`, `add-stack`), so only the instructions and the guard stop the auditor from using them; that other tools rely on the instructions; and that users who need a hard guarantee can add `permissions.deny` rules in their own Claude Code settings, with a snippet, or run the agent on a read-only checkout
 
 #### Scenario: Audit requested
 - **WHEN** a user asks the main agent to audit an existing infrastructure repository against the stacks pattern
@@ -49,7 +53,7 @@ The subagent SHALL locate the engine (`scripts/stacks.mjs` of the `azure-terrafo
 ## ADDED Requirements
 
 ### Requirement: Command guard
-The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` that runs `hooks/stacks-auditor-guard.mjs` (Node.js 20, no dependency). The script SHALL exit 0 without inspecting the command when the hook input's `agent_type` is not `stacks-auditor`. For `stacks-auditor` it SHALL deny (exit code 2, with the reason on stderr) every command that contains a newline or any of `; & | < > ` $ ( ) { }`, and every command that is not one of: `ls -d` with paths; `test -f` or `test -d` with a path; `node --version`; `node <path ending in azure-terraform-stacks/scripts/stacks.mjs> audit` with optional `--root <path>` and `--json`; `npm ci --omit=dev` when the input's `cwd` is a folder that contains `scripts/stacks.mjs`; `git -c core.fsmonitor=false status --porcelain`. The allowed shapes SHALL be the same as those the agent's instructions list. The guard applies on Claude Code only, does not run when plugin hooks are disabled by an administrator, and fails open when it cannot start; the agent's text and the skill's documentation SHALL say so.
+The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` that runs `hooks/stacks-auditor-guard.mjs` (Node.js 20, no dependency). The script SHALL exit 0 without inspecting the command when the hook input's `agent_type` is not `stacks-auditor`. For `stacks-auditor` it SHALL deny (exit code 2, with the reason on stderr) every command that contains a newline or any of `; & | < > ` $ ( ) { }`, and every command that is not one of: `ls -d` with paths; `test -f` or `test -d` with a path; `node --version`; `node <path ending in azure-terraform-stacks/scripts/stacks.mjs> audit` with optional `--root <path>` and `--json`; `npm ci --omit=dev --ignore-scripts` when the input's `cwd` is a folder that contains `scripts/stacks.mjs`; `git -c core.fsmonitor=false status --porcelain`. The allowed shapes SHALL be the same as those the agent's instructions list. The guard applies on Claude Code only, does not run when plugin hooks are disabled by an administrator, and fails open when it cannot start; the agent's text and the skill's documentation SHALL say so.
 
 #### Scenario: Other agents are untouched
 - **WHEN** the hook receives a `Bash` call whose `agent_type` is absent or is not `stacks-auditor`
@@ -68,7 +72,7 @@ The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` tha
 - **THEN** the guard exits 2
 
 #### Scenario: Dependency install only in the skill folder
-- **WHEN** `stacks-auditor` runs `npm ci --omit=dev` and the input's `cwd` is the audited repository (no `scripts/stacks.mjs` in it)
+- **WHEN** `stacks-auditor` runs `npm ci --omit=dev --ignore-scripts` and the input's `cwd` is the audited repository (no `scripts/stacks.mjs` in it)
 - **THEN** the guard exits 2; with the skill's folder as `cwd` it exits 0
 
 #### Scenario: Terraform denied
@@ -93,3 +97,18 @@ The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` tha
 #### Scenario: Report separates the checks
 - **WHEN** the auditor returns its report
 - **THEN** it has a "Not verified" section for the engine's `unverified` findings, and any finding it could not confirm by reading the cited line is labeled "could not confirm" and stays in the findings
+
+### Requirement: Preloaded skill budget
+The size of the `SKILL.md` that `stacks-auditor` preloads through `skills: [azure-terraform-stacks]` SHALL be bounded by a declared budget. The plugin's tests SHALL fail when an offline estimate of that file's tokens exceeds the budget. The estimate SHALL be computed in the test with no dependency beyond Node.js (bytes of the UTF-8 file divided by 4, rounded up) and SHALL be labeled everywhere it appears (test name, failure message, documentation) as an approximation and not a tokenizer count. The test file SHALL record the budget, the method, the model and the date of the last count made with the official token counting endpoint, and the value that count returned. The change SHALL add no runtime dependency.
+
+#### Scenario: Within budget
+- **WHEN** `SKILL.md` is at or below the budget under the offline estimate
+- **THEN** the test passes and prints the estimate labeled as an approximation
+
+#### Scenario: Skill grows beyond the budget
+- **WHEN** a change makes `SKILL.md` larger than the budget under the offline estimate
+- **THEN** the test fails with a message that names the file, the estimate (labeled approximate), the budget, and says that raising the budget requires a new count with the official endpoint
+
+#### Scenario: Official count recorded
+- **WHEN** the maintainer, or an environment with an API key, counts the preloaded text with `POST /v1/messages/count_tokens`
+- **THEN** the model, date, method and `input_tokens` are written next to the budget in the test file; continuous integration without a key never calls the endpoint
