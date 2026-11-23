@@ -57,7 +57,8 @@ export function remove(target, { dryRun = false }) {
 }
 
 // "not-found" counts as success: removal is idempotent, the requested end state already holds.
-export const OK_STATUSES = new Set(["installed", "replaced", "would-install", "would-replace", "removed", "would-remove", "not-found"]);
+// "present" is a skill an agent depends on that was already installed: it is left as it is and is not a failure.
+export const OK_STATUSES = new Set(["installed", "replaced", "would-install", "would-replace", "removed", "would-remove", "not-found", "present"]);
 
 /** Skills from the catalog that this CLI installed for at least one of the tools. */
 export function installedSkills(catalog, tools, scope, env) {
