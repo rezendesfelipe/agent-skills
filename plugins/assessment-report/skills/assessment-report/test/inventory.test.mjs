@@ -124,3 +124,32 @@ test("false positives are measured: no fixture, golden file or reference trips t
   assert.ok(files > 100, `only ${files} files scanned`);
   assert.deepEqual(hits, []);
 });
+
+// ---- Terraform and YAML references are not secrets (review cycle 2, I-1) ---------------------------------------
+test("resource addresses, YAML tags and schema words are not flagged", () => {
+  for (const ok of [
+    "administrator_password = random_password.pg.result",
+    "admin_password = azurerm_key_vault_secret.pg.value",
+    "client_secret = azuread_application_password.app.value",
+    "storage_account_access_key = azurerm_storage_account.x.primary_access_key",
+    "password = random_password.db.result",
+    "auth_token: required",
+    "password: !vault |",
+    "password: !!str",
+    "token: *shared_token",
+    "secret: optional",
+    "password = random_password.db[0].result",
+  ])
+    assert.deepEqual(scanString(ok), [], ok);
+});
+
+test("short values and plain literals are still detected after the reference exclusions", () => {
+  const j2 = (...p) => p.join("");
+  for (const bad of [
+    j2("pass", "word", " = ", '"', "hunt", "er2", '"'),
+    j2("pass", "word", ": ", "correct", "horse", "battery"),
+    j2("postgres://us", "er", ":", "pa", "ss", "@host/db"),
+    j2("pass", "word", " = ", '"', "random_password", ".", "db", ".", "result", '"'),
+  ])
+    assert.ok(scanString(bad).length > 0, bad.slice(0, 12));
+});

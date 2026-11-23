@@ -8,6 +8,12 @@ const PLACEHOLDER = "(?:var\\.|local\\.|data\\.|module\\.|env\\.|secrets?\\.|os\
 // Names that mean a secret. A prefix such as db_ or client. is allowed; a suffix such as _name or _id is not.
 const SECRET_NAME = "(?:[A-Za-z0-9]+[_.-])*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|account[_-]?key|client[_-]?secret)";
 
+const VALUE = "[^\\s\"'<>{}$(),;]{4,}";
+const NOT_CALL = "(?![^\\s\"'<>{}$(),;]*\\()";
+// Only for an unquoted value: a resource address (random_password.db.result, azurerm_key_vault_secret.x.value), a YAML tag,
+// anchor, alias or block indicator (!vault, !!str, &a, *a, |, >) or a word that describes a schema (required, optional).
+const UNQUOTED_REFERENCE = "(?:(?:[A-Za-z_][\\w-]*(?:\\[[^\\]]*\\])?\\.){2,}[\\w-]+(?:\\[[^\\]]*\\])?(?=[\\s,;)]|$)|[!&*|>]|(?:required|optional|sensitive|computed|string|number|bool|object|any)\\b)";
+
 /** Order matters only for reporting; every pattern is tried. */
 export const SECRET_PATTERNS = [
   R("private-key", /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/),
@@ -25,7 +31,7 @@ export const SECRET_PATTERNS = [
   // shared access signature in a URL
   R("sas-signature", /[?&]sig=[A-Za-z0-9%+/=]{16,}/),
   // name = "value" or name: value for names that mean a secret. The value may be short or letters only.
-  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*["']?(?!${PLACEHOLDER})(?![^\\s"'<>{}$(),;]*\\()[^\\s"'<>{}$(),;]{4,}`, "i")),
+  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "i")),
 ];
 
 export const SECRET_KINDS = SECRET_PATTERNS.map((p) => p.kind);

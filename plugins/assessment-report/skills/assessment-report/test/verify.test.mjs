@@ -361,3 +361,17 @@ test("patternProblem validates flags itself (the library API accepts y, g, s ...
 test("ordinary patterns are not refused by the stricter syntax check", () => {
   for (const p of ["password\\s*=", "min_tls_version", "(public|private)_network", "foo.*bar.*baz", "encryption(_at_rest)?", "\\bTLS1_[01]\\b"]) assert.equal(patternProblem(p), null, p);
 });
+
+// ---- the time limit on the integrated verify path (review cycle 2, I-2) ----------------------------------------
+test("verify returns pattern-too-costly within the time limit for a pattern that passes the syntax check", () => {
+  const pattern = "a+a+a+c";
+  assert.equal(patternProblem(pattern), null, "the syntax check accepts it, so only the time limit can stop it");
+  const repo = repoCopy();
+  writeFileSync(join(repo, "infra", "long.txt"), `${"a".repeat(2000)}\n`);
+  const t0 = Date.now();
+  const r = verifyEvidence([{ id: "E-001", kind: "absence", scope: ["infra/long.txt"], pattern }], { repo });
+  const elapsed = Date.now() - t0;
+  assert.equal(r["E-001"].code, "pattern-too-costly");
+  assert.match(r["E-001"].message, /did not finish within 3000 ms/);
+  assert.ok(elapsed <= 3500, `took ${elapsed} ms; the limit is 3000 ms plus start-up`);
+});
