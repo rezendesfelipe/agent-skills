@@ -53,7 +53,7 @@ The subagent SHALL locate the engine (`scripts/stacks.mjs` of the `azure-terrafo
 ## ADDED Requirements
 
 ### Requirement: Command guard
-The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` that runs `hooks/stacks-auditor-guard.mjs` (Node.js 20, no dependency). The script SHALL exit 0 without inspecting the command when the hook input's `agent_type` is not `stacks-auditor`. For `stacks-auditor` it SHALL deny (exit code 2, with the reason on stderr) every command that contains a newline or any of `; & | < > ` $ ( ) { }`, and every command that is not one of: `ls -d` with paths; `test -f` or `test -d` with a path; `node --version`; `node <path ending in azure-terraform-stacks/scripts/stacks.mjs> audit` with optional `--root <path>` and `--json`; `npm ci --omit=dev --ignore-scripts` when the input's `cwd` is a folder that contains `scripts/stacks.mjs`; `git -c core.fsmonitor=false status --porcelain`. The allowed shapes SHALL be the same as those the agent's instructions list. The guard applies on Claude Code only, does not run when plugin hooks are disabled by an administrator, and fails open when it cannot start; the agent's text and the skill's documentation SHALL say so.
+The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` that runs `hooks/stacks-auditor-guard.mjs` (Node.js 20, no dependency). The script SHALL exit 0 without inspecting the command when the hook input's `agent_type` is not `stacks-auditor`. For `stacks-auditor` it SHALL deny (exit code 2, with the reason on stderr) every command that contains a newline or any of `; & | < > ` $ ( ) { }`, and every command that is not one of: `ls -d` with paths; `test -f` or `test -d` with a path; `node --version`; `node <path ending in azure-terraform-stacks/scripts/stacks.mjs> audit` with optional `--root <path>` and `--json`; `npm ci --omit=dev --ignore-scripts` when the input's `cwd` is a folder that contains `scripts/stacks.mjs` and a `package.json` named `azure-terraform-stacks-engine`. No `git` command is allowed: git runs programs that the audited repository's own configuration names (task 2.4 found that `git -c core.fsmonitor=false status --porcelain` still ran a clean filter set in the repository). The allowed shapes SHALL be the same as those the agent's instructions list. The guard applies on Claude Code only, does not run when plugin hooks are disabled by an administrator, and fails open when it cannot start; the agent's text and the skill's documentation SHALL say so.
 
 #### Scenario: Other agents are untouched
 - **WHEN** the hook receives a `Bash` call whose `agent_type` is absent or is not `stacks-auditor`
@@ -76,7 +76,7 @@ The plugin SHALL ship `hooks/hooks.json` with a `PreToolUse` hook for `Bash` tha
 - **THEN** the guard exits 2; with the skill's folder as `cwd` it exits 0
 
 #### Scenario: Terraform denied
-- **WHEN** `stacks-auditor` runs `terraform plan`, `kubectl get pods`, `az login`, `gh pr create` or `git push`
+- **WHEN** `stacks-auditor` runs `terraform plan`, `kubectl get pods`, `az login`, `gh pr create`, `git push` or `git status`
 - **THEN** the guard exits 2
 
 ### Requirement: Evidence verified by code

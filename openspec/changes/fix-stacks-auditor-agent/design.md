@@ -57,7 +57,7 @@ These replace the former open questions 1 to 5. They are authoritative; the numb
 3. `node --version`.
 4. `node <path ending in azure-terraform-stacks/scripts/stacks.mjs> audit [--root <path>] [--json]` (no other subcommand: `scaffold`, `add-stack`, `bridge` and `diagram` write files).
 5. `npm ci --omit=dev --ignore-scripts` only when the hook input's `cwd` is the skill's folder (a folder containing `scripts/stacks.mjs`), never the audited repository.
-6. `git -c core.fsmonitor=false status --porcelain`, for the closing "no file changed" check. `git log` and `git diff` are not allowed: git runs programs named in a repository's own configuration (for example `core.fsmonitor`, `diff.external`, textconv drivers), and the audited repository is untrusted. Whether `core.fsmonitor=false` is sufficient for `status` is not verified (task 2.4).
+6. ~~`git -c core.fsmonitor=false status --porcelain`~~ **Dropped by task 2.4 (2026-11-23, git 2.x on Linux).** In a repository whose `.git/config` sets `filter.<name>.clean` and whose `.gitattributes` selects it, `git -c core.fsmonitor=false status --porcelain` ran the filter's program (a file was created), so turning fsmonitor off is not enough. No `git` command is allowed; the closing line "No file in the repository was changed." rests on the allowlist and on `audit` writing nothing, and the agent says what happened instead when a command was denied. Original text: the closing "no file changed" check; `git log` and `git diff` are not allowed for the same reason.
 
 Any command containing a newline or one of `; & | < > ` $ ( ) { }` is denied before matching, so redirects, pipes, substitutions and chaining never reach the matcher. `Read`, `Grep` and `Glob` are not hooked (the tools list already excludes `Write`, `Edit` and `NotebookEdit`). The script has no dependency beyond Node 20, which the engine needs anyway. The allowed shapes are the same list the prompt gives, and a test fails when the two differ.
 
@@ -107,7 +107,7 @@ Follows the convention in `add-custom-agents` (design, "Agent graph convention")
 | `verify-evidence` | fixed | the JSON, the files | `unverified` list | inside the engine | `confirm-reading` |
 | `confirm-reading` | model | each error finding's cited line | "confirmed" or "could not confirm" per finding | `Read` | `report` |
 | `report` | model | all of the above | the report (returned, not stored) | none | `no-change-check` |
-| `no-change-check` | fixed | the working tree | "no file changed" or the list of changes | `git -c core.fsmonitor=false status --porcelain` via the guard | end |
+| `no-change-check` | model | the commands it ran and any denial | the closing line, or what happened instead | none (git is not allowed: task 2.4) | end |
 
 - **Edges** are deterministic except `locate-engine`, `ensure-deps`, `run-audit` and `target`, whose failure conditions are in the table.
 - **State** lives in the engine's JSON and in the final report only. Nothing persists between runs, and the agent keeps no memory.
@@ -122,7 +122,7 @@ Follows the convention in `add-custom-agents` (design, "Agent graph convention")
 - [The guard fails open] If Node cannot start the script, or an administrator disables plugin hooks, Claude Code does not block. Mitigation: documented; the user's `permissions.deny` is the independent layer.
 - [An allowlist parser can be wrong] Rejecting metacharacters wholesale keeps it small, and tests cover bypass attempts (`;`, `&&`, `|`, `$()`, backticks, redirects, newlines, `node` with another subcommand, `npm ci` in the audited folder, `git status` with extra options). It is still code that nobody has attacked for long.
 - [The engine reads an untrusted repository] A malicious file can contain text aimed at the model. The guard limits what the model can then do; it cannot stop wrong or misleading findings. The engine itself runs no repository code (`audit` does not execute Terraform or scripts), by spec.
-- [`git status` may run repository-configured programs] mitigated by `-c core.fsmonitor=false`, effectiveness not verified.
+- [`git status` runs repository-configured programs] verified by task 2.4: `-c core.fsmonitor=false` did not stop a clean filter, so git is not allowed at all.
 - [The skill's content is preloaded] cost in tokens (estimated, to be measured; guarded by a budget test) and text that describes writing commands; only the prompt and the guard stop their use.
 - [The two unverified hook items] `agent_type` in the `PreToolUse` input and `${CLAUDE_PLUGIN_ROOT}` in `hooks/hooks.json`. If either fails in the live tests, plan B applies (documentation of `permissions.deny` only) and the agent's text, `SKILL.md` and README are written for that case.
 - [Behavior change for CLI users] Cursor now refuses the agent without `--allow-broader-access`, because `Bash` is not read-only; Codex always did. Accepted by the maintainer (2026-11-23); this is the intended outcome of `add-custom-agents`' rule (`restrictionFor` in `src/lib/agents/permissions.mjs`) and is stated in the pull request and the README.

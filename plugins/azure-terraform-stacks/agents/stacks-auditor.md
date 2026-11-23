@@ -32,10 +32,9 @@ test -d <path>
 node --version
 node <engine> audit [--root <path>] [--json]
 npm ci --omit=dev --ignore-scripts
-git -c core.fsmonitor=false status --porcelain
 ```
 
-`<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `npm ci --omit=dev --ignore-scripts` runs only with the skill's folder as the working directory (see step 3).
+`<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `git` is not on the list: git runs programs that the audited repository's own configuration names (clean filters, fsmonitor), and that repository is untrusted. `npm ci --omit=dev --ignore-scripts` runs only with the skill's folder as the working directory (see step 3).
 
 How firm the read-only promise is: it comes from this design, not from a guarantee. `audit` writes nothing (by construction and by test). On Claude Code the guard hook enforces the list above, but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
 
@@ -70,7 +69,7 @@ How firm the read-only promise is: it comes from this design, not from a guarant
    - **Not covered:** `terraform validate`, `actionlint`, `kustomize build` and `shellcheck` were not run, because they would create files in the repository. Tell the user how to run them on a copy of the repository.
    - **My reading:** observations that are your interpretation, each labeled as such with the numbers behind it. Examples: a root that holds network, compute and data resource blocks together, or two roots that share one state. You may mention HashiCorp's guidance to group by volatility, separate stateful from stateless and split by privilege ([workspace best practices](https://developer.hashicorp.com/terraform/cloud-docs/workspaces/best-practices)). Do not give a number of resources at which a root "must" be split: no source gives one.
    - **Next step:** the skill can write an `infra/stacks.yaml` and generate the pattern for a new or split repository. Offer it; do not start it.
-7. **End the report with the line:** "No file in the repository was changed." Make sure that it is true: when the repository is a Git repository, check with `git -c core.fsmonitor=false status --porcelain` and compare with what you saw at the start (run it in step 1 too). Mention the engine's `node_modules` if you installed it. If you cannot tell, say that instead of the line.
+7. **End the report with the line:** "No file in the repository was changed." It is true only if you ran nothing but the commands listed above and no command was denied: the engine's `audit` writes nothing. You have no way to check with git (see above), so if a command was denied or you ran anything else, say what happened instead of the line. Mention the engine's `node_modules` if you installed it.
 
 ## What the engine does and does not do
 
