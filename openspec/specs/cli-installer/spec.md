@@ -1,7 +1,7 @@
 # cli-installer Specification
 
 ## Purpose
-Lets anyone install the repository's skills into Claude Code, OpenAI Codex, Gemini CLI, Cursor or GitHub Copilot with one `npx` command, without knowing each tool's skills folder.
+Lets anyone install the repository's skills and agents (subagents) into Claude Code, OpenAI Codex, Gemini CLI, Cursor or GitHub Copilot with one `npx` command, without knowing each tool's skills and agents folders.
 ## Requirements
 ### Requirement: Package and command
 The repository SHALL be published to npm as `@frcloudsolutions/agent-skills`, exposing a command named `agent-skills` that runs with `npx @frcloudsolutions/agent-skills <command>` on Node.js 20 or later. The package SHALL bundle every skill folder found under `plugins/<plugin>/skills/` and every agent file found under `plugins/<plugin>/agents/` at publish time.
