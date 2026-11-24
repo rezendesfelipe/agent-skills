@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, SCAN_WINDOW_OVERLAP, SECRET_PATTERNS, hasSecretKind, scanString, scanValue } from "../scripts/lib/secrets.mjs";
 import { evidenceMessageFor } from "./scan-evidence.mjs";
 import { fakeSecret, shortValue } from "./helpers.mjs";
-import { MIB, SCALE_RATIO_BOUND, SCAN_TIME_BOUND_MS, SHAPES, repeatTo, timePatterns, timeScan } from "./scan-inputs.mjs";
+import { MIB, SCAN_TIME_BOUND_MS, SHAPES, repeatTo, scales, timePatterns, timeScan } from "./scan-inputs.mjs";
 
 const c = (...p) => p.join("");
 const PW = c("pass", "word");
@@ -23,28 +23,24 @@ test("initial values are exported and documented as initial", () => {
 });
 
 test("repeated short token and separator: 20,000 then 40,000 repetitions scale linearly, pattern by pattern", () => {
-  const unit = "ab12.";
-  const small = unit.repeat(20000);
-  const big = unit.repeat(40000);
-  const a = timePatterns(small);
-  const b = timePatterns(big);
-  a.forEach((x, i) => {
-    // a ratio is only meaningful above timer noise; a pattern that takes under 5 ms for the small input is linear enough
-    if (x.ms > 5) assert.ok(b[i].ms / x.ms < SCALE_RATIO_BOUND, `${x.kind}: ${x.ms.toFixed(1)} ms -> ${b[i].ms.toFixed(1)} ms`);
-    assert.ok(b[i].ms < SCAN_TIME_BOUND_MS, `${x.kind} took ${b[i].ms.toFixed(0)} ms on ${big.length} characters`);
-  });
-  assert.ok(timeScan(big) / Math.max(timeScan(small), 1) < SCALE_RATIO_BOUND);
+  const small = "ab12.".repeat(20000);
+  const big = "ab12.".repeat(40000);
+  for (const { kind, re } of SECRET_PATTERNS) {
+    const r = scales(() => re.test(small), () => re.test(big));
+    assert.ok(r.ok, `${kind}: ${r.detail}`);
+  }
+  const whole = scales(() => scanString(small), () => scanString(big));
+  assert.ok(whole.ok, `scanString: ${whole.detail}`);
+  for (const { kind, ms } of timePatterns(big)) assert.ok(ms < SCAN_TIME_BOUND_MS, `${kind} took ${ms.toFixed(0)} ms on ${big.length} characters`);
 });
 
 test("repeated letter and dot: every pattern, including the URL credential pattern, is linear", () => {
   const small = "a.".repeat(50000);
   const big = "a.".repeat(100000);
-  const a = timePatterns(small);
-  const b = timePatterns(big);
-  a.forEach((x, i) => {
-    if (x.ms > 5) assert.ok(b[i].ms / x.ms < SCALE_RATIO_BOUND, `${x.kind}: ${x.ms.toFixed(1)} ms -> ${b[i].ms.toFixed(1)} ms`);
-    assert.ok(b[i].ms < SCAN_TIME_BOUND_MS, `${x.kind} took ${b[i].ms.toFixed(0)} ms`);
-  });
+  for (const { kind, re } of SECRET_PATTERNS) {
+    const r = scales(() => re.test(small), () => re.test(big));
+    assert.ok(r.ok, `${kind}: ${r.detail}`);
+  }
 });
 
 test("the secret-name pattern has no repeated prefix group and the URL scheme is bounded", () => {
@@ -153,6 +149,8 @@ test("a value that starts with an exclamation mark followed by text, or a custom
   flagged(`${PW} = !${V}`);
   flagged(`${PW}: !tag9 ${V}`);
   flagged(`${PW}: !v2${V}`);
+  flagged(`${PW}: !tag9 ${addr("var", "db", "x")}`); // digits in a tag: not the narrow form, so a reference after it does not rescue it
+  ignored(`${PW}: !tag ${addr("var", "db", "x")}`);
 });
 test("a resource-type shape with two segments is ignored and with one segment is flagged", () => {
   ignored(`${PW} = ${addr("random_" + PW, "db", "result")}`);

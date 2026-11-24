@@ -44,6 +44,22 @@ export function bestTime(fn, runs = 3) {
   return best;
 }
 
+/**
+ * Does doubling the input multiply the time by less than SCALE_RATIO_BOUND? Timing is noisy when test files run in
+ * parallel, so a failed attempt is repeated up to 3 times: a quadratic pattern fails every attempt (ratio near 4).
+ * Below `floorMs` for the small input the ratio means nothing and the check passes. @returns {{ok: boolean, detail: string}}
+ */
+export function scales(small, big, floorMs = 8) {
+  let detail = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const a = bestTime(small, 3);
+    const b = bestTime(big, 3);
+    detail = `${a.toFixed(1)} ms -> ${b.toFixed(1)} ms`;
+    if (a <= floorMs || b / a < SCALE_RATIO_BOUND) return { ok: true, detail };
+  }
+  return { ok: false, detail };
+}
+
 /** Time of every pattern alone, on a string of the given length (no window), and of scanString. */
 export const timePatterns = (text) => SECRET_PATTERNS.map(({ kind, re }) => ({ kind, ms: bestTime(() => re.test(text), 2) }));
 export const timeScan = (text) => bestTime(() => scanString(text), 2);

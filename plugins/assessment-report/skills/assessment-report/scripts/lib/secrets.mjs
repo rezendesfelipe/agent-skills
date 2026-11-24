@@ -4,7 +4,7 @@
 const R = (kind, re) => ({ kind, re });
 
 // What a value must not start with to count as a secret: a reference to another value, or an obvious placeholder.
-const PLACEHOLDER = "(?:var\\.|local\\.|data\\.|module\\.|env\\.|secrets?\\.|os\\.|process\\.|self\\.|config\\.|changeme|change-me|example|placeholder|redacted|none\\b|null\\b|true\\b|false\\b|read\\b|write\\b|x{3,}|\\*{3,}|your[_-]|my[_-]|todo|tbd)";
+export const PLACEHOLDER_SOURCE = "(?:var\\.|local\\.|data\\.|module\\.|env\\.|secrets?\\.|os\\.|process\\.|self\\.|config\\.|changeme|change-me|example|placeholder|redacted|none\\b|null\\b|true\\b|false\\b|read\\b|write\\b|x{3,}|\\*{3,}|your[_-]|my[_-]|todo|tbd)";
 // Names that mean a secret. A prefix such as db_ or client. is allowed; a suffix such as _name or _id is not.
 // There is no group for the prefix on purpose: the match already starts at the line start or right after a character
 // that is not a letter or digit, and the separator that ends a prefix segment is such a character, so a name with a
@@ -66,7 +66,7 @@ export const SECRET_PATTERNS = [
   // shared access signature in a URL
   R("sas-signature", /[?&]sig=[A-Za-z0-9%+/=]{16,}/),
   // name = "value" or name: value for names that mean a secret. The value may be short or letters only.
-  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "im")),
+  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER_SOURCE})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER_SOURCE})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "im")),
 ];
 
 export const SECRET_KINDS = SECRET_PATTERNS.map((p) => p.kind);

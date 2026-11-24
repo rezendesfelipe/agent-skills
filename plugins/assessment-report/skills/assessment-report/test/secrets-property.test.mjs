@@ -6,7 +6,7 @@ import { performance } from "node:perf_hooks";
 import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, scanString } from "../scripts/lib/secrets.mjs";
 import { fakeSecret, mulberry32 } from "./helpers.mjs";
-import { SCALE_RATIO_BOUND, SCAN_TIME_BOUND_MS, bestTime } from "./scan-inputs.mjs";
+import { SCAN_TIME_BOUND_MS, bestTime, scales } from "./scan-inputs.mjs";
 
 const SEED = 424242; // fixed: the same cases on every run and machine
 const CASES = 36;
@@ -56,9 +56,9 @@ test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw,
     assert.ok(Array.isArray(kinds), where);
     assert.ok(ms < SCAN_TIME_BOUND_MS, `${where}: ${ms.toFixed(0)} ms for ${length} characters`);
     if (i % 3 === 0) {
-      const one = bestTime(() => scanString(text), 2);
-      const two = bestTime(() => scanString(text + text), 2);
-      if (one > 5) assert.ok(two / one < SCALE_RATIO_BOUND, `${where}: doubling took ${one.toFixed(1)} ms -> ${two.toFixed(1)} ms`);
+      const doubled = text + text;
+      const r = scales(() => scanString(text), () => scanString(doubled));
+      assert.ok(r.ok, `${where}: doubling took ${r.detail}`);
     }
   }
   assert.ok(performance.now() - started < BUDGET_MS, `the property test took more than ${BUDGET_MS} ms (initial value)`);
