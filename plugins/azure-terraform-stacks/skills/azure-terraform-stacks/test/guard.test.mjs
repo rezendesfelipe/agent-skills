@@ -136,7 +136,7 @@ test("the deny message tells the agent to stop and not to look for another way",
 });
 
 // ---- the shapes the agent is told about are the shapes the guard allows ----
-const AGENT = readFileSync(join(PLUGIN, "agents", "stacks-auditor.md"), "utf8");
+const AGENT = readFileSync(join(PLUGIN, "agents", "stacks-auditor.md"), "utf8").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"); // CRLF checkouts on Windows
 
 test("the allowed shapes listed in the agent's instructions equal the guard's SHAPES", () => {
   const section = /## Commands you may run[\s\S]*?```text\n([\s\S]*?)```/.exec(AGENT);

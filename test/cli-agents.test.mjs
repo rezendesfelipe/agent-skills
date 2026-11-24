@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import { KEY, FIXTURE_ROOT, REPO_ROOT, runBin, runInteractive, sandbox } from "./helpers.mjs";
 import { decodeMarkdown, decodeToml } from "./decoders.mjs";
+import { parseDocument } from "../src/lib/frontmatter.mjs";
 
 const VERSION = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).version;
 let box;
@@ -436,8 +437,10 @@ describe("The published stacks-auditor agent through the CLI", () => {
     assert.deepEqual(skill.requiredBy, ["stacks-auditor"]);
   });
   test("no forbidden field (hooks, mcpServers, permissionMode, initialPrompt) is in the published file", () => {
-    const text = readFileSync(join(REPO_ROOT, "plugins/azure-terraform-stacks/agents/stacks-auditor.md"), "utf8");
-    const front = /^---\n([\s\S]*?)\n---\n/.exec(text)[1];
-    for (const k of ["hooks", "mcpServers", "permissionMode", "initialPrompt", "disallowedTools"]) assert.ok(!new RegExp(`^${k}:`, "m").test(front), k);
+    // The repository's own parser: it reads CRLF checkouts (Windows) and any line break YAML accepts.
+    const doc = parseDocument(readFileSync(join(REPO_ROOT, "plugins/azure-terraform-stacks/agents/stacks-auditor.md"), "utf8"));
+    assert.ok(doc, "the published agent has frontmatter");
+    for (const k of ["hooks", "mcpServers", "permissionMode", "initialPrompt", "disallowedTools"]) assert.equal(doc.has(k), false, k);
+    assert.deepEqual(doc.keys, ["name", "description", "tools", "skills"]);
   });
 });

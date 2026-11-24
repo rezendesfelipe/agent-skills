@@ -10,7 +10,9 @@ import { HERE } from "./helpers.mjs";
 
 const PLUGIN = join(HERE, "..", "..", "..");
 const FILE = join(PLUGIN, "agents", "stacks-auditor.md");
-const raw = readFileSync(FILE, "utf8");
+// Checkouts on Windows may have CRLF: every versioned file is read with LF line endings.
+const lf = (t) => t.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+const raw = lf(readFileSync(FILE, "utf8"));
 const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(raw);
 const fm = YAML.parse(m[1]);
 const body = m[2];
@@ -117,7 +119,7 @@ test("the only permitted write is the engine's own dependency install, outside t
 });
 
 test("SKILL.md is honest about the auditor: preloaded, layered read-only, deny snippet, no claim that disallowedTools filters commands", () => {
-  const skill = readFileSync(join(PLUGIN, "skills", SKILL, "SKILL.md"), "utf8");
+  const skill = lf(readFileSync(join(PLUGIN, "skills", SKILL, "SKILL.md"), "utf8"));
   assert.match(skill, /preloaded into the auditor/);
   assert.match(skill, /not for the auditor/);
   assert.match(skill, /fails open/);

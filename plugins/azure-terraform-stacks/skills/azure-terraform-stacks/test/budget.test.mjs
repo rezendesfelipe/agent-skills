@@ -23,8 +23,11 @@ import { HERE } from "./helpers.mjs";
 export const BUDGET = 3500; // estimated tokens (bytes / 4), about 14,000 bytes; first value proposed by the change, the maintainer fixes it after the official count
 const SKILL_MD = join(HERE, "..", "SKILL.md");
 
+/** Line endings differ by checkout (CRLF on Windows adds about one byte per line), so the text is counted as LF, without a BOM. */
+export const asLf = (text) => text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
 /** APPROXIMATION: UTF-8 bytes / 4, rounded up. Not a tokenizer count. */
-export const estimateTokens = (text) => Math.ceil(Buffer.byteLength(text, "utf8") / 4);
+export const estimateTokens = (text) => Math.ceil(Buffer.byteLength(asLf(text), "utf8") / 4);
 
 export function checkBudget(text, name = "SKILL.md") {
   const est = estimateTokens(text);
@@ -39,9 +42,9 @@ export function checkBudget(text, name = "SKILL.md") {
 }
 
 test("the preloaded SKILL.md is within the budget (estimate is an approximation: bytes / 4)", (t) => {
-  const text = readFileSync(SKILL_MD, "utf8");
+  const text = asLf(readFileSync(SKILL_MD, "utf8"));
   const r = checkBudget(text);
-  t.diagnostic(`SKILL.md: ${Buffer.byteLength(text, "utf8")} bytes, about ${r.est} tokens by the offline estimate (APPROXIMATION, bytes / 4); budget ${BUDGET}; official count: not made yet`);
+  t.diagnostic(`SKILL.md: ${Buffer.byteLength(text, "utf8")} bytes (LF), about ${r.est} tokens by the offline estimate (APPROXIMATION, bytes / 4); budget ${BUDGET}; official count: not made yet`);
   assert.ok(r.ok, r.message);
 });
 
@@ -52,6 +55,17 @@ test("the budget check fails when about 2,000 bytes of text are appended, and sa
   assert.match(r.message, /SKILL\.md/);
   assert.match(r.message, /APPROXIMATION/);
   assert.match(r.message, /raise BUDGET only after a new official count/);
+});
+
+test("the estimate does not depend on the checkout's line endings: LF, CRLF and CR give the same number", () => {
+  const raw = readFileSync(SKILL_MD, "utf8");
+  const lfText = asLf(raw);
+  const crlf = lfText.replace(/\n/g, "\r\n");
+  assert.ok(Buffer.byteLength(crlf) > Buffer.byteLength(lfText), "CRLF has more bytes");
+  assert.equal(estimateTokens(crlf), estimateTokens(lfText));
+  assert.equal(estimateTokens(lfText.replace(/\n/g, "\r")), estimateTokens(lfText));
+  assert.equal(estimateTokens("\uFEFF" + lfText), estimateTokens(lfText));
+  assert.equal(checkBudget(crlf).ok, checkBudget(lfText).ok);
 });
 
 test("the estimate is bytes over 4 rounded up, counting UTF-8 bytes and not characters", () => {
