@@ -1,6 +1,6 @@
 ## Context
 
-Pull request #21 (merged, `fix-stacks-auditor-agent`) added a `PreToolUse` hook that restricts one subagent. The hook is registered by the plugin for every `Bash` call of every agent and exits 0 at once unless `agent_type` is the auditor's. The live session of 2026-11-24 showed that for a plugin subagent Claude Code sends `agent_type: "azure-terraform-stacks:stacks-auditor"`. The guard compares with `=== "stacks-auditor"` (`stacks-auditor-guard.mjs:185`), so it never restricts the real agent. This is the failure mode the guard's own header calls "fail open", reached through a wrong assumption instead of a missing Node.
+Pull request #21 (merged, `fix-stacks-auditor-agent`) added a `PreToolUse` hook that restricts one subagent. The hook is registered by the plugin for every `Bash` call of every agent and exits 0 at once unless `agent_type` is the auditor's. The live session of 2026-11-24 showed that for a plugin subagent Claude Code sends `agent_type: "azure-terraform-stacks:stacks-auditor"`. The guard compares with `=== "stacks-auditor"` (`plugins/azure-terraform-stacks/hooks/stacks-auditor-guard.mjs:185`), so it never restricts the real agent. This is the failure mode the guard's own header calls "fail open", reached through a wrong assumption instead of a missing Node.
 
 Facts used below, with their source:
 
