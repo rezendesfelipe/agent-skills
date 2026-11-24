@@ -1,0 +1,5 @@
+# Disabled on purpose: kept for reference only, never applied.
+# resource "azurerm_storage_account" "scratch" {
+#   public_network_access_enabled = true
+#   min_tls_version               = "TLS1_0"
+# }

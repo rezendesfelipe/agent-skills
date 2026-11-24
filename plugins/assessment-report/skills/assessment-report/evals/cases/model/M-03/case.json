@@ -1,0 +1,13 @@
+{
+  "id": "M-03",
+  "title": "Documents and interviews only",
+  "root": "material",
+  "client": "Synthetic Platform Co",
+  "lang": "en",
+  "scope": {
+    "in": [],
+    "out": [],
+    "questions": ["How resilient and well controlled is the platform's operation?"],
+    "assumptions": ["Only the supplied documents and interview notes are available; there is no code or cloud access."]
+  }
+}

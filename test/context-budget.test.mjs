@@ -152,6 +152,7 @@ test("measuring a copy of the committed catalog with CRLF line endings gives the
   for (const rel of [
     "plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md",
     "plugins/docs-generator/skills/docs-generator/SKILL.md",
+    "plugins/assessment-report/skills/assessment-report/SKILL.md",
     "plugins/azure-terraform-stacks/agents/stacks-auditor.md",
     "docs/aep/context-budgets.json",
   ])

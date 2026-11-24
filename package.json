@@ -13,6 +13,7 @@
     "plugins/*/agents/**",
     "!plugins/*/skills/*/node_modules",
     "!plugins/*/skills/*/test",
+    "!plugins/*/skills/*/evals",
     "README.md",
     "LICENSE"
   ],

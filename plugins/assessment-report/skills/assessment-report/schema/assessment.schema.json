@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rezendesfelipe/agent-skills/plugins/assessment-report/schema/assessment.schema.json",
+  "title": "Assessment (assessment.json)",
+  "description": "Source of truth of an assessment report. Model-written content fields, plus computed fields written only by the engine: finding.confidence, finding.severity, finding.severityUncapped, evidence.excerptSha256, verification, roadmapViolations, meta.review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "meta", "scope", "frameworks", "evidence", "findings", "actions", "summary"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "client", "author", "version", "date", "lang", "skillVersion", "engineVersion", "model", "revision"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "subtitle": { "type": "string" },
+        "client": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "minLength": 1 },
+        "lang": { "enum": ["en", "pt-BR", "es"] },
+        "skillVersion": { "type": "string", "minLength": 1 },
+        "engineVersion": { "type": "string", "minLength": 1 },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "reportedBy"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "reportedBy": { "enum": ["runner", "agent"] }
+          }
+        },
+        "revision": { "type": "string" },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version", "date", "description"],
+            "properties": {
+              "version": { "type": "string", "minLength": 1 },
+              "date": { "type": "string", "minLength": 1 },
+              "author": { "type": "string" },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["by", "at"],
+          "properties": { "by": { "type": "string", "minLength": 1 }, "at": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in", "out", "questions", "assumptions", "root"],
+      "properties": {
+        "in": { "type": "array", "items": { "type": "string" } },
+        "out": { "type": "array", "items": { "type": "string" } },
+        "questions": { "type": "array", "items": { "type": "string" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } },
+        "root": { "type": "string" },
+        "capacity": {
+          "type": "object",
+          "description": "Optional person-days the client team can spend per wave, keyed \"1\" to \"4\".",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "scale": { "$ref": "#/$defs/scale" }
+      }
+    },
+    "frameworks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "version", "date", "url"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "name": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "url": { "type": "string", "pattern": "^https?://" },
+          "retrievedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+      }
+    },
+    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1 },
+          "relatesTo": { "type": "array", "items": { "type": "string", "pattern": "^[FA]-\\d{3,}$" } }
+        }
+      }
+    },
+    "summary": { "type": "string" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "roadmapViolations": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "scale": {
+      "type": "object",
+      "description": "Client-specific scale that overrides the defaults of references/severity-effort.md. The report states that it did.",
+      "additionalProperties": false,
+      "required": ["note"],
+      "properties": {
+        "note": { "type": "string", "minLength": 1 },
+        "severity": {
+          "type": "object",
+          "description": "impact -> likelihood -> severity",
+          "additionalProperties": { "type": "object", "additionalProperties": { "enum": ["Info", "Low", "Medium", "High", "Critical"] } }
+        },
+        "effortDays": {
+          "type": "object",
+          "description": "effort -> [min, max]; max null means open-ended",
+          "additionalProperties": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": ["number", "null"] } }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^E-\\d{3,}$" },
+        "kind": { "enum": ["file", "absence", "output", "document", "url", "statement"] },
+        "path": { "type": "string", "minLength": 1 },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "quote": { "type": "string" },
+        "excerptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "redacted": { "type": "boolean" },
+        "secretKind": { "type": "string", "minLength": 1 },
+        "scope": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "pattern": { "type": "string", "minLength": 1 },
+        "flags": { "type": "string", "pattern": "^i?$" },
+        "command": { "type": "string", "minLength": 1 },
+        "capturedAt": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https?://" },
+        "accessed": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "snapshot": { "type": "string", "minLength": 1 },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "text": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "file" } } }, "then": { "required": ["path", "startLine", "endLine"] } },
+        { "if": { "properties": { "kind": { "const": "file" }, "redacted": { "const": true } }, "required": ["kind", "redacted"] }, "then": { "required": ["secretKind"], "properties": { "quote": false } } },
+        { "if": { "properties": { "kind": { "const": "file" }, "redacted": { "const": false } }, "required": ["kind", "redacted"] }, "then": { "required": ["quote"] } },
+        { "if": { "properties": { "kind": { "const": "file" } }, "not": { "required": ["redacted"] } }, "then": { "required": ["quote"] } },
+        { "if": { "properties": { "kind": { "const": "absence" } } }, "then": { "required": ["scope", "pattern"] } },
+        { "if": { "properties": { "kind": { "const": "output" } } }, "then": { "required": ["path", "command", "capturedAt", "quote"] } },
+        { "if": { "properties": { "kind": { "const": "document" } } }, "then": { "required": ["path", "startLine", "endLine", "quote", "source"] } },
+        { "if": { "properties": { "kind": { "const": "url" } } }, "then": { "required": ["url", "accessed", "quote"] } },
+        { "if": { "properties": { "kind": { "const": "statement" } } }, "then": { "required": ["source", "date", "text"] } }
+      ]
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "statement", "evidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^F-\\d{3,}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1 },
+        "evidence": { "type": "array", "items": { "type": "string", "pattern": "^E-\\d{3,}$" } },
+        "impact": { "enum": ["low", "moderate", "high", "severe"] },
+        "likelihood": { "enum": ["rare", "possible", "likely", "almost-certain"] },
+        "effort": { "enum": ["S", "M", "L", "XL"] },
+        "effortNote": { "type": "string" },
+        "rationale": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["impact", "likelihood"],
+          "properties": { "impact": { "type": "string", "minLength": 1 }, "likelihood": { "type": "string", "minLength": 1 } }
+        },
+        "recommendation": { "type": "string" },
+        "controls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["framework", "controlId"],
+            "properties": { "framework": { "type": "string", "minLength": 1 }, "controlId": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "potentialSeverity": { "enum": [null, "High", "Critical"] },
+        "disposition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason", "owner"],
+          "properties": {
+            "status": { "enum": ["accepted", "deferred"] },
+            "reason": { "type": "string", "minLength": 1 },
+            "owner": { "type": "string", "minLength": 1 }
+          }
+        },
+        "confidence": { "enum": ["verified", "corroborated", "reported", "unverified"] },
+        "severity": { "enum": ["Critical", "High", "Medium", "Low", "Info", "n/a"] },
+        "severityUncapped": { "enum": ["Critical", "High", "Medium", "Low", "Info"] }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "addresses", "wave", "effort", "risk", "dependsOn"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^A-\\d{3,}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "addresses": { "type": "array", "items": { "type": "string", "pattern": "^F-\\d{3,}$" } },
+        "wave": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "effort": { "enum": ["S", "M", "L", "XL"] },
+        "risk": { "enum": ["low", "medium", "high"] },
+        "dependsOn": { "type": "array", "items": { "type": "string", "pattern": "^A-\\d{3,}$" } },
+        "reason": { "type": "string" },
+        "generated": { "enum": ["collect-evidence"] }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "description": "Written by `verify`. Failures are never removed from it.",
+      "additionalProperties": false,
+      "required": ["results", "controls", "problems"],
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["evidence", "kind", "status", "machineChecked"],
+            "properties": {
+              "evidence": { "type": "string" },
+              "kind": { "type": "string" },
+              "status": { "enum": ["pass", "fail", "unchecked"] },
+              "machineChecked": { "type": "boolean" },
+              "code": { "type": "string" },
+              "message": { "type": "string" },
+              "location": { "type": "string" },
+              "matches": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["finding", "framework", "controlId", "status"],
+            "properties": {
+              "finding": { "type": "string" },
+              "framework": { "type": "string" },
+              "controlId": { "type": "string" },
+              "status": { "enum": ["pass", "fail", "unchecked"] }
+            }
+          }
+        },
+        "problems": {
+          "type": "array",
+          "description": "Findings about the assessment itself (not about one evidence item): a finding without evidence, a secret in a free-text field, a computed-field mismatch.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "where", "message"],
+            "properties": { "code": { "type": "string" }, "where": { "type": "string" }, "message": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

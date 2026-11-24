@@ -65,7 +65,8 @@ test("the catalog lists skills and agents with their kinds", () => {
   assert.equal(auditor.kind, "agent");
   assert.equal(auditor.plugin, "azure-terraform-stacks");
   assert.equal(items.find((i) => i.name === "docs-generator").kind, "skill");
-  assert.deepEqual(findSkills(REPO_ROOT).map((s) => s.kind), ["skill", "skill"]);
+  const skills = findSkills(REPO_ROOT);
+  assert.ok(skills.length >= 2 && skills.every((s) => s.kind === "skill"), "every entry of findSkills is a skill");
 });
 
 test("the fixture catalog finds the demo agents, named after their files", () => {

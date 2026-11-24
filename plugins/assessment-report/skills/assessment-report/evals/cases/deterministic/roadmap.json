@@ -1,0 +1,245 @@
+{
+  "suite": "roadmap",
+  "cases": [
+    {
+      "id": "R-clean",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 1,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": []
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-dependency-in-later-wave",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 1,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": [
+            "A-002"
+          ]
+        },
+        {
+          "id": "A-002",
+          "title": "A-002",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 2,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": []
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [
+          "wave-order"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-cycle",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 1,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": [
+            "A-002"
+          ]
+        },
+        {
+          "id": "A-002",
+          "title": "A-002",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 1,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": [
+            "A-001"
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [
+          "cycle"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-unaddressed-high",
+      "actions": [],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [
+          "unaddressed"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-disposition-instead-of-action",
+      "actions": [],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "disposition": {
+            "status": "accepted",
+            "reason": "r",
+            "owner": "o"
+          }
+        }
+      ],
+      "expect": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-critical-after-wave-1",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 2,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": []
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "Critical",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [
+          "critical-late"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-critical-after-wave-1-with-reason",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 2,
+          "effort": "S",
+          "risk": "low",
+          "dependsOn": [],
+          "reason": "vendor window"
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "Critical",
+          "confidence": "verified"
+        }
+      ],
+      "expect": {
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "id": "R-capacity-warning-not-error",
+      "actions": [
+        {
+          "id": "A-001",
+          "title": "A-001",
+          "addresses": [
+            "F-001"
+          ],
+          "wave": 1,
+          "effort": "L",
+          "risk": "low",
+          "dependsOn": []
+        }
+      ],
+      "findings": [
+        {
+          "id": "F-001",
+          "severity": "High",
+          "confidence": "verified"
+        }
+      ],
+      "scope": {
+        "capacity": {
+          "1": 5
+        }
+      },
+      "expect": {
+        "errors": [],
+        "warnings": [
+          "capacity"
+        ]
+      }
+    }
+  ]
+}

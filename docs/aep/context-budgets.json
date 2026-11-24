@@ -4,6 +4,7 @@
   "capabilities": {
     "skill:azure-terraform-stacks": { "budget": 5000 },
     "skill:docs-generator": { "budget": 3500 },
+    "skill:assessment-report": { "budget": 3000 },
     "agent:stacks-auditor": { "budget": 9000 }
   }
 }
