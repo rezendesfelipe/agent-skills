@@ -13,7 +13,11 @@ export const PLACEHOLDER_SOURCE = "(?:var\\.|local\\.|data\\.|module\\.|env\\.|s
 const SECRET_NAME = "(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|account[_-]?key|client[_-]?secret)";
 
 const VALUE = ">?[^\\s\"'<>{}$(),;]{4,}";
-const NOT_CALL = "(?![^\\s\"'<>{}$(),;]*\\()";
+// the look-ahead is bounded: an unbounded one is quadratic on a long token that holds many names and ends in "("
+// A literal right after a tag, anchor or alias may be shorter than four characters, because the node name itself can be
+// short ("&a", "*a"): only then is the minimum lowered. A short value on its own is still not flagged.
+const SHORT_AFTER_NODE = "(?:[&*]|!!?)[A-Za-z0-9_-]+[ \\t]+[^\\s\"'<>{}$(),;]+";
+const NOT_CALL = "(?![^\\s\"'<>{}$(),;]{0,256}\\()";
 // Only for an unquoted value. Each form is narrow on purpose: a real password can look like a dotted word or start with
 // "!", "&", "*", "|" or ">", so only what Terraform and YAML really write is excluded.
 //  - a Terraform reference: a keyword prefix (var, local, data, module, each, count, path, terraform, self) with at least
@@ -66,7 +70,7 @@ export const SECRET_PATTERNS = [
   // shared access signature in a URL
   R("sas-signature", /[?&]sig=[A-Za-z0-9%+/=]{16,}/),
   // name = "value" or name: value for names that mean a secret. The value may be short or letters only.
-  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER_SOURCE})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER_SOURCE})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "im")),
+  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER_SOURCE})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER_SOURCE})(?!${UNQUOTED_REFERENCE})${NOT_CALL}(?:${VALUE}|${SHORT_AFTER_NODE}))`, "im")),
 ];
 
 export const SECRET_KINDS = SECRET_PATTERNS.map((p) => p.kind);

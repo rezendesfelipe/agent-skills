@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, SCAN_WINDOW_OVERLAP, SECRET_PATTERNS, hasSecretKind, scanString, scanValue } from "../scripts/lib/secrets.mjs";
 import { evidenceMessageFor } from "./scan-evidence.mjs";
 import { fakeSecret, shortValue } from "./helpers.mjs";
-import { MIB, SCAN_TIME_BOUND_MS, SHAPES, repeatTo, scales, timePatterns, timeScan } from "./scan-inputs.mjs";
+import { MIB, SCAN_TIME_BOUND_MS, SHAPES, measure, repeatTo, scalesFor } from "./scan-inputs.mjs";
 
 const c = (...p) => p.join("");
 const PW = c("pass", "word");
@@ -22,25 +22,15 @@ test("initial values are exported and documented as initial", () => {
   assert.equal(SCAN_WINDOW_OVERLAP, 512);
 });
 
-test("repeated short token and separator: 20,000 then 40,000 repetitions scale linearly, pattern by pattern", () => {
-  const small = "ab12.".repeat(20000);
-  const big = "ab12.".repeat(40000);
-  for (const { kind, re } of SECRET_PATTERNS) {
-    const r = scales(() => re.test(small), () => re.test(big));
-    assert.ok(r.ok, `${kind}: ${r.detail}`);
-  }
-  const whole = scales(() => scanString(small), () => scanString(big));
-  assert.ok(whole.ok, `scanString: ${whole.detail}`);
-  for (const { kind, ms } of timePatterns(big)) assert.ok(ms < SCAN_TIME_BOUND_MS, `${kind} took ${ms.toFixed(0)} ms on ${big.length} characters`);
+test("repeated short token and separator: 20,000 then 40,000 repetitions scale linearly, pattern by pattern", async () => {
+  const r = await scalesFor("ab12.".repeat(20000), "ab12.".repeat(40000));
+  assert.ok(r.ok, r.detail);
+  for (const [kind, ms] of Object.entries(r.bigPatterns)) assert.ok(ms < SCAN_TIME_BOUND_MS, `${kind} took ${ms.toFixed(0)} ms on 200000 characters`);
 });
 
-test("repeated letter and dot: every pattern, including the URL credential pattern, is linear", () => {
-  const small = "a.".repeat(50000);
-  const big = "a.".repeat(100000);
-  for (const { kind, re } of SECRET_PATTERNS) {
-    const r = scales(() => re.test(small), () => re.test(big));
-    assert.ok(r.ok, `${kind}: ${r.detail}`);
-  }
+test("repeated letter and dot: every pattern, including the URL credential pattern, is linear", async () => {
+  const r = await scalesFor("a.".repeat(50000), "a.".repeat(100000));
+  assert.ok(r.ok, r.detail);
 });
 
 test("the secret-name pattern has no repeated prefix group and the URL scheme is bounded", () => {
@@ -50,12 +40,10 @@ test("the secret-name pattern has no repeated prefix group and the URL scheme is
   assert.match(url, /\{0,\d+\}:\\\/\\\//, "the scheme part of url-credential is unbounded");
 });
 
-test("one line of the file size cap (1 MiB) of repeated short tokens scans within the bound", () => {
-  for (const [name, make] of Object.entries(SHAPES)) {
-    const line = make(MIB);
-    assert.equal(line.length, MIB, name);
-    const ms = timeScan(line);
-    assert.ok(ms < SCAN_TIME_BOUND_MS, `${name}: ${ms.toFixed(0)} ms on 1 MiB (initial bound ${SCAN_TIME_BOUND_MS} ms)`);
+test("one line of the file size cap (1 MiB) of repeated short tokens scans within the bound", async () => {
+  for (const name of Object.keys(SHAPES)) {
+    const { scan } = await measure({ shape: name, length: MIB, scanOnly: true });
+    assert.ok(scan < SCAN_TIME_BOUND_MS, `${name}: ${scan.toFixed(0)} ms on 1 MiB (initial bound ${SCAN_TIME_BOUND_MS} ms)`);
   }
 });
 
@@ -105,6 +93,17 @@ const flagged = (t) => assert.ok(scanString(t).includes("generic-credential"), `
 const ignored = (t) => assert.deepEqual(scanString(t), [], t);
 
 test("a type tag followed by a literal is flagged", () => { for (const t of ["!!str", "!!int", "!!binary"]) flagged(`${PW}: ${t} ${V}`); flagged(`${TOK} = !!str ${V}`); });
+test("a short anchor or alias name followed by a literal is flagged; the same forms alone or before a reference are not", () => {
+  for (const n of ["a", "ab", "x1"]) { flagged(`${PW}: &${n} ${V}`); flagged(`${PW}: *${n} ${V}`); flagged(`${TOK} = &${n} ${V}`); }
+  flagged(`${PW}: !a ${V}`);
+  for (const n of ["a", "ab"]) { ignored(`${PW}: &${n}`); ignored(`${PW}: *${n}`); ignored(`${PW}: &${n} # note`); ignored(`${PW}: *${n} ${addr("var", "x", "y")}`); }
+  ignored(`${PW}: !Ref X`);
+  ignored(`${PW}: !GetAtt a.b`);
+  ignored(`${PW}: !ImportValue x`);
+  ignored(`${PW}: !Sub "a${DOLLAR}{B}"`);
+  ignored(`${PW} = ab`); // a short value with no node before it is still not flagged
+});
+
 test("an anchor followed by a literal is flagged", () => { flagged(`${PW}: &anc ${V}`); flagged(`${PW}: &anc_name ${V} # note`); });
 test("an alias followed by a literal is flagged", () => { flagged(`${PW}: *shared ${V}`); flagged(`${SEC}: *shared_value ${V}`); });
 test("a custom tag followed by a literal is flagged, with and without digits", () => { for (const t of ["!vault", "!secret", "!encrypted", "!vault2", "!key9"]) flagged(`${PW}: ${t} ${V}`); });

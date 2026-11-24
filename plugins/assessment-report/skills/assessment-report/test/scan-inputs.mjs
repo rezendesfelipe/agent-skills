@@ -1,5 +1,6 @@
 // Shared by the scanner tests: pathological inputs, a timer, and the initial bounds (all initial values to calibrate).
 import { performance } from "node:perf_hooks";
+import { Worker } from "node:worker_threads";
 import { SECRET_PATTERNS, scanString } from "../scripts/lib/secrets.mjs";
 
 // Initial value, to calibrate against the first CI runs: a line of 1 MiB (the file size cap) scans within this time.
@@ -44,22 +45,37 @@ export function bestTime(fn, runs = 3) {
   return best;
 }
 
+export const DEADLINE_MS = 10000; // initial value: a measurement that takes longer is a hang, and fails the test
+
 /**
- * Does doubling the input multiply the time by less than SCALE_RATIO_BOUND? Timing is noisy when test files run in
- * parallel, so a failed attempt is repeated up to 3 times: a quadratic pattern fails every attempt (ratio near 4).
- * Below `floorMs` for the small input the ratio means nothing and the check passes. @returns {{ok: boolean, detail: string}}
+ * Times the scanner in a worker thread: the whole scan and every pattern alone, best of `runs`. The worker is
+ * terminated at the deadline, so a super-linear pattern fails the test within DEADLINE_MS instead of hanging it.
+ * `spec` is {text} or {shape, length}. @returns {Promise<{scan: number, patterns: Record<string, number>}>}
  */
-export function scales(small, big, floorMs = 8) {
-  let detail = "";
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const a = bestTime(small, 3);
-    const b = bestTime(big, 3);
-    detail = `${a.toFixed(1)} ms -> ${b.toFixed(1)} ms`;
-    if (a <= floorMs || b / a < SCALE_RATIO_BOUND) return { ok: true, detail };
-  }
-  return { ok: false, detail };
+export function measure(spec, { runs = 2, deadlineMs = DEADLINE_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./scan-worker.mjs", import.meta.url));
+    const timer = setTimeout(() => { worker.terminate(); reject(new Error(`the scan did not finish within ${deadlineMs} ms (a pattern is no longer linear?)`)); }, deadlineMs);
+    worker.once("message", (m) => { clearTimeout(timer); worker.terminate(); resolve(m); });
+    worker.once("error", (e) => { clearTimeout(timer); reject(e); });
+    worker.postMessage({ ...spec, runs });
+  });
 }
 
-/** Time of every pattern alone, on a string of the given length (no window), and of scanString. */
-export const timePatterns = (text) => SECRET_PATTERNS.map(({ kind, re }) => ({ kind, ms: bestTime(() => re.test(text), 2) }));
-export const timeScan = (text) => bestTime(() => scanString(text), 2);
+/**
+ * Does doubling the input multiply the time by less than SCALE_RATIO_BOUND, for the whole scan and for each pattern?
+ * Timing is noisy when test files run in parallel, so a failed attempt is repeated up to 3 times: a quadratic pattern
+ * fails every attempt (ratio near 4). Below `floorMs` for the small input the ratio means nothing.
+ * @returns {Promise<{ok: boolean, detail: string, bigScanMs: number, bigPatterns: Record<string, number>}>}
+ */
+export async function scalesFor(small, big, floorMs = 8) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const a = await measure({ text: small }, { runs: 3 });
+    const b = await measure({ text: big }, { runs: 3 });
+    const bad = [["scan", a.scan, b.scan], ...Object.keys(a.patterns).map((k) => [k, a.patterns[k], b.patterns[k]])].filter(([, x, y]) => x > floorMs && y / x >= SCALE_RATIO_BOUND);
+    last = { ok: bad.length === 0, detail: bad.map(([k, x, y]) => `${k}: ${x.toFixed(1)} ms -> ${y.toFixed(1)} ms`).join("; "), bigScanMs: b.scan, bigPatterns: b.patterns };
+    if (last.ok) return last;
+  }
+  return last;
+}

@@ -6,7 +6,7 @@ import { performance } from "node:perf_hooks";
 import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, scanString } from "../scripts/lib/secrets.mjs";
 import { fakeSecret, mulberry32 } from "./helpers.mjs";
-import { SCAN_TIME_BOUND_MS, bestTime, scales } from "./scan-inputs.mjs";
+import { SCAN_TIME_BOUND_MS, measure, scalesFor } from "./scan-inputs.mjs";
 
 const SEED = 424242; // fixed: the same cases on every run and machine
 const CASES = 36;
@@ -44,20 +44,18 @@ function pathological(rnd, length) {
   return out.slice(0, length) + (rnd() < 0.3 ? "(" : "");
 }
 
-test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw, stay in bounds and scale linearly`, () => {
+test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw, stay in bounds and scale linearly`, async () => {
   const rnd = mulberry32(SEED);
   const started = performance.now();
   for (let i = 0; i < CASES; i++) {
     const length = 16000 + Math.floor(rnd() * 48000);
     const text = pathological(rnd, length);
     const where = `seed ${SEED}, case ${i}`;
-    let kinds;
-    const ms = bestTime(() => { kinds = scanString(text); }, 1);
-    assert.ok(Array.isArray(kinds), where);
-    assert.ok(ms < SCAN_TIME_BOUND_MS, `${where}: ${ms.toFixed(0)} ms for ${length} characters`);
+    assert.ok(Array.isArray(scanString(text)), where);
+    const m = await measure({ text }, { runs: 1 }).catch((e) => assert.fail(`${where}: ${e.message}`));
+    assert.ok(m.scan < SCAN_TIME_BOUND_MS, `${where}: ${m.scan.toFixed(0)} ms for ${length} characters`);
     if (i % 3 === 0) {
-      const doubled = text + text;
-      const r = scales(() => scanString(text), () => scanString(doubled));
+      const r = await scalesFor(text, text + text).catch((e) => assert.fail(`${where}: ${e.message}`));
       assert.ok(r.ok, `${where}: doubling took ${r.detail}`);
     }
   }
