@@ -1,7 +1,7 @@
 // Where each supported tool reads Agent Skills and custom agents from.
 // User-scope paths are relative to the home directory, project-scope paths to the
 // current working directory. Skills checked against each vendor's docs on 2026-11-19,
-// agents on 2026-11-23 (see openspec/changes/add-custom-agents/design.md).
+// agents on 2026-11-23 (see openspec/changes/archive/2026-11-24-add-custom-agents/design.md).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
