@@ -18,7 +18,7 @@ function expectGolden(rel, text) {
     mkdirSync(join(p, ".."), { recursive: true });
     writeFileSync(p, text);
   }
-  assert.equal(text, readFileSync(p, "utf8"), `${rel} differs from its golden file; run with UPDATE_GOLDEN=1 after an intended change`);
+  assert.equal(text, readFileSync(p, "utf8").replace(/\r\n/g, "\n"), `${rel} differs from its golden file; run with UPDATE_GOLDEN=1 after an intended change`);
 }
 
 test("the fixture assessment is clean for check (so golden files show a valid report)", () => {

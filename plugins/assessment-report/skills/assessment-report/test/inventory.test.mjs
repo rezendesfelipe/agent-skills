@@ -26,7 +26,7 @@ test("inventory of the synthetic repository matches the golden file", () => {
   const inv = buildInventory(FIXTURE_REPO, {});
   const text = `${JSON.stringify(inv, null, 2)}\n`;
   if (process.env.UPDATE_GOLDEN) writeFileSync(GOLDEN, text);
-  assert.equal(text, readFileSync(GOLDEN, "utf8"), "run with UPDATE_GOLDEN=1 to refresh after an intended change");
+  assert.equal(text, readFileSync(GOLDEN, "utf8").replace(/\r\n/g, "\n"), "run with UPDATE_GOLDEN=1 to refresh after an intended change");
   assert.deepEqual(inv.files.map((f) => f.path), ["docs/notas.md", "docs/runbook.md", "infra/main.tf", "infra/variables.tf", "pipelines/deploy.yml", "src/app.js"]);
   assert.equal(inv.revisionKind, "inventory-hash");
 });
