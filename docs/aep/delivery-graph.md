@@ -158,7 +158,7 @@ These permissions are instructions to agents. They are enforced only as far as t
 |---|---|---|
 | Tool allowlist | R1 | The reviewer's allowlist has read, search and read-only shell tools and a deny list. A deny list is not a hard guarantee: `Bash` can change files unless it is restricted |
 | CI | A1, A2 | The scope check fails a proposal branch that changes a file outside `openspec/changes/<name>/` before gate 1 is recorded. CI does not stop an agent from running locally |
-| Repository settings (recommended, **not in place today**) | I3, I4, G3 | Rules on `main` (no direct push, required checks) and a tag ruleset on `refs/tags/v*`. See [repository protection](repository-protection.md) for the measured state. Even in place, they do not stop an agent that acts with the administrator's identity. A version bump in a feature change is caught in review |
+| Repository settings (partly in place; see the dated snapshot) | I3, I4, G3 | Rules on `main` (no direct push, 15 required checks) and a ruleset on `refs/tags/v*` exist, but the Integration that Claude acts with has bypass in mode `always` on both, so they do not bind Claude today. See [repository protection](repository-protection.md) for what was read and what is recommended. A version bump in a feature change is caught in review |
 | Instructions only | I1, I2, R2, G1, G2 | Nothing mechanical stops these. They rest on the role instructions, the review and the maintainer's ability to revoke |
 
 ## Graph state

@@ -2,40 +2,58 @@
 
 Part of the [delivery graph](delivery-graph.md) documentation. Spec requirement: `Repository protection as a release prerequisite`.
 
-This page is a **recommended configuration**, a checklist the maintainer applies. It is a prerequisite for any release automation. The changes to the repository ruleset, to CodeQL and to the tag rules are **applied by the maintainer, not by an agent**, and they are not part of any change's diff. An agent asked to edit the ruleset does not do it and refers the maintainer to this checklist.
+This page is a **recommended configuration** and a record of what was read. It is a prerequisite for any release automation. Changes to the repository ruleset, to CodeQL and to the tag rules are **applied by the maintainer, not by an agent**, and are not part of any change's diff. An agent asked to edit the ruleset does not do it and refers the maintainer to this checklist.
 
-## Measured state on 2026-11-23
+## State read on 2026-11-24 at 00:32 UTC (a dated snapshot)
 
-Measured by the maintainer's session and recorded in the change's `design.md` (Decision 12), not re-measured by this page:
+Read-only, with `gh api` on `repos/rezendesfelipe/agent-skills/rulesets`, on each ruleset, on `code-scanning/default-setup`, on `labels` and on `tags`. Nothing was written. This is a snapshot: re-read it before relying on it, because settings change.
 
-- Ruleset `main-protection` (branch) has: `deletion`; `non_fast_forward`; `required_status_checks` with an **empty** list and strict `true`; `code_scanning` (CodeQL, `high_or_higher`) while the CodeQL default setup is `not-configured`, so the rule would block any pull request that has no bypass; `pull_request` with 0 required approvals; and an administrator bypass in mode `always`.
-- There is **no ruleset for tags**, and the tags `v0.2.0` to `v0.5.0` exist.
-- Consequence: because the required checks list is empty, the protection does not yet stop a red pull request, and the `always` bypass lets an administrator push to `main` directly. Until the checklist is applied, "green CI" in the graph is **not enforced by the repository**, and release automation is not built.
+**Ruleset `main-protection` (id 27931984, branch, enforcement `active`, target `~DEFAULT_BRANCH`, last updated 2026-11-23T20:16:39Z):**
+
+- Rules: `deletion`; `non_fast_forward`; `required_status_checks` with `strict` true and 15 checks (`validate`; `test (ubuntu-latest|macos-latest|windows-latest, 20|22|24)`; `docs-generator (20)` and `(24)`; `azure-terraform-stacks (20)` and `(24)`; `azure-terraform-stacks-deep`); `pull_request` with 0 required approving reviews. There is no `code_scanning` rule any more.
+- Bypass: one actor, an **Integration** (id 1236702) in mode **`always`**. The maintainer confirmed that this integration is Claude (the API read shows only the id and type, so that is the maintainer's statement, not something the read verifies). The bypass is not given to the administrator role.
+- The `delivery-check` job added by this change is **not** among the 15 required checks.
+
+**Ruleset `release-tags-protection` (id 27933425, tag, enforcement `active`, pattern `refs/tags/v*`, last updated 2026-11-23T20:15:27Z):** rules `creation`, `update` and `deletion`. Bypass: the same Integration (id 1236702), mode `always`.
+
+**Other:**
+
+- CodeQL default setup: `not-configured` (available languages: actions, javascript, javascript-typescript, typescript).
+- Labels: only GitHub's defaults (`bug`, `documentation`, `duplicate`, `enhancement`, `good first issue`, `help wanted`, `invalid`, `question`, `wontfix`, `accessibility`). The labels `node:*`, `cycle:1` to `cycle:3`, `review:*` and `needs:maintainer` **do not exist**.
+- Tags present: `v0.2.0`, `v0.2.1`, `v0.3.0`, `v0.4.0`, `v0.5.0`.
 
 ## The checklist
 
-- [ ] **1. Required status checks.** List every GitHub Actions job: `validate`; `test` on ubuntu, macos and windows with Node 20, 22 and 24 (9 jobs); `docs-generator` on Node 20 and 24; `azure-terraform-stacks` on Node 20 and 24; `azure-terraform-stacks-deep`. That is 15 jobs. The names as the Actions run shows them (read from a recent `validate` run) are:
-  - `validate`
-  - `test (ubuntu-latest, 20)`, `test (ubuntu-latest, 22)`, `test (ubuntu-latest, 24)`
-  - `test (macos-latest, 20)`, `test (macos-latest, 22)`, `test (macos-latest, 24)`
-  - `test (windows-latest, 20)`, `test (windows-latest, 22)`, `test (windows-latest, 24)`
-  - `docs-generator (20)`, `docs-generator (24)`
-  - `azure-terraform-stacks (20)`, `azure-terraform-stacks (24)`
-  - `azure-terraform-stacks-deep`
+Status is as read on the date above.
 
-  Confirm the names from a recent run before saving the ruleset. Note: the change `define-aep-delivery-graph` adds one more job to `.github/workflows/validate.yml`, `delivery-check` (task 3.3). It is not in the 15 above; the maintainer decides whether to require it too.
-- [ ] **2. CodeQL.** Enable the default setup with the languages `actions` and `javascript-typescript`, so that the `code_scanning` rule can be satisfied and does not block every pull request.
-- [ ] **3. Administrator bypass.** Limit the bypass of the `main` ruleset to the mode `pull_request`, not `always`: an administrator may bypass through a pull request but cannot push straight to `main`.
-- [ ] **4. Tag ruleset.** A ruleset on `refs/tags/v*` that restricts creation, update and deletion, so that a published tag cannot be moved or deleted and a new `v*` tag (which triggers `publish.yml`) cannot be created by accident or without the maintainer.
-- [ ] **5. Labels and the decision on `main`.** Create the labels `node:*`, `cycle:1`, `cycle:2`, `cycle:3`, `review:approved`, `review:changes-requested` and `needs:maintainer`, and record the decision on branch protection for `main`.
+- [x] **1. Required status checks.** In place: the 15 Actions jobs, with `strict`. Decision left to the maintainer: whether to require the `delivery-check` job too (it runs only on `claude/*` pull requests and is skipped otherwise, which counts as passing).
+- [ ] **2. CodeQL.** Not configured. The `code_scanning` rule was removed from `main-protection`, so a missing CodeQL setup no longer blocks pull requests. Enabling the default setup (languages `actions` and `javascript-typescript`) stays a **future layer**, not a prerequisite of this change.
+- [ ] **3. Bypass of the `main` ruleset limited to `pull_request`.** Not in place as recommended. The bypass exists for the Integration, in mode `always` (not for the administrator role). Recommended: mode `pull_request`, so the actor can still act through a pull request but cannot push straight to `main`.
+- [ ] **4. Tag ruleset.** The ruleset on `refs/tags/v*` is in place with `creation`, `update` and `deletion`. What remains is the bypass: the Integration can bypass it always. Recommended: **remove the Integration from the tag ruleset's bypass**, so that creating or deleting a `v*` tag needs the maintainer.
+- [ ] **5. Labels.** `node:*`, `cycle:1`, `cycle:2`, `cycle:3`, `review:approved`, `review:changes-requested` and `needs:maintainer` do not exist yet. The maintainer creates them.
 
-Each item is confirmed by the maintainer on the pull request when it is in place.
+## What the current bypass allows (and why this page does not call "green CI" enforced)
+
+Because the Integration bypasses `main-protection` in mode `always`, and the Integration is the identity that Claude acts with:
+
+- Claude **can merge without green checks**, and **can push directly to `main`**. The required checks and the pull request rule bind other actors, not this one.
+- Claude **can create, move or delete `v*` tags**, and a `v*` tag triggers the npm publish workflow (a published npm version cannot be reused).
+
+So the repository does **not** enforce "green CI before merge", "no push to `main`" or "no tag without the maintainer" against Claude today. Those remain instructions in the [roles](roles.md) plus human gate 2. Release automation is not built.
+
+## Recommended changes (maintainer actions, not in any diff)
+
+1. Set the Integration's bypass on `main-protection` to `pull_request` instead of `always`.
+2. Remove the Integration from the bypass of `release-tags-protection`.
+3. Create the labels of item 5.
+4. Decide whether `delivery-check` is a required check.
 
 ## The honest limit
 
-The agents act under the maintainer's identity, who is an administrator. The rules above prevent **accidents and shortcuts** (a direct push, a retagged release, a merge with a red check). They do **not** stop a hostile or compromised agent, because the same identity can edit the ruleset. Nothing on this page claims enforcement against an agent that acts with administrator rights. Until an identity of the agents' own exists, release stays behind human gate 2 and manual.
+Even with these changes, rules that an actor can bypass or edit do not stop a hostile or compromised agent. They prevent accidents and shortcuts (a direct push, a retagged release, a merge with a red check) for actors that are not allowed to bypass them. Nothing on this page claims enforcement against an agent that acts with an identity that has bypass or administrator rights. Until an identity of the agents' own exists, release stays behind human gate 2 and manual.
 
 ## Recommended future items (future changes, not tasks of this change)
 
-- **A separate identity for the agents:** a GitHub App or a bot account without administrator permission and without the right to create tags. This is the condition under which release automation could be considered.
+- **A separate identity for the agents:** a GitHub App or a bot account without administrator permission, without bypass of the rulesets and without the right to create tags. This is the condition under which release automation could be considered.
 - **A protected publish environment:** a GitHub environment with a required reviewer on the npm publish job, as a second human check before an irreversible publish. It needs edits to `.github/workflows/publish.yml` and to the trusted publisher configuration, so it is a separate workflow change.
+- **CodeQL** default setup for `actions` and `javascript-typescript`, as an additional layer.
