@@ -213,3 +213,48 @@ test("evidence ignores URLs, versions and addresses", () => {
   assert.match(r.out, /0 reference/);
   cleanup(root);
 });
+
+// ---- Renames and option-like refs ----
+
+function repoWith(files) {
+  const root = mkdtempSync(join(tmpdir(), "delivery-check-"));
+  git(root, "init", "-q", "-b", "main");
+  for (const [path, content] of Object.entries(files)) write(root, path, content);
+  git(root, "add", "-A");
+  git(root, "commit", "-q", "-m", "init");
+  git(root, "checkout", "-q", "-b", "claude/foo");
+  return root;
+}
+
+test("scope lists the source of a file moved into the change folder (rename detection must not hide it)", () => {
+  const big = Array.from({ length: 200 }, (_, i) => `content line ${i}`).join("\n") + "\n";
+  const root = repoWith({ "README.md": "readme\n", "outside/big.txt": big });
+  mkdirSync(join(root, "openspec/changes/foo"), { recursive: true });
+  git(root, "mv", "outside/big.txt", "openspec/changes/foo/big.txt");
+  commitAll(root);
+  const r = run(root, "scope", "foo", "--base", "main");
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /outside\/big\.txt/);
+  cleanup(root);
+});
+
+test("scope lists the source of a staged, uncommitted rename too", () => {
+  const big = Array.from({ length: 200 }, (_, i) => `content line ${i}`).join("\n") + "\n";
+  const root = repoWith({ "README.md": "readme\n", "outside/big.txt": big });
+  mkdirSync(join(root, "openspec/changes/foo"), { recursive: true });
+  git(root, "mv", "outside/big.txt", "openspec/changes/foo/big.txt");
+  const r = run(root, "scope", "foo", "--base", "main");
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /outside\/big\.txt/);
+  cleanup(root);
+});
+
+test("scope rejects a --base that starts with a dash", () => {
+  const root = repo();
+  for (const base of ["--output=x", "-p"]) {
+    const r = run(root, "scope", "add-x", "--base", base);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /invalid --base/);
+  }
+  cleanup(root);
+});

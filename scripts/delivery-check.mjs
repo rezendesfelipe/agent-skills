@@ -61,6 +61,8 @@ function validChangeName(name) {
 export function checkScope(root, change, { base, approved = false } = {}) {
   if (!validChangeName(change)) return { ok: false, lines: [`invalid change name: ${change}`] };
   if (approved) return { ok: true, lines: [`scope skipped: gate 1 is recorded for ${change}`] };
+  if (base !== undefined && (typeof base !== "string" || base === "" || base.startsWith("-")))
+    return { ok: false, lines: [`invalid --base: ${JSON.stringify(base)} (a ref must not start with "-")`] };
   const candidates = base ? [base] : ["origin/main", "main"];
   let mergeBase;
   for (const ref of candidates) {
@@ -73,8 +75,10 @@ export function checkScope(root, change, { base, approved = false } = {}) {
   }
   if (!mergeBase) return { ok: false, lines: [`cannot find the base (${candidates.join(", ")}); pass --base <ref>`] };
   const changed = new Set();
-  for (const f of git(root, ["diff", "--name-only", mergeBase]).split("\n")) if (f) changed.add(f);
-  for (const f of git(root, ["ls-files", "--others", "--exclude-standard"]).split("\n")) if (f) changed.add(f);
+  // --no-renames: git detects renames by default and would list only the destination of a moved file, so a
+  // proposal could move or delete a file outside its folder unseen. Every path touched, source included, must show.
+  for (const f of git(root, ["diff", "--name-only", "--no-renames", mergeBase, "--"]).split("\n")) if (f) changed.add(f);
+  for (const f of git(root, ["ls-files", "--others", "--exclude-standard", "--"]).split("\n")) if (f) changed.add(f);
   const prefix = `openspec/changes/${change}/`;
   const offending = [...changed].filter((f) => !f.startsWith(prefix)).sort();
   if (offending.length)
