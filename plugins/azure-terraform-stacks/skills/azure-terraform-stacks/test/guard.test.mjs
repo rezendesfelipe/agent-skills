@@ -612,3 +612,34 @@ test("Unicode spaces: a word that holds one stays one word (a path), never two",
     if (decide(cmd, ctx).allow) assert.deepEqual(pathsOf(cmd, ctx), [resolve(AUDITED, `a${c}b`)], `U+${c.codePointAt(0).toString(16)}`);
   }
 });
+
+// ---- Review cycle 1: the guard must not throw outside its try ----
+test("os.homedir() throwing (HOME undefined, uid without a passwd entry): the auditor is denied with exit-2 semantics, anyone else is untouched", () => {
+  const boom = () => { throw new Error("uv_os_homedir returned ENOENT"); };
+  for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+    const r = guard({ ...FIXTURE, agent_type, cwd: AUDITED, tool_input: { command: "node --version" } }, { env: {}, homeOf: boom });
+    assert.equal(r.allow, false);
+    assert.match(r.reason, /the guard failed on this command/);
+  }
+  for (const agent_type of [undefined, null, "", "general-purpose", "other-plugin:stacks-auditor"]) {
+    assert.doesNotThrow(() => guard({ ...FIXTURE, agent_type, tool_input: { command: "terraform apply" } }, { env: {}, homeOf: boom }));
+    assert.equal(guard({ ...FIXTURE, agent_type, tool_input: { command: "terraform apply" } }, { env: {}, homeOf: boom }).allow, true);
+  }
+  // another tool of the auditor is not evaluated, so homedir() is not needed either
+  assert.equal(guard({ ...FIXTURE, tool_name: "Write", cwd: AUDITED }, { env: {}, homeOf: boom }).allow, true);
+});
+
+test("tool_name: Write is never touched; an absent tool_name is evaluated like Bash (current behavior, kept on purpose)", () => {
+  const base = { ...FIXTURE, cwd: AUDITED };
+  for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+    const w = run({ ...base, agent_type, tool_name: "Write", tool_input: { command: "terraform apply" } });
+    assert.equal(w.code, 0);
+    assert.equal(w.stdout + w.stderr, "");
+    // Claude Code sends tool_name for a Bash matcher; if it were ever absent the guard judges the command by the allowlist instead of letting it pass
+    const noTool = { ...base, agent_type, tool_input: { command: "terraform apply" } };
+    delete noTool.tool_name;
+    assert.equal(run(noTool).code, 2, "absent tool_name, forbidden command: denied");
+    noTool.tool_input = { command: "node --version" };
+    assert.equal(run(noTool).code, 0, "absent tool_name, allowed command: allowed");
+  }
+});

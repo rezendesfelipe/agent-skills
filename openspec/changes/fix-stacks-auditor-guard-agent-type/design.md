@@ -69,6 +69,8 @@ Rule: for a call of the auditor, when `process.env.HOME` is defined (even empty)
 | All commands of the auditor (recommended) | One check at the entry; no reasoning about which commands "involve" home; easy to test | The auditor cannot run even `node --version` in such a session; it must say why. Rare: needs an unusual `HOME`, or Git Bash on Windows, where the guard is not verified anyway |
 | Only commands with `~/` or a path under a user skills folder | Less collateral | A second parser to decide "involves home"; the trusted-folder check uses the home even for absolute paths, so most useful commands are in scope anyway |
 
+Review cycle 1 notes: on POSIX Node reads `HOME` first, so the "differs from `os.homedir()`" branch is almost unreachable there (the check mainly catches an empty or relative `HOME`; the branch stays for Windows). The guard also computes `homedir()` only after recognizing the agent and inside the `try`, because it throws when `HOME` is undefined and the uid has no passwd entry: the auditor is then denied, anyone else is untouched.
+
 The denial reason says: "HOME (`<value>`) differs from the user's home directory (`<value>`); the guard cannot tell where `~` points. Set HOME to the user's home directory and start the session again." The home value is a path, not a secret, but the reason prints at most the two paths' last segment to avoid putting a user name in a log that is pasted on a pull request. Decision on that detail left to the implementer; the test checks only that the reason names `HOME`.
 
 ### Decision 4. The three NITs

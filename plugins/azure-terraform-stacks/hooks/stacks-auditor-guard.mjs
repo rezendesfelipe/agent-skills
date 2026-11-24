@@ -202,13 +202,16 @@ export function homeProblem(env = process.env, home = homedir()) {
 }
 
 /** The hook's decision for one input object (already parsed). `env` and `home` are for tests. */
-export function guard(input, { env = process.env, home = homedir() } = {}) {
+// `homeOf` computes the home directory and is called only once the agent is recognized, inside the try: os.homedir() throws when HOME is
+// undefined and the uid has no passwd entry, and that must block the auditor (exit 2) and must not touch anyone else (exit 0, no output).
+export function guard(input, { env = process.env, home, homeOf = homedir } = {}) {
   if (!input || typeof input !== "object" || !AGENTS.has(input.agent_type)) return allow(); // not our agent: touch nothing
   if (input.tool_name !== undefined && input.tool_name !== "Bash") return allow();
   try {
-    const problem = homeProblem(env, home);
+    const h = home ?? homeOf();
+    const problem = homeProblem(env, h);
     if (problem) return deny(problem);
-    return decide(input.tool_input?.command, { cwd: input.cwd, home });
+    return decide(input.tool_input?.command, { cwd: input.cwd, home: h });
   } catch (e) {
     return deny(`the guard failed on this command (${e?.message ?? e})`); // once it is our agent, an internal error blocks
   }
