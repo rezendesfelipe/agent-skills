@@ -378,9 +378,13 @@ test("verify returns pattern-too-costly within the time limit for a pattern that
   assert.ok(elapsed <= 3500, `took ${elapsed} ms; the limit is 3000 ms plus start-up`);
 });
 
-test("the --import option carries a file: URL, also for a path with a drive letter or a space", () => {
+test("the --import option carries a file: URL with the space encoded, on any platform", () => {
   assert.match(NO_NET_URL, /^file:\/\/\//);
-  assert.equal(importOption("/tmp/a b/no-network.mjs"), "--import file:///tmp/a%20b/no-network.mjs");
-  const win = pathToFileURL("C:\\x\\no-network.mjs", { windows: true }).href;
-  assert.match(win, /^file:\/\/\/C:\/x\/no-network\.mjs$/);
+  // a path of the platform running the test: POSIX on Linux and macOS, a drive-letter path on Windows
+  const path = process.platform === "win32" ? "C:\\tmp\\a b\\no-network.mjs" : "/tmp/a b/no-network.mjs";
+  const opt = importOption(path);
+  assert.match(opt, /^--import file:\/\/\/(?:[A-Za-z]:\/)?tmp\/a%20b\/no-network\.mjs$/);
+  assert.equal(opt, `--import ${pathToFileURL(path).href}`);
+  // a drive-letter path, whatever the platform
+  assert.equal(pathToFileURL("C:\\x\\no-network.mjs", { windows: true }).href, "file:///C:/x/no-network.mjs");
 });
