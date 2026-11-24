@@ -56,7 +56,7 @@ The CLI SHALL support the tools below. It SHALL install a skill into `<skills-di
 ### Requirement: List skills and agents
 The `list` command SHALL print every skill and every agent available in the repository (every bundled item) with its kind (`skill` or `agent`), name, plugin and description. With `--json` it SHALL print a JSON array of objects with `kind`, `name`, `plugin` and `description`.
 
-#### Scenario: Listing everything
+#### Scenario: Listing all skills
 - **WHEN** a user runs `agent-skills list`
 - **THEN** every skill under `plugins/<plugin>/skills/` and every agent under `plugins/<plugin>/agents/` in the published version appears once, with its kind, plugin and description
 
@@ -75,7 +75,7 @@ The `add [<name>...]` command SHALL install each chosen item for each chosen too
 - **WHEN** a user runs `agent-skills add docs-generator doc-writer --tool claude`
 - **THEN** the skill folder is installed in `~/.claude/skills/` and the agent file in `~/.claude/agents/`
 
-#### Scenario: Unknown name
+#### Scenario: Unknown skill
 - **WHEN** a user runs `agent-skills add no-such-name --tool claude`
 - **THEN** the command fails with a non-zero exit code, says no skill or agent has that name, suggests `agent-skills list`, and writes nothing
 
@@ -137,7 +137,7 @@ The `remove [<name>...]` command SHALL delete each chosen skill's folder from ea
 - **WHEN** a user runs `agent-skills remove doc-writer --tool claude` after installing it with the CLI
 - **THEN** `~/.claude/agents/doc-writer.md` is deleted and the skills it depends on stay installed
 
-#### Scenario: Not installed for a tool
+#### Scenario: Skill not installed for a tool
 - **WHEN** a user runs `agent-skills remove docs-generator --tool claude,codex` and the skill is installed only for `claude`
 - **THEN** it is removed from `claude`, `codex` is reported as not found, and the exit code is 0, because removal is idempotent
 

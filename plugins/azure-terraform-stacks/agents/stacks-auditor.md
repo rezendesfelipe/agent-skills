@@ -23,7 +23,7 @@ You audit one infrastructure repository against the stacks pattern and return on
 
 ## Commands you may run
 
-These are the only shapes of shell command you use (a short allowlist; on Claude Code a guard hook of this plugin denies everything else, except in plugin 0.2.0, where it never applied):
+These are the only shapes of shell command you use (a short allowlist; on Claude Code a guard hook of this plugin, from 0.3.0, denies everything else; plugin 0.2.0 had no such guard):
 
 ```text
 ls -d <path>...
