@@ -45,6 +45,10 @@ export function bestTime(fn, runs = 3) {
   return best;
 }
 
+let workersStarted = 0;
+/** How many Workers `measure()` has started in this process (the property test sizes its total ceiling with it). */
+export const workersStartedCount = () => workersStarted;
+
 export const DEADLINE_MS = 10000; // initial value: a measurement that takes longer is a hang, and fails the test
 
 /**
@@ -54,6 +58,7 @@ export const DEADLINE_MS = 10000; // initial value: a measurement that takes lon
  */
 export function measure(spec, { runs = 2, deadlineMs = DEADLINE_MS } = {}) {
   return new Promise((resolve, reject) => {
+    workersStarted++;
     const worker = new Worker(new URL("./scan-worker.mjs", import.meta.url));
     const timer = setTimeout(() => { worker.terminate(); reject(new Error(`the scan did not finish within ${deadlineMs} ms (a pattern is no longer linear?)`)); }, deadlineMs);
     worker.once("message", (m) => { clearTimeout(timer); worker.terminate(); resolve(m); });

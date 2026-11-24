@@ -1,3 +1,7 @@
+## Status
+
+Proposed and implemented on 2026-11-24 (same pull request, #25). Gate 1 is recorded: the maintainer approved Q1 to Q4 as recommended (Q2: a reusable Worker is a follow-up outside this change). Evidence of the implementation (mutations, delays, CI times) is in `tasks.md` and the pull request.
+
 ## Context
 
 `secrets-property.test.mjs` generates 36 pathological inputs from a fixed seed and, for each, (1) scans it on the main thread, (2) calls `measure()`, which starts a Worker (`test/scan-worker.mjs`) that times the scanner and every pattern, with a hang deadline `DEADLINE_MS = 10000`, and (3) for every third case calls `scalesFor()`, which starts two Workers per attempt (up to three attempts) to check that doubling the input multiplies the time by less than 3. The last line asserts that the whole test took less than `BUDGET_MS = 5000`. Counted on this machine with a counter in `measure()`: **60 Workers** per run, no retry.

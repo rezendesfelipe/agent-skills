@@ -38,7 +38,7 @@ None.
 ## Impact
 
 - **Files, implementation phase:** `plugins/assessment-report/skills/assessment-report/test/secrets-property.test.mjs` (the constant and the last assertion), `test/scan-inputs.mjs` (a counter of started Workers, exported), `references/read-only-and-untrusted-input.md` (one paragraph). Nothing outside the skill folder.
-- **Proposal phase (this pull request):** only `openspec/changes/calibrate-assessment-secret-scan-timing/`.
+- **This pull request:** the proposal under `openspec/changes/calibrate-assessment-secret-scan-timing/` and, after gate 1 (approved by the maintainer on 2026-11-24), the implementation, which lies **outside** the change folder: `plugins/assessment-report/skills/assessment-report/test/scan-inputs.mjs`, `plugins/assessment-report/skills/assessment-report/test/secrets-property.test.mjs` and `plugins/assessment-report/skills/assessment-report/references/read-only-and-untrusted-input.md`. Nothing else is touched (`scripts/lib/secrets.mjs`, workflows and `package.json` are not in the diff).
 - **Behavior:** none for users of the skill; the change is in a test. The test gets no slower (no extra Worker is started), and a hung or super-linear scan fails exactly as before.
 - **CI:** the intermittent failure of the `assessment-report` job on Windows stops. Time of the job is unchanged. The job is not a required check, so no merge was ever blocked by it.
 - **Effort:** about 0.5 working day (estimate): 0.1 test change, 0.2 mutation runs, 0.1 documentation, 0.1 CI reading.
