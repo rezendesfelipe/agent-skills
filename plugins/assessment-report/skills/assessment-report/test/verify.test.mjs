@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
 import { buildInventory } from "../scripts/lib/inventory.mjs";
 import { FAILURE_CODES, verifyAssessment } from "../scripts/lib/verify.mjs";
 import { sha256 } from "../scripts/lib/util.mjs";
 import { edit, fakeSecret, file, finding, rationale, readJson, repoCopy, run, startRun, tmp } from "./helpers.mjs";
 
-const NO_NET = fileURLToPath(new URL("./no-network.mjs", import.meta.url));
+// --import takes a module specifier: on Windows an absolute path ("D:\\...") is read as a URL with protocol "d:", so pass a file: URL
+const NO_NET_URL = new URL("./no-network.mjs", import.meta.url).href;
+export const importOption = (path) => `--import ${pathToFileURL(path).href}`;
 
 /** Verifies evidence items against a repository copy, with an inventory taken now. */
 function verifyEvidence(items, { repo = repoCopy(), maxBytes, inventory = true, outDir = tmp(), captures = null } = {}) {
@@ -137,7 +139,7 @@ test("a statement and a url without a snapshot are recorded as not machine-check
     a.evidence.push({ id: "E-002", kind: "url", url: "https://example.com/policy", accessed: "2026-11-12", quote: "Backups are tested." });
     a.findings.push(finding("F-001", ["E-001", "E-002"], { impact: "moderate", likelihood: "possible", effort: "M", rationale }));
   });
-  const r = run(["verify", "--out", out], { env: { NODE_OPTIONS: `--import ${NO_NET}` } });
+  const r = run(["verify", "--out", out], { env: { NODE_OPTIONS: `--import ${NO_NET_URL}` } });
   assert.equal(r.code, 0, r.out);
   assert.doesNotMatch(r.out, /NETWORK-OR-PROCESS/);
   const v = readJson(join(out, "assessment.json")).verification.results;
@@ -147,7 +149,7 @@ test("a statement and a url without a snapshot are recorded as not machine-check
 
 test("the whole engine runs with the network and child processes disabled", () => {
   const { out } = startRun([], );
-  const r = run(["status", "--out", out], { env: { NODE_OPTIONS: `--import ${NO_NET}` } });
+  const r = run(["status", "--out", out], { env: { NODE_OPTIONS: `--import ${NO_NET_URL}` } });
   assert.equal(r.code, 0, r.out);
 });
 
@@ -374,4 +376,15 @@ test("verify returns pattern-too-costly within the time limit for a pattern that
   assert.equal(r["E-001"].code, "pattern-too-costly");
   assert.match(r["E-001"].message, /did not finish within 3000 ms/);
   assert.ok(elapsed <= 3500, `took ${elapsed} ms; the limit is 3000 ms plus start-up`);
+});
+
+test("the --import option carries a file: URL with the space encoded, on any platform", () => {
+  assert.match(NO_NET_URL, /^file:\/\/\//);
+  // a path of the platform running the test: POSIX on Linux and macOS, a drive-letter path on Windows
+  const path = process.platform === "win32" ? "C:\\tmp\\a b\\no-network.mjs" : "/tmp/a b/no-network.mjs";
+  const opt = importOption(path);
+  assert.match(opt, /^--import file:\/\/\/(?:[A-Za-z]:\/)?tmp\/a%20b\/no-network\.mjs$/);
+  assert.equal(opt, `--import ${pathToFileURL(path).href}`);
+  // a drive-letter path, whatever the platform
+  assert.equal(pathToFileURL("C:\\x\\no-network.mjs", { windows: true }).href, "file:///C:/x/no-network.mjs");
 });

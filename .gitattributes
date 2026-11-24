@@ -7,3 +7,14 @@ test/fixtures/bad-agents/bad-cr-*.md -text
 test/fixtures/bad-agents/bad-nel-*.md -text
 test/fixtures/bad-agents/bad-ls-*.md -text
 test/fixtures/bad-agents/bad-ps-*.md -text
+
+# assessment-report: the skill's text files are LF on every OS, so tests that read them give the same result on Windows.
+# (test/fixtures, test/golden and evals have their own .gitattributes; the tests also normalize CRLF when they read a file.)
+plugins/assessment-report/skills/assessment-report/SKILL.md text eol=lf
+plugins/assessment-report/skills/assessment-report/package.json text eol=lf
+plugins/assessment-report/skills/assessment-report/references/** text eol=lf
+plugins/assessment-report/skills/assessment-report/locales/** text eol=lf
+plugins/assessment-report/skills/assessment-report/schema/** text eol=lf
+plugins/assessment-report/skills/assessment-report/scripts/** text eol=lf
+plugins/assessment-report/skills/assessment-report/templates/** text eol=lf
+plugins/assessment-report/skills/assessment-report/test/*.mjs text eol=lf

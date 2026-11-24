@@ -86,6 +86,39 @@ jobs:
       - name: Test the docs-generator engine
         run: npm test
 
+  # Engine tests of the assessment-report skill (194+ tests) and its contract test with docs-generator, on Linux and Windows.
+  # No path filter, so the job can be made a required check without blocking pull requests that do not touch the skill.
+  # Making it required is a repository setting the maintainer applies (docs/aep/repository-protection.md).
+  assessment-report:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # The contract test builds a DOCX with docs-generator, which needs its dependencies.
+      - name: Install the docs-generator dependencies
+        working-directory: plugins/docs-generator/skills/docs-generator
+        run: npm ci
+      # The variable turns a skipped contract test into a failure; the step also fails when any test was skipped.
+      - name: Test the assessment-report engine
+        working-directory: plugins/assessment-report/skills/assessment-report
+        shell: bash
+        env:
+          ASSESSMENT_REPORT_REQUIRE_CONTRACT: "1"
+        run: |
+          # the log goes outside the checkout, so it never becomes part of the tested tree
+          npm test 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+          skipped=$(tr -d '\r' < "$RUNNER_TEMP/test-output.txt" | grep -Eo '(^|[[:space:]])skipped [0-9]+$' | tail -n 1 | grep -Eo '[0-9]+$' || true)
+          echo "Skipped tests: ${skipped:-unknown}"
+          test "${skipped:-unknown}" = "0"
+
   azure-terraform-stacks:
     runs-on: ubuntu-latest
     strategy:
