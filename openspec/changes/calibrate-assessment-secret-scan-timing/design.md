@@ -86,6 +86,19 @@ So Worker start-up is about 60 x 47 ms = 2.8 s of 3.3 s (about 85 percent); the 
 - **macOS.** The job has no macOS leg.
 - **A Windows reproduction of the failure.** Not available; the two failures in CI are the evidence.
 
+### M4. After the implementation (measured in CI, first attempt, run [45426230948](https://github.com/rezendesfelipe/agent-skills/actions/runs/45426230948), head 4d37aad)
+
+Read from the new diagnostic line in each job log; 228 tests, 0 failed, 0 skipped on every leg.
+
+| Leg | Workers | reference (ms) | total (ms) | ceiling (ms) | worst in-worker scan (ms) | job |
+|---|---|---|---|---|---|---|
+| ubuntu-latest, Node 20 | 60 | 36.1 | 3494 | 17342 | 13.2 | [log](https://github.com/rezendesfelipe/agent-skills/actions/runs/45426230948/job/138558886956) |
+| ubuntu-latest, Node 24 | 60 | 32.1 | 3154 | 15399 | 9.8 | [log](https://github.com/rezendesfelipe/agent-skills/actions/runs/45426230948/job/138558886720) |
+| windows-latest, Node 20 | 60 | 46.3 | 4172 | 22213 | 13.2 | [log](https://github.com/rezendesfelipe/agent-skills/actions/runs/45426230948/job/138558886944) |
+| windows-latest, Node 24 | 60 | 48.9 | 4535 | 23496 | 12.8 | [log](https://github.com/rezendesfelipe/agent-skills/actions/runs/45426230948/job/138558886921) |
+
+This is one run, so it is a first data point and not a calibration. It replaces two inferences of M3 and of Decision 1: the Windows Worker round trip is 46 to 49 ms at best (inferred before: 60 ms), and the ceiling is about 22 to 23 s there (inferred before: 28.8 s), 5 times the total of this run. The worst in-worker scan of the 36 cases is about 13 ms on every leg; that is the 16 to 64 KB cases, not the 1 MiB line, so the Windows margin of `SCAN_TIME_BOUND_MS` (500 ms per 1 MiB) is still not measured. macOS: the job has no such leg.
+
 ## What else may be affected
 
 Checked against M1, M2 and a search of the test sources for time assertions (`performance.now`, `Date.now`, `timeout`):
