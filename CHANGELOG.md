@@ -9,9 +9,9 @@ Two things are versioned separately:
 
 Versions before 0.6.0 were not recorded in this file; see the git tags and `openspec/changes/archive/`.
 
-## [0.6.0] - unreleased
+## [0.6.0] - 2026-11-24
 
-Prepared on 2026-11-24 from `main` at 7521019 (pull requests #14 to #25). The date, the tag and the npm publish wait for the maintainer's explicit OK. Plugin versions in this release: `azure-terraform-stacks` 0.3.0 (was 0.2.0), `assessment-report` 0.1.0 (new), `docs-generator` 0.1.0 (unchanged).
+Prepared on 2026-11-24 from `main` at 7521019 (pull requests #14 to #25). The date is the planned one; the tag and the npm publish wait for the maintainer's explicit OK, and the date is adjusted if the merge happens on another day. Plugin versions in this release: `azure-terraform-stacks` 0.3.0 (was 0.2.0), `assessment-report` 0.1.0 (new), `docs-generator` 0.1.0 (unchanged).
 
 ### Security
 

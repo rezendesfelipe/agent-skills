@@ -78,6 +78,11 @@ Cursor also reads `.claude/agents` and `.codex/agents`. If you install a restric
 
 Run `/plugin` to browse the plugins this marketplace offers.
 
+> **Notice about `azure-terraform-stacks` 0.2.0.** In that plugin version the command guard of the `stacks-auditor` agent did not restrict the agent: Claude Code sends the namespaced `agent_type` `azure-terraform-stacks:stacks-auditor` and the guard compared it only with `stacks-auditor`. It is corrected in 0.3.0. If you installed the plugin through this marketplace, update it: `/plugin marketplace update rezendesfelipe-agent-skills`, then update the plugin from the **Installed** tab of `/plugin` (**Update now**), or run `claude plugin update azure-terraform-stacks@rezendesfelipe-agent-skills` in your shell, then `/reload-plugins` ([Claude Code documentation](https://code.claude.com/docs/en/discover-plugins#keep-plugins-updated); marketplaces added from a third party do not auto-update by default).
+>
+> The npm package never included the guard (it ships skills and agents, not `hooks/`), so the guard exists only in the plugin, and only on Claude Code. It is one extra layer, not a guarantee, and it has not yet been shown working in a live session after the correction. Until it is, do not run the auditor on a repository you do not trust.
+
+
 ### Copy a skill or an agent by hand
 
 ```bash
