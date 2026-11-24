@@ -18,7 +18,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test test/agents-install.test.mjs test/cli-agents.test.mjs test/cli.test.mjs test/convert.test.mjs test/frontmatter.test.mjs test/pack.test.mjs test/prompt.test.mjs test/readme.test.mjs test/validate.test.mjs",
+    "test": "node --test test/agents-install.test.mjs test/cli-agents.test.mjs test/cli.test.mjs test/context-budget.test.mjs test/convert.test.mjs test/delivery-check.test.mjs test/frontmatter.test.mjs test/pack.test.mjs test/prompt.test.mjs test/readme.test.mjs test/validate.test.mjs",
     "validate": "node scripts/validate-skills.mjs"
   },
   "engines": {

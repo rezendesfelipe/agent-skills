@@ -15,6 +15,15 @@ openspec init --tools claude   # or cursor, codex, github-copilot, ... (see open
 
 This keeps the existing `openspec/` folder and only adds the `/opsx:*` commands.
 
+## How a change travels: the delivery graph
+
+Every change follows the **delivery graph** in [`docs/aep/delivery-graph.md`](docs/aep/delivery-graph.md): `propose`, `validate`, **human gate 1**, `apply`, tests, independent review, pull request and CI, merge, archive, release queue, **human gate 2**. The page also has the roles and what each may write, the state of a change (`tasks.md` and pull request labels), the cycle limit (3, then the maintainer) and the parallel-change rules. Two gates matter to contributors:
+
+1. **Gate 1, before implementation.** The maintainer approves the proposal on its pull request. Until then, a proposal changes only `openspec/changes/<name>/` (`node scripts/delivery-check.mjs scope <name>` checks it).
+2. **Gate 2, before a release.** Merging to `main` publishes a skill or agent in the marketplace. The version bump, the `v*` tag and the npm publish happen only after the maintainer's explicit OK that names the version.
+
+Rules for every change: work on a branch `claude/<change-name>`, open the pull request as a **draft**, never push to `main`, and use Conventional Commits. A feature or fix change never edits the `version` in `package.json`.
+
 ## Adding a skill
 
 1. **Propose.** Create a change:
@@ -34,8 +43,9 @@ This keeps the existing `openspec/` folder and only adds the `/opsx:*` commands.
    npm test
    openspec validate --all --strict
    ```
-5. **Open a pull request.** CI runs the same checks.
-6. **Archive.** After merge, the maintainer runs `/opsx:archive` (or `openspec archive <change>`) so the specs move into `openspec/specs/`.
+   `node scripts/delivery-check.mjs tasks <change>` names the first task of `tasks.md` still unticked, and `node scripts/context-budget.mjs` checks the context budget (an estimate, labeled as one; see `docs/aep/context-budget.md`).
+5. **Open a draft pull request.** CI runs the same checks. It leaves draft after the checks pass; an independent, read-only review follows.
+6. **Archive.** The integrator (see the roles in `docs/aep/roles.md`) merges only on an approved review verdict and green CI, then runs `openspec archive <change>` so the specs move into `openspec/specs/`. The maintainer can still archive by hand.
 
 ## Adding an agent
 
@@ -62,7 +72,7 @@ Do not hard-code Claude Code paths such as `.claude/skills` or `${CLAUDE_PLUGIN_
 ### Agent checklist
 
 - [ ] Read-only by default (`Read, Grep, Glob`); every added `Edit`, `Write` or `Bash` is justified in `design.md`
-- [ ] The change's `design.md` has an "Agent graph" section (below)
+- [ ] The change's `design.md` has an "Agent graph" section (below; the convention is the level 2 graph of the delivery graph page)
 - [ ] The prompt makes the agent report each finding with `file:line` evidence and list what it could not verify separately
 - [ ] The prompt has a "Rules you never break" section
 - [ ] No Claude-specific paths in the prompt; the skills it needs are listed in `skills`
@@ -78,7 +88,7 @@ Design an agent as a graph, not as a prompt. The `design.md` of the change that 
 - **Human interruptions**: every point where the agent stops and asks (for example before any write), and what it needs to resume.
 - **A deterministic verifier node** after any node that produces findings. Findings carry evidence as `file:line` plus an optional excerpt; the verifier is code that checks the path resolves inside the audited root, the line exists and the excerpt occurs on that line. Findings that fail go to a "not verified" list and do not count.
 
-The CLI installs files; it does not know whether an agent's graph is good, so the graph is reviewed with the change. The verifier is not implemented yet (a follow-up change).
+The convention is the "level 2" graph in [`docs/aep/delivery-graph.md`](docs/aep/delivery-graph.md#level-2-the-graph-of-each-agent-or-skill). `node scripts/delivery-check.mjs evidence <file>` checks the `file:line` references of a report. The CLI installs files; it does not know whether an agent's graph is good, so the graph is reviewed with the change. A verifier inside each agent is not implemented yet (a follow-up change).
 
 ## Skill checklist
 
@@ -88,6 +98,8 @@ The CLI installs files; it does not know whether an agent's graph is good, so th
 - [ ] Supporting files (scripts, references) live inside the skill folder and are referenced by relative path
 - [ ] No secrets, personal data or machine-specific paths
 - [ ] Content is in English
+- [ ] If the skill has agent behavior, the change's `design.md` has the graph section (node types, edges, state, cycles, human interruptions, and a verifier node when it produces findings; see [Agent graph](#agent-graph))
+- [ ] The loaded-context cost is within its declared budget (`node scripts/context-budget.mjs`; add the skill to `docs/aep/context-budgets.json`)
 
 ## Adding or fixing a tool in the CLI
 
@@ -100,8 +112,12 @@ The folders the `agent-skills` CLI installs into are defined in one place: `src/
 
 ## Releasing the CLI
 
-1. Bump `version` in `package.json` and commit.
+A release is a batch behind human gate 2. It needs the maintainer's **explicit OK that names the version**; no agent bumps the version, creates a tag or publishes without it.
+
+1. Bump `version` in `package.json` and commit (in a release change, never in a feature or fix change).
 2. Push a tag `v<version>`. The `publish` workflow validates, tests and publishes to npm with provenance.
+
+The recommended protection of `main` and of the tags is a checklist for the maintainer in `docs/aep/repository-protection.md`.
 
 ## Commits
 
