@@ -1,6 +1,8 @@
 // "audit": reads a repository that has no infra/stacks.yaml and reports against the stacks pattern.
 // Read-only: it writes nothing and runs no external tool. The rules that need no manifest are the
 // same functions `check` uses (rules.mjs); the rest are listed as not evaluated, with the reason.
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { discover, inventoryView } from "./discover.mjs";
 import {
   RULE_DOCS, ruleBackendBlock, ruleTerraformVersion, ruleProviderVersion, ruleRgOwned, ruleCredentials,
@@ -28,6 +30,47 @@ const NOT_COVERED = [
 ];
 
 const SEV = { error: 0, warning: 1, info: 2 };
+
+/**
+ * The verifier node of the agent graph, in code: a finding's evidence (`file`, `line`) must be real before the
+ * finding counts. The real path of `file` must be inside the audited root (a `..` segment or a symbolic link that
+ * leaves the root fails, and the file is not read), and `line`, when present, must be an integer from 1 to the
+ * number of lines of that file. Returns the findings that pass and, apart, those that fail with the reason.
+ */
+export function verifyEvidence(root, findings) {
+  let realRoot;
+  try { realRoot = realpathSync(root); } catch { realRoot = resolve(root); }
+  const inside = (p) => { const r = relative(realRoot, p); return r === "" || (!r.startsWith("..") && !isAbsolute(r)); };
+  const lineCounts = new Map();
+  const linesOf = (real) => {
+    if (!lineCounts.has(real)) {
+      const text = readFileSync(real, "utf8");
+      lineCounts.set(real, text === "" ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0));
+    }
+    return lineCounts.get(real);
+  };
+  const check = (f) => {
+    if (typeof f.file !== "string" || !f.file) return "the finding names no file";
+    if (f.file.split(/[\\/]/).includes("..")) return `the path ${f.file} has a ".." segment, so it may leave the audited root; the file was not read`;
+    const abs = resolve(realRoot, f.file);
+    if (!inside(abs)) return `the path ${f.file} is outside the audited root; the file was not read`;
+    let real;
+    try { real = realpathSync(abs); } catch { return `the file ${f.file} does not exist`; }
+    if (!inside(real)) return `the path ${f.file} resolves (through a symbolic link) outside the audited root; the file was not read`;
+    if (f.line === undefined || f.line === null) return null;
+    if (!Number.isInteger(f.line) || f.line < 1) return `the line ${JSON.stringify(f.line)} is not an integer of 1 or more`;
+    if (!statSync(real).isFile()) return `${f.file} is not a file, so it has no line ${f.line}`;
+    const n = linesOf(real);
+    return f.line > n ? `${f.file} has ${n} line${n === 1 ? "" : "s"}, so line ${f.line} does not exist` : null;
+  };
+  const verified = [], unverified = [];
+  for (const f of findings) {
+    let reason;
+    try { reason = check(f); } catch (e) { reason = `the evidence could not be checked (${e.code ?? e.message})`; }
+    if (reason) unverified.push({ ...f, reason }); else verified.push(f);
+  }
+  return { verified, unverified };
+}
 
 export function audit(root) {
   const inv = discover(root);
@@ -139,6 +182,10 @@ export function audit(root) {
     if (n > 0) evaluated.push({ rule, examined: n }); else notEvaluated.push({ rule, reason: `nothing to examine: ${reason}` });
   }
   for (const [rule, reason] of Object.entries(NOT_EVALUATED)) notEvaluated.push({ rule, reason });
+  const checked = verifyEvidence(root, findings);
+  findings.length = 0;
+  findings.push(...checked.verified);
+  const unverified = checked.unverified;
   findings.sort((a, b) => SEV[a.severity] - SEV[b.severity] || a.rule.localeCompare(b.rule) || a.file.localeCompare(b.file));
 
   const counts = findings.reduce((c, f) => ({ ...c, [f.severity]: (c[f.severity] ?? 0) + 1 }), {});
@@ -146,7 +193,7 @@ export function audit(root) {
     ok: !(counts.error > 0),
     summary: { roots: inv.roots.length, pipelines: inv.pipelines.length, applications: inv.applications.length, findings: counts },
     inventory: inventoryView(inv),
-    findings, evaluated, notEvaluated,
+    findings, unverified, evaluated, notEvaluated,
     notCovered: [...NOT_COVERED, ...(inv.terragrunt ? [`${inv.terragrunt} terragrunt.hcl file(s) found: Terragrunt is not supported, so the roots above may be incomplete`] : [])],
     nothingFound: inv.roots.length + inv.pipelines.length + inv.applications.length === 0,
   };
@@ -170,6 +217,10 @@ export function formatAudit(r) {
   L.push("", "Findings:");
   if (!r.findings.length) L.push("  none");
   for (const f of r.findings) L.push(`  ${f.severity === "error" ? "✗" : f.severity === "warning" ? "!" : "-"} [${f.rule}] ${f.file}${f.line ? `:${f.line}` : ""}: ${f.message}${f.inferred ? " [inferred]" : ""}\n      see ${f.ref}`);
+  if (r.unverified?.length) {
+    L.push("", "Not verified (the cited file or line could not be checked, so these are not counted):");
+    for (const f of r.unverified) L.push(`  ? [${f.rule}] ${f.file}${f.line ? `:${f.line}` : ""}: ${f.reason}`);
+  }
   L.push("", "Not evaluated:");
   for (const n of r.notEvaluated) L.push(`  ${n.rule}: ${n.reason}`);
   L.push("", "Not covered by this audit:");

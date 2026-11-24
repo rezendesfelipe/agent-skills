@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, readdirSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { audit } from "../scripts/lib/audit.mjs";
+import { audit, verifyEvidence } from "../scripts/lib/audit.mjs";
 import { HERE, ENGINE, FIXTURES, tempRepo } from "./helpers.mjs";
 
 const fixtureDir = (name) => join(HERE, "fixtures", "audit", name);
@@ -154,4 +154,67 @@ test("CLI: --json prints the full result, a clean repository exits 0, usage erro
   assert.equal(out.ok, true);
   assert.ok(out.inventory.terraformRoots.length === 3 && out.notEvaluated.length > 0 && out.notCovered.length > 0);
   assert.equal(spawnSync(process.execPath, [ENGINE, "audit", "--root", fixtureDir("monolith")], { encoding: "utf8" }).status, 1);
+});
+
+// ---- Evidence verified by code (spec: "Evidence verified by code") ----
+const evRoot = () => {
+  const d = mkdtempSync(join(tmpdir(), "ats-evidence-"));
+  mkdirSync(join(d, "infra"));
+  writeFileSync(join(d, "infra", "main.tf"), Array.from({ length: 40 }, (_, i) => `# line ${i + 1}`).join("\n") + "\n");
+  return d;
+};
+const fnd = (file, line) => ({ rule: "x", severity: "error", file, line, message: "m" });
+
+test("evidence: a normal finding is kept and counted as before", () => {
+  const d = evRoot();
+  const r = verifyEvidence(d, [fnd("infra/main.tf", 40), fnd("infra/main.tf", 1), fnd("infra", undefined), fnd("infra/main.tf", undefined)]);
+  assert.equal(r.verified.length, 4);
+  assert.deepEqual(r.unverified, []);
+});
+
+test("evidence: a line beyond the end of the file goes to unverified with the reason", () => {
+  const d = evRoot();
+  const r = verifyEvidence(d, [fnd("infra/main.tf", 500), fnd("infra/main.tf", 41), fnd("infra/main.tf", 0), fnd("infra/main.tf", 1.5), fnd("infra/main.tf", "3")]);
+  assert.equal(r.verified.length, 0);
+  assert.match(r.unverified[0].reason, /has 40 lines, so line 500 does not exist/);
+  assert.match(r.unverified[1].reason, /line 41 does not exist/);
+  assert.equal(r.unverified.length, 5);
+});
+
+test("evidence: a path with .. or outside the root is unverified and the file is not read", () => {
+  const d = evRoot();
+  const outside = mkdtempSync(join(tmpdir(), "ats-evidence-out-"));
+  writeFileSync(join(outside, "secret.tf"), "x\n");
+  const r = verifyEvidence(d, [fnd("../" + outside.split("/").pop() + "/secret.tf", 1), fnd("infra/../../x", 1), fnd(join(outside, "secret.tf"), 1), fnd("infra/nope.tf", 1), fnd("infra", 1)]);
+  assert.equal(r.verified.length, 0);
+  assert.match(r.unverified[0].reason, /".." segment/);
+  assert.match(r.unverified[1].reason, /".." segment/);
+  assert.match(r.unverified[2].reason, /outside the audited root/);
+  assert.match(r.unverified[3].reason, /does not exist/);
+  assert.match(r.unverified[4].reason, /not a file/);
+});
+
+test("evidence: a symbolic link that leaves the root is unverified, in the library, the text output and --json; the exit code does not depend on it", (t) => {
+  const outside = mkdtempSync(join(tmpdir(), "ats-evidence-out-"));
+  writeFileSync(join(outside, "main.tf"), 'terraform {\n  backend "azurerm" {}\n}\nresource "azurerm_resource_group" "x" {\n  name = "x"\n}\n');
+  const d = mkdtempSync(join(tmpdir(), "ats-evidence-link-"));
+  mkdirSync(join(d, "infra"));
+  try { symlinkSync(join(outside, "main.tf"), join(d, "infra", "main.tf")); } catch (e) { if (e.code === "EPERM") return t.skip("cannot create a symbolic link here (EPERM, Windows)"); throw e; }
+  const r = audit(d);
+  assert.ok(r.unverified.length >= 1);
+  assert.ok(r.unverified.every((f) => /symbolic link\) outside the audited root; the file was not read/.test(f.reason)));
+  assert.ok(r.findings.every((f) => f.file !== "infra/main.tf"), "an unverified finding does not stay in findings");
+  const total = Object.values(r.summary.findings).reduce((a, b) => a + b, 0);
+  assert.equal(total, r.findings.length, "the summary counts only verified findings");
+  const text = spawnSync(process.execPath, [ENGINE, "audit", "--root", d], { encoding: "utf8" });
+  assert.match(text.stdout, /Not verified \(/);
+  assert.match(text.stdout, /\? \[state-unknown\] infra\/main\.tf:2/);
+  const js = JSON.parse(spawnSync(process.execPath, [ENGINE, "audit", "--root", d, "--json"], { encoding: "utf8" }).stdout);
+  assert.ok(Array.isArray(js.unverified) && js.unverified.length === r.unverified.length);
+});
+
+test("evidence: a repository whose findings are all valid reports an empty unverified list", () => {
+  const r = audit(fixtureDir("monolith"));
+  assert.deepEqual(r.unverified, []);
+  assert.ok(!/Not verified/.test(spawnSync(process.execPath, [ENGINE, "audit", "--root", fixtureDir("monolith")], { encoding: "utf8" }).stdout));
 });
