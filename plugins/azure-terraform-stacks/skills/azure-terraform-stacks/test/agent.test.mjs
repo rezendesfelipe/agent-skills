@@ -129,3 +129,10 @@ test("the agent's text states the limits of the guard", () => {
   for (const phrase of ["fails open", "administrator disables plugin hooks", "permissions.deny", "read-only checkout", "Codex, Gemini CLI, Cursor and Copilot only these instructions apply"])
     assert.ok(body.includes(phrase), `missing: ${phrase}`);
 });
+
+test("the commands the agent is told to run carry no quote and no backslash (the guard denies both)", () => {
+  const block = /## Commands you may run[\s\S]*?```text\n([\s\S]*?)```/.exec(body)[1];
+  assert.ok(!/["'\\]/.test(block), block);
+  assert.ok(!/["'\\]/.test(lsLine()), lsLine());
+  assert.match(body, /Write every path bare: no quotes, no backslashes/);
+});

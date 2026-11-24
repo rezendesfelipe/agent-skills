@@ -4,16 +4,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { HERE } from "./helpers.mjs";
 
 const SKILL_DIR = join(HERE, "..");
 const PLUGIN = join(SKILL_DIR, "..", "..");
 const GUARD = join(PLUGIN, "hooks", "stacks-auditor-guard.mjs");
-const { SHAPES, USER_SKILL_FOLDERS, decide } = await import(pathToFileURL(GUARD).href);
+const { SHAPES, USER_SKILL_FOLDERS, decide, pathsOf } = await import(pathToFileURL(GUARD).href);
 
 // The plugin's own engine: trusted. A fake home with one user-installed engine (.gemini) and stubs for the other cases.
 const ENGINE = join(SKILL_DIR, "scripts", "stacks.mjs");
@@ -78,7 +78,6 @@ test("allowed: the engine lookup, the checks and the audit with the plugin's eng
   allowed(`node ${ENGINE} audit`);
   allowed(`node ${ENGINE} audit --root ${AUDITED} --json`);
   allowed(`node ${ENGINE} audit --json --root ${AUDITED}`);
-  allowed(`node "${ENGINE}" audit --root "${AUDITED}"`);
   allowed(`node ${USER_ENGINE} audit --json`);
   allowed("node ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs audit --root " + AUDITED);
 });
@@ -186,7 +185,7 @@ test("the dependency install: only `npm ci --prefix <trusted skill folder> --omi
   allowed(ok(SKILL_DIR));
   allowed(ok(USER_SKILL));
   allowed(ok("~/.gemini/skills/azure-terraform-stacks"));
-  allowed(`npm ci --prefix "${SKILL_DIR}" --omit=dev --ignore-scripts`);
+  for (const q of ['"', "'"]) denied(`npm ci --prefix ${q}${SKILL_DIR}${q} --omit=dev --ignore-scripts`, {}, /metacharacters/);
   // the old form (npm in the working directory) is gone, even from a trusted folder
   for (const cwd of [AUDITED, SKILL_DIR, undefined]) denied("npm ci --omit=dev --ignore-scripts", { cwd }, /only `npm ci --prefix/);
   // a prefix inside the audited repository, a look-alike elsewhere, a trusted-looking name that is not an engine
@@ -286,4 +285,139 @@ test("--ignore-scripts costs nothing: no package in the engine's lockfile has an
   const lock = JSON.parse(readFileSync(join(SKILL_DIR, "package-lock.json"), "utf8"));
   const withScripts = Object.entries(lock.packages).filter(([, p]) => p.hasInstallScript).map(([n]) => n);
   assert.deepEqual(withScripts, []);
+});
+
+// ---- Review cycle 2 (B1): the guard must be sure what the shell hands to the program ----
+const hostileTilde = () => {
+  const repo = tmp("ats-guard-tilde-");
+  stubSkill(join(repo, "~", ".claude", "skills", "azure-terraform-stacks"));
+  stubSkill(join(repo, "~", "skill"));
+  return repo;
+};
+
+test("B1: a tilde inside quotes is a literal path for the shell; the repository's directory named `~` must not pass for the home folder", () => {
+  const repo = hostileTilde();
+  const evil = "~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs";
+  for (const q of ['"', "'"]) {
+    denied(`node ${q}${evil}${q} audit`, { cwd: repo }, /metacharacters/);
+    denied(`node ${q}${evil}${q} audit --root ${repo} --json`, { cwd: repo }, /metacharacters/);
+    denied(`node ${ENGINE} audit --root ${q}~/x${q}`, { cwd: repo }, /metacharacters/);
+    denied(`npm ci --prefix ${q}~/skill${q} --omit=dev --ignore-scripts`, { cwd: repo }, /metacharacters/);
+    denied(`ls -d ${q}~/.claude${q}`, { cwd: repo }, /metacharacters/);
+    denied(`test -f ${q}~/x${q}`, { cwd: repo }, /metacharacters/);
+  }
+  // unquoted, the shell expands it to the home folder, and the guard judges that path (not the repository's `~` directory)
+  denied(`node ~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs audit`, { cwd: repo }, /does not exist or does not resolve/);
+  allowed(`node ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs audit --root ${repo}`, { cwd: AUDITED });
+});
+
+test("every quote and every backslash denies the whole command, in every position of every shape", () => {
+  for (const q of ['"', "'", "\\"]) {
+    for (const cmd of [
+      `ls -d ${q}/a${q}`, `ls -d /a${q}`, `ls -d a${q}b`, `test -f ${q}/a${q}`, `test -d /a${q}`, `node ${q}--version${q}`, `node --version${q}`,
+      `node ${q}${ENGINE}${q} audit`, `node ${ENGINE} ${q}audit${q}`, `node ${ENGINE} audit ${q}--json${q}`, `node ${ENGINE} audit --root ${q}${AUDITED}${q}`, `node ${ENGINE} audit --root ${AUDITED}${q}`,
+      `npm ${q}ci${q} --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, `npm ci --prefix ${q}${SKILL_DIR}${q} --omit=dev --ignore-scripts`, `npm ci --prefix ${SKILL_DIR} ${q}--omit=dev${q} --ignore-scripts`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts${q}`,
+      `${q}ls${q} -d /a`, `ls -d ${q}${q}`, `node ${ENGINE.slice(0, 5)}${q}${ENGINE.slice(5)} audit`,
+    ]) denied(cmd, {}, /metacharacters/);
+  }
+});
+
+test("a tilde is allowed only as the first character of an unquoted word followed by a slash", () => {
+  allowed("ls -d ~/.claude/skills/x ~/.gemini/y");
+  allowed("test -d ~/x");
+  for (const bad of ["ls -d ~", "ls -d ~+", "ls -d ~-", "ls -d ~user/x", "ls -d ~root", "ls -d a~b", "ls -d /a/~/b", "ls -d a:~/b", "ls -d ~/a~b",
+    `node ${ENGINE} audit --root=~/x`, `node ${ENGINE} audit --root ~+/x`, `node ${ENGINE} audit --root ~-/x`, `node ${ENGINE} audit --root a:~/b`, "test -f ~", "test -f ~x/y", `npm ci --prefix ~ --omit=dev --ignore-scripts`])
+    denied(bad, {}, /tilde|only|not on|unexpected/);
+  for (const bad of ["ls -d $HOME/x", "ls -d ${HOME}/x", "ls -d /a/*", "ls -d /a/{b,c}", "ls -d /a/?", "ls -d /a/[b]", "ls -d /a\\ b"]) denied(bad, {}, /metacharacters/);
+});
+
+test("the working directory must be an absolute path of an existing folder", () => {
+  const rel = `node ${ENGINE} audit`;
+  denied(rel, { cwd: "relative/dir" }, /not an absolute path of an existing folder/);
+  denied(rel, { cwd: "." }, /not an absolute path of an existing folder/);
+  denied(rel, { cwd: join(tmpdir(), "ats-guard-no-such-cwd") }, /not an absolute path of an existing folder/);
+  denied(`npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, { cwd: "relative/dir" }, /not an absolute path of an existing folder/);
+});
+
+test("--root with a .. segment is denied, like the engine and the --prefix", () => {
+  denied(`node ${ENGINE} audit --root ${sh(AUDITED)}/../x`, {}, /"\.\." segment/);
+  denied(`node ${ENGINE} audit --root ../x`, {}, /"\.\." segment/);
+  allowed(`node ${ENGINE} audit --root ${AUDITED}`);
+});
+
+test("only the engine itself is trusted, not any file under a trusted folder: a nested copy of the engine or of the folder is denied", () => {
+  const nestedEngine = stubSkill(join(USER_SKILL, "copy", "azure-terraform-stacks"));
+  denied(`node ${join(nestedEngine, "scripts", "stacks.mjs")} audit`, {}, /is not the engine of this plugin/);
+  const nestedPlugin = stubSkill(join(SKILL_DIR, "node_modules", ".ats-test-nested", "azure-terraform-stacks"));
+  try {
+    denied(`node ${join(nestedPlugin, "scripts", "stacks.mjs")} audit`, {}, /is not the engine of this plugin/);
+    denied(`npm ci --prefix ${nestedPlugin} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
+  } finally {
+    rmSync(join(SKILL_DIR, "node_modules", ".ats-test-nested"), { recursive: true, force: true });
+  }
+  denied(`npm ci --prefix ${nestedEngine} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
+  denied(`npm ci --prefix ${join(USER_SKILL, "scripts")} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
+  allowed(`node ${USER_ENGINE} audit`);
+});
+
+// ---- Differential test against the REAL shell (skipped on Windows) ----
+// For each candidate command the guard approves, the paths it resolved must be the paths the shell really hands to the program.
+// Any difference between the guard's model of the shell and the shell fails the test.
+const realArgv = (rest, cwd, home) => {
+  const r = spawnSync("bash", ["-c", `printf '%s\\0' ${rest}`], { cwd, env: { PATH: process.env.PATH, HOME: home }, encoding: "utf8" });
+  return r.status === 0 ? r.stdout.split("\0").slice(0, -1) : null;
+};
+const shellPaths = (argv) => {
+  const [exe, ...a] = argv;
+  if (exe === "ls") return a.slice(1);
+  if (exe === "test") return [a[1]];
+  if (exe === "node") return [a[0], ...(a.includes("--root") ? [a[a.indexOf("--root") + 1]] : [])];
+  if (exe === "npm") return [a[2]];
+  return [];
+};
+
+test("differential: for every command the guard approves, its resolved paths equal the argv the real bash delivers", (t) => {
+  if (process.platform === "win32") return t.skip("needs bash");
+  const repo = hostileTilde();
+  writeFileSync(join(repo, "a b"), "");
+  mkdirSync(join(repo, "rel"));
+  const q = (x) => x; // placeholders keep the corpus readable
+  const E = ENGINE, U = "~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs";
+  const corpus = [
+    `ls -d ${E} ~/.gemini/skills ${USER_ENGINE}`, `ls -d ~/.claude ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs`, "ls -d rel ./rel rel/", "ls -d ~/x/y",
+    "test -f ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs", "test -d rel", "test -d ~/",
+    `node ${E} audit`, `node ${E} audit --root ${repo} --json`, `node ${U} audit --root ~/x`, `node ${U} audit --json --root rel`, `node ${USER_ENGINE} audit --root ${AUDITED}`,
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, "npm ci --prefix ~/.gemini/skills/azure-terraform-stacks --omit=dev --ignore-scripts",
+    // hostile and divergent forms: the guard must deny them, and if it ever approves one, the shell must agree
+    `node "~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs" audit`, `node '~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs' audit`,
+    `node ~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs audit`, `node ${E} audit --root "~/x"`, `node ${E} audit --root='~/x'`, `node ${E} audit --root=~/x`,
+    `node ${E} audit --root ~+/x`, `node ${E} audit --root ~-/x`, `node ${E} audit --root ~root/x`, `node ${E} audit --root a:~/b`, "ls -d ~", "ls -d ~+", "ls -d ~-", "ls -d ~/~",
+    "ls -d $HOME/x", "ls -d ${HOME}/x", "ls -d /a/*", "ls -d /a/{b,c}", "ls -d rel/?", "ls -d re[l]", "ls -d a\\ b", 'ls -d "a b"', "ls -d 'a b'", "ls -d a\\\\b", `ls -d ""`, "ls -d ''", 'ls -d a"b"', "ls -d ^a", "ls -d =a", "ls -d a=b", "ls -d %a", "ls -d @a", "ls -d a,b", "ls -d a:b",
+    `npm ci --prefix "~/skill" --omit=dev --ignore-scripts`, `npm ci --prefix '~/skill' --omit=dev --ignore-scripts`, "npm ci --prefix ~/skill --omit=dev --ignore-scripts",
+  ];
+  let approved = 0;
+  for (const cmd of corpus) {
+    const ctx = { cwd: repo, home: HOME };
+    const d = decide(cmd, ctx);
+    if (!d.allow) continue;
+    approved++;
+    const argv = realArgv(cmd, repo, HOME);
+    assert.ok(argv, `bash could not run: ${cmd}`);
+    const real = shellPaths(argv).map((x) => resolve(repo, x));
+    const mine = pathsOf(cmd, ctx);
+    assert.deepEqual(mine, real, `guard and shell disagree on: ${cmd}`);
+    assert.deepEqual(mine.map((x) => (existsSync(x) ? realpathSync(x) : x)), real.map((x) => (existsSync(x) ? realpathSync(x) : x)));
+  }
+  assert.ok(approved >= 8, `the corpus must exercise approved commands (${approved})`);
+});
+
+test("differential: commands denied for quotes, backslashes or tildes are exactly the ones whose argv the guard could not model", (t) => {
+  if (process.platform === "win32") return t.skip("needs bash");
+  // for these the real shell hands over something different from the raw text, and the guard denies every one of them
+  const repo = hostileTilde();
+  for (const cmd of [`ls -d "~/x"`, `ls -d '~/x'`, "ls -d ~+", "ls -d ~-", "ls -d a\\ b", `ls -d a"b"c`, "ls -d /a/{b,c}", "ls -d /a/*", "ls -d $HOME"]) {
+    assert.equal(decide(cmd, { cwd: repo, home: HOME }).allow, false, cmd);
+  }
+  const argv = realArgv(`ls -d "~/x" ~/x`, repo, HOME);
+  assert.deepEqual(argv, ["ls", "-d", "~/x", join(HOME, "x")], "bash leaves a quoted tilde literal and expands an unquoted one");
 });

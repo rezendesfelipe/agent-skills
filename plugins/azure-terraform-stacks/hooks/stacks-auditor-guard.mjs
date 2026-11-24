@@ -38,38 +38,26 @@ export const USER_SKILL_FOLDERS = [".claude/skills", ".agents/skills", ".gemini/
 const PLUGIN_SKILL_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "skills", SKILL);
 
 const ENGINE_TAIL = `${SKILL}/scripts/stacks.mjs`;
-// A newline or any of ; & | < > ` $ ( ) { } is denied before matching (the spec), plus the characters that
-// expand or escape in a shell: backslash, history bang, glob characters and comment. Control characters too.
+// RULE: the guard approves a command only when it is SURE what the shell will hand to the program. So it does not model
+// the shell's quoting at all: any quote (single or double) and any backslash deny the whole command, as do a newline or
+// any of ; & | < > ` $ ( ) { } and the characters that expand in a shell (history bang, globs, comment). Control
+// characters too. What is left is words separated by spaces or tabs, where the one thing the shell still rewrites is
+// a tilde, handled by `tildeOk` below.
 // eslint-disable-next-line no-control-regex
-const FORBIDDEN = /[\u0000-\u0008\u000a-\u001f\u007f;&|<>`$(){}\\!*?[\]#]/;
+const FORBIDDEN = /[\u0000-\u0008\u000a-\u001f\u007f;&|<>`$(){}\\!*?[\]#"']/;
 
 const deny = (reason) => ({ allow: false, reason });
 const allow = () => ({ allow: true });
 
-/** Splits on spaces and tabs; a token may be wrapped in one pair of quotes. Returns null when a quote is misused. */
-function tokenize(cmd) {
-  const tokens = [];
-  let i = 0;
-  while (i < cmd.length) {
-    if (cmd[i] === " " || cmd[i] === "\t") { i++; continue; }
-    if (cmd[i] === '"' || cmd[i] === "'") {
-      const end = cmd.indexOf(cmd[i], i + 1);
-      if (end < 0) return null;
-      tokens.push(cmd.slice(i + 1, end));
-      i = end + 1;
-      if (i < cmd.length && cmd[i] !== " " && cmd[i] !== "\t") return null; // `"a"b` glues a quote to a word
-    } else {
-      let j = i;
-      while (j < cmd.length && cmd[j] !== " " && cmd[j] !== "\t") {
-        if (cmd[j] === '"' || cmd[j] === "'") return null;
-        j++;
-      }
-      tokens.push(cmd.slice(i, j));
-      i = j;
-    }
-  }
-  return tokens;
-}
+/** Words separated by spaces and tabs (the command has no quote, so nothing else can group or split them). */
+const tokenize = (cmd) => cmd.split(/[ \t]+/).filter(Boolean);
+
+/**
+ * A `~` is allowed only as the first character of a word and followed by `/` (the shell then expands it to the user's
+ * home directory, and only because it is NOT quoted, which the FORBIDDEN rule guarantees). Anywhere else (`~`, `~+`, `~-`,
+ * `~user`, `--root=~/x`, `a:~/b`, `a~b`) the shell's result is not certain, so the command is denied.
+ */
+const tildeOk = (token) => !token.includes("~") || (token.startsWith("~/") && token.indexOf("~", 1) === -1);
 
 const isPath = (t) => typeof t === "string" && t.length > 0 && !t.startsWith("-");
 const hasDotDot = (p) => p.split(/[\\/]/).includes("..");
@@ -79,8 +67,8 @@ const norm = (p) => (process.platform === "win32" ? p.toLowerCase() : p);
 const same = (a, b) => norm(a) === norm(b);
 const within = (child, parent) => { const r = relative(norm(parent), norm(child)); return r === "" || (!r.startsWith("..") && !isAbsolute(r)); };
 
-/** `~` and `~/x` mean the home directory (the shell expands them, the guard sees the raw text); anything else relative is relative to cwd. */
-const expand = (p, cwd, home) => (p === "~" ? home : p.startsWith("~/") ? join(home, p.slice(2)) : resolve(cwd, p));
+/** `~/x` is the home directory plus `x` (the unquoted tilde the shell expands, see `tildeOk`); any other path is relative to cwd. */
+export const expand = (p, cwd, home) => (p.startsWith("~/") ? join(home, p.slice(2)) : resolve(cwd, p));
 
 /** Real paths of the skill folders the guard trusts: the plugin's own, then the user's, for the five tools. */
 function trustedSkillDirs(home) {
@@ -104,7 +92,9 @@ function isEngineDir(dir) {
  */
 function untrusted(given, what, want, { cwd, home, root }) {
   if (typeof cwd !== "string" || !cwd) return "the working directory is unknown, so the guard cannot tell whether the path is inside the audited repository";
+  if (!isAbsolute(cwd) || !realOf(cwd)) return "the working directory is not an absolute path of an existing folder (Claude Code sends one), so the guard cannot resolve relative paths";
   if (hasDotDot(given)) return `${what} has a ".." segment`;
+  if (root !== undefined && hasDotDot(root)) return 'the audited --root has a ".." segment';
   const abs = expand(given, cwd, home);
   const real = realOf(abs);
   if (!real) return `${what} does not exist or does not resolve`;
@@ -129,7 +119,8 @@ export function decide(command, { cwd, home = homedir() } = {}) {
   if (typeof command !== "string" || !command.trim()) return deny("empty command");
   if (FORBIDDEN.test(command)) return deny("shell metacharacters (newline ; & | < > ` $ ( ) { } and escapes, globs or comments) are not allowed: run one plain command");
   const t = tokenize(command);
-  if (!t || !t.length) return deny("quotes must wrap a whole argument");
+  const badTilde = t.find((x) => !tildeOk(x));
+  if (badTilde !== undefined) return deny(`"${badTilde}": a tilde is allowed only as the first character of a word, followed by "/" (the shell expands it there; anywhere else the guard cannot be sure what the program receives)`);
 
   switch (t[0]) {
     case "ls":
@@ -172,6 +163,21 @@ export function decide(command, { cwd, home = homedir() } = {}) {
     default:
       return deny(`\`${t[0]}\` is not on the allowlist (${SHAPES.join("; ")})`);
   }
+}
+
+/**
+ * The absolute paths the guard resolves for a command it understands, in order: the arguments of `ls -d`, the one of
+ * `test`, the engine and `--root` of `node`, the `--prefix` of `npm`. Used by `decide` and by the differential test, which
+ * compares them with what a real shell hands to the program.
+ */
+export function pathsOf(command, { cwd, home = homedir() } = {}) {
+  const t = tokenize(command);
+  const at = (xs) => xs.map((x) => expand(x, cwd, home));
+  if (t[0] === "ls") return at(t.slice(2));
+  if (t[0] === "test") return at([t[2]]);
+  if (t[0] === "node") return at([t[1], ...(t.includes("--root") ? [t[t.indexOf("--root") + 1]] : [])]);
+  if (t[0] === "npm") return at([t[3]]);
+  return [];
 }
 
 /** The hook's decision for one input object (already parsed). */
