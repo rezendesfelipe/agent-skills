@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { readText } from "./helpers.mjs";
 import { ENGINE_VERSION, SKILL_VERSION } from "../scripts/lib/version.mjs";
 
 const SKILL = fileURLToPath(new URL("..", import.meta.url));
@@ -18,7 +19,7 @@ const walk = (dir, out = []) => {
 const scripts = () => walk(join(SKILL, "scripts")).filter((f) => f.endsWith(".mjs"));
 
 test("SKILL.md has at most 150 lines (reports the count when it does not)", () => {
-  const lines = readFileSync(join(SKILL, "SKILL.md"), "utf8").split("\n").length;
+  const lines = readText(join(SKILL, "SKILL.md")).split("\n").length;
   assert.ok(lines <= 150, `SKILL.md has ${lines} lines; the limit is 150`);
 });
 
@@ -60,5 +61,5 @@ test("no rendering code: no import of a PDF or DOCX library, no HTML layout temp
   }
   const templates = walk(SKILL).filter((f) => /\.(html?|css|hbs|ejs|njk)$/i.test(f));
   assert.deepEqual(templates.map((f) => relative(SKILL, f)), [], "no HTML or CSS layout templates");
-  assert.match(readFileSync(join(SKILL, "references", "report-format.md"), "utf8"), /contains no layout, PDF or DOCX code/);
+  assert.match(readText(join(SKILL, "references", "report-format.md")), /contains no layout, PDF or DOCX code/);
 });

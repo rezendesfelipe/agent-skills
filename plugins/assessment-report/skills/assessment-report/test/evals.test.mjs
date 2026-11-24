@@ -9,7 +9,7 @@ import { caseIds, checkKey, KEYS_DIR, loadKey } from "../evals/keys.mjs";
 import { hashMatches, loadResults, renderResultsMd, RESULTS_MD, withHash } from "../evals/results.mjs";
 import { scoreRun } from "../evals/scorer.mjs";
 import { fakeSecretValue, MARKER } from "../evals/fake-secret.mjs";
-import { readJson, tmp, writeJson } from "./helpers.mjs";
+import { readJson, readText, tmp, writeJson } from "./helpers.mjs";
 
 const RUN = fileURLToPath(new URL("../evals/run.mjs", import.meta.url));
 import { spawnSync } from "node:child_process";
@@ -93,7 +93,7 @@ test("no key or case file leaks into a prepared workspace", () => {
   const all = readdirSync(ws, { recursive: true }).map(String);
   assert.ok(all.includes("PROMPT.md") && all.some((f) => f.startsWith("repo")));
   assert.ok(!all.some((f) => /key\.json|case\.json/.test(f)));
-  const prompt = readFileSync(join(ws, "PROMPT.md"), "utf8");
+  const prompt = readText(join(ws, "PROMPT.md"));
   for (const secret of ["P-01", fakeSecretValue(), "PINEAPPLE", "planted"]) assert.ok(!prompt.includes(secret), `the prompt must not reveal ${secret}`);
   assert.equal(harness(["prepare", "--case", "M-01", "--workspace", ws]).code, 2, "a non-empty workspace is refused");
 });
@@ -224,7 +224,7 @@ test("record writes <date>_<model>_<skill-version>.json with a hash, lists every
   assert.equal(res.runsPerCase["M-01"], 5);
   assert.equal(res.repositoryCommit, "abc123");
   assert.ok(hashMatches(res));
-  const text = readFileSync(md, "utf8");
+  const text = readText(md);
   assert.equal(text.split("\n").filter((l) => l.startsWith("| M-01 |")).length, 5, "five rows for five runs, with the same model identifier");
   assert.equal(text.split("\n").filter((l) => l.startsWith("| M-01 |") && l.includes("| some/model:1 |")).length, 5);
   r = harness(args, env);
@@ -235,7 +235,7 @@ test("record writes <date>_<model>_<skill-version>.json with a hash, lists every
 test("committed results are untouched (hash matches), and RESULTS.md is generated from them", () => {
   const results = loadResults();
   for (const { file, result } of results) assert.ok(hashMatches(result), `${file} was edited by hand: its content hash does not match`);
-  assert.equal(readFileSync(RESULTS_MD, "utf8"), renderResultsMd(results), "RESULTS.md is stale; run node evals/run.mjs results");
+  assert.equal(readText(RESULTS_MD), renderResultsMd(results), "RESULTS.md is stale; run node evals/run.mjs results");
 });
 
 test("a hand-edited result is detected", () => {

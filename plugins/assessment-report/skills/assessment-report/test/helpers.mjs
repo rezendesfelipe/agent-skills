@@ -23,6 +23,8 @@ export function repoCopy() {
   return dir;
 }
 
+/** Reads a versioned text file with LF line endings, whatever the checkout used (CRLF on Windows, or a lone CR). */
+export const readText = (p) => readFileSync(p, "utf8").replace(/\r\n?/g, "\n");
 export const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 export const writeJson = (p, v) => writeFileSync(p, `${JSON.stringify(v, null, 2)}\n`);
 

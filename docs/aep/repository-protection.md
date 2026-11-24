@@ -32,6 +32,19 @@ Status is as read on the date above.
 - [ ] **4. Tag ruleset.** The ruleset on `refs/tags/v*` is in place with `creation`, `update` and `deletion`. What remains is the bypass: the Integration can bypass it always. Recommended: **remove the Integration from the tag ruleset's bypass**, so that creating or deleting a `v*` tag needs the maintainer.
 - [ ] **5. Labels.** `node:*`, `cycle:1`, `cycle:2`, `cycle:3`, `review:approved`, `review:changes-requested` and `needs:maintainer` do not exist yet. The maintainer creates them.
 
+## The `assessment-report` job (decision for the maintainer)
+
+The change `harden-assessment-secret-scan` adds the job `assessment-report` to `validate.yml`. It runs the engine tests of the `assessment-report` skill and its contract test with `docs-generator` on Linux and Windows. It reports on every pull request (no path filter) but is **not a required check**: until the maintainer edits the ruleset, a failure of this job does not block a merge. Only the maintainer edits the ruleset (a repository setting, not part of any diff).
+
+Exact names of the four checks, as the matrix produces them:
+
+- `assessment-report (ubuntu-latest, 20)`
+- `assessment-report (ubuntu-latest, 24)`
+- `assessment-report (windows-latest, 20)`
+- `assessment-report (windows-latest, 24)`
+
+Recommendation: require them after the job has been green for about two weeks. The required count then goes from 15 to 19. Trade-off: a flaky job would block every pull request, and each change of the matrix (an OS or a Node version) changes the required names.
+
 ## What the current bypass allows (and why this page does not call "green CI" enforced)
 
 Because the Integration bypasses `main-protection` in mode `always`, and the Integration is the identity that Claude acts with:
@@ -47,6 +60,7 @@ So the repository does **not** enforce "green CI before merge", "no push to `mai
 2. Remove the Integration from the bypass of `release-tags-protection`.
 3. Create the labels of item 5.
 4. Decide whether `delivery-check` is a required check.
+5. Decide whether to require the four `assessment-report (...)` checks (15 to 19 required checks), after about two weeks of green runs.
 
 ## The honest limit
 
