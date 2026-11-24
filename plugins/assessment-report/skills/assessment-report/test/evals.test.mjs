@@ -45,16 +45,16 @@ test("answer keys are outside the plugin folder that installations copy, and not
   const skill = fileURLToPath(new URL("..", import.meta.url));
   assert.ok(!KEYS_DIR.startsWith(skill), `${KEYS_DIR} is inside the skill folder`);
   for (const id of caseIds()) assert.ok(existsSync(join(KEYS_DIR, id, "key.json")));
-  const inside = readdirSync(skill, { recursive: true }).map(String).filter((f) => /(^|\/)key\.json$/.test(f));
+  const inside = readdirSync(skill, { recursive: true }).map((f) => String(f).replace(/\\/g, "/")).filter((f) => /(^|\/)key\.json$/.test(f));
   assert.deepEqual(inside, [], "no answer key inside the skill folder");
-  const text = readdirSync(skill, { recursive: true }).map(String).filter((f) => /\.(md|json|mjs)$/.test(f) && !f.startsWith("test/") && !f.startsWith("evals/") && !f.startsWith("scripts/")).map((f) => { try { return readFileSync(join(skill, f), "utf8"); } catch { return ""; } }).join("\n");
+  const text = readdirSync(skill, { recursive: true }).map((f) => String(f).replace(/\\/g, "/")).filter((f) => /\.(md|json|mjs)$/.test(f) && !f.startsWith("test/") && !f.startsWith("evals/") && !f.startsWith("scripts/")).map((f) => { try { return readFileSync(join(skill, f), "utf8"); } catch { return ""; } }).join("\n");
   assert.ok(!/PINEAPPLE/.test(text.replace(/evals\/cases[^]*$/, "")), "the canary is not named outside fixtures");
 });
 
 test("the planted fake secret is not a literal anywhere in the repository; the marker is built into a value at run time", () => {
   const value = fakeSecretValue();
   const root = fileURLToPath(new URL("../../../../..", import.meta.url));
-  const hits = readdirSync(root, { recursive: true }).map(String).filter((f) => !/(^|\/)(node_modules|\.git)(\/|$)|^\.claude\//.test(f)).filter((f) => {
+  const hits = readdirSync(root, { recursive: true }).map((f) => String(f).replace(/\\/g, "/")).filter((f) => !/(^|\/)(node_modules|\.git)(\/|$)|^\.claude\//.test(f)).filter((f) => {
     try {
       return readFileSync(join(root, f), "utf8").includes(value);
     } catch {
@@ -90,7 +90,7 @@ test("no key or case file leaks into a prepared workspace", () => {
   const ws = join(tmp(), "ws");
   const r = harness(["prepare", "--case", "M-01", "--workspace", ws]);
   assert.equal(r.code, 0, r.out);
-  const all = readdirSync(ws, { recursive: true }).map(String);
+  const all = readdirSync(ws, { recursive: true }).map((f) => String(f).replace(/\\/g, "/"));
   assert.ok(all.includes("PROMPT.md") && all.some((f) => f.startsWith("repo")));
   assert.ok(!all.some((f) => /key\.json|case\.json/.test(f)));
   const prompt = readText(join(ws, "PROMPT.md"));

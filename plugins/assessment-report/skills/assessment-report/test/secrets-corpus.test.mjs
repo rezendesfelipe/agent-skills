@@ -3,8 +3,9 @@
 // flags nothing outside an explicit allowlist. A test source or fixture that holds a credential-shaped literal fails
 // here, and the failure names the file, the line and the kind, never the value.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { scanString } from "../scripts/lib/secrets.mjs";
@@ -25,17 +26,23 @@ export const ALLOWLIST = [
 const normalize = (t) => t.replace(/\r\n?/g, "\n");
 const rel = (p) => relative(PLUGINS, p).split("\\").join("/");
 
+/** Versioned files only (git ls-files, no shell), so a generated or untracked file never enters the corpus. */
+export function versioned(cwd) {
+  const r = spawnSync("git", ["ls-files", "-z", "--", "."], { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  if (r.error || r.status !== 0) throw new Error(`the corpus test needs git to list the versioned files: ${r.error ? r.error.message : r.stderr.trim()}`);
+  return r.stdout.split("\0").filter(Boolean).map((f) => join(cwd, f));
+}
+
 export function collect(roots) {
   const files = [];
-  const walk = (d) => {
-    for (const n of readdirSync(d)) {
-      if (SKIP_DIRS.has(n)) continue;
-      const p = join(d, n);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (TEXT.test(n) || /^(?:SKILL|README)\.md$/.test(n)) files.push(p);
+  for (const r of roots) {
+    if (!existsSync(r)) continue;
+    for (const p of versioned(r)) {
+      const n = p.slice(p.lastIndexOf(sep) + 1);
+      if (p.split(sep).some((x) => SKIP_DIRS.has(x))) continue;
+      if (TEXT.test(n) || /^(?:SKILL|README)\.md$/.test(n)) files.push(p);
     }
-  };
-  for (const r of roots) if (existsSync(r)) walk(r);
+  }
   return files;
 }
 
@@ -61,19 +68,44 @@ test("corpus: the scanner flags nothing in the versioned files of the skill and 
   assert.deepEqual(hits.map((h) => `${h.where} ${h.kind}`), []);
 });
 
+/** A temporary git repository with the given files added (the corpus lists versioned files only). */
+function repoOf(files) {
+  const dir = tmp("corpus-repo-");
+  spawnSync("git", ["init", "-q"], { cwd: dir });
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, name)), { recursive: true });
+    writeFileSync(join(dir, name), text);
+  }
+  spawnSync("git", ["add", "-A"], { cwd: dir });
+  return dir;
+}
+
 test("corpus: a test source with an assignment of a credential-shaped literal fails, naming file and kind but not the value", () => {
-  const dir = tmp("corpus-");
-  mkdirSync(join(dir, "test"));
   const value = ["Zx9fQ2", "mK7vLp", "4Rt8Wy"].join("");
-  writeFileSync(join(dir, "test", "bad.test.mjs"), `const a = "${["db_pass", "word"].join("")} = '${value}'";\n`);
+  const dir = repoOf({ "test/bad.test.mjs": `const a = "${["db_pass", "word"].join("")} = '${value}'";\n` });
   const hits = scanFiles(collect([dir]));
   assert.equal(hits.length, 1);
   assert.equal(hits[0].kind, "generic-credential");
   assert.ok(!JSON.stringify(hits).includes(value), "the value is never part of a finding");
 });
 
+test("corpus: only versioned files are scanned; an untracked file with a flaggable line is not read", () => {
+  const dir = tmp("corpus-git-");
+  const git = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  assert.equal(git("init", "-q").status, 0, "git is required");
+  const line = `${["db_pass", "word"].join("")} = '${["Zx9fQ2", "mK7vLp", "4Rt8Wy"].join("")}'\n`;
+  writeFileSync(join(dir, "tracked.md"), "plain\n");
+  writeFileSync(join(dir, "generated.txt"), line);
+  git("add", "tracked.md");
+  const files = collect([dir]).map((f) => f.slice(dir.length + 1));
+  assert.deepEqual(files, ["tracked.md"]);
+  git("add", "generated.txt");
+  assert.deepEqual(collect([dir]).map((f) => f.slice(dir.length + 1)).sort(), ["generated.txt", "tracked.md"]);
+  assert.equal(scanFiles(collect([dir])).length, 1);
+  assert.throws(() => versioned(tmp("corpus-nogit-")), /needs git/);
+});
+
 test("corpus: CRLF in a versioned file gives the same result as LF", () => {
-  const dir = tmp("corpus-crlf-");
-  writeFileSync(join(dir, "a.md"), "line one\r\nline two\r\n");
+  const dir = repoOf({ "a.md": "line one\r\nline two\r\n" });
   assert.deepEqual(scanFiles(collect([dir])), []);
 });

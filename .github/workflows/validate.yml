@@ -113,8 +113,9 @@ jobs:
         env:
           ASSESSMENT_REPORT_REQUIRE_CONTRACT: "1"
         run: |
-          npm test 2>&1 | tee test-output.txt
-          skipped=$(tr -d '\r' < test-output.txt | grep -Eo '(^|[[:space:]])skipped [0-9]+$' | tail -n 1 | grep -Eo '[0-9]+$' || true)
+          # the log goes outside the checkout, so it never becomes part of the tested tree
+          npm test 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
+          skipped=$(tr -d '\r' < "$RUNNER_TEMP/test-output.txt" | grep -Eo '(^|[[:space:]])skipped [0-9]+$' | tail -n 1 | grep -Eo '[0-9]+$' || true)
           echo "Skipped tests: ${skipped:-unknown}"
           test "${skipped:-unknown}" = "0"
 

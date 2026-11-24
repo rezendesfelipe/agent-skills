@@ -100,10 +100,11 @@ const SHAPES = [
   ["generic-credential", j("client", "_", "secret", ": ", "abcd", "efgh")],
   ["generic-credential", j("export DB_", "PASS", "WORD", "=", "swordfish")],
 ];
-for (const [kind, text] of SHAPES)
-  test(`secret shape detected: ${kind} (${text.slice(0, 18)}...)`, () => {
+// the title names the kind and the case number, never a part of the value: test names reach the CI log
+SHAPES.forEach(([kind, text], n) =>
+  test(`secret shape detected: ${kind} (case ${n + 1})`, () => {
     assert.ok(scanString(text).includes(kind), `${kind} not found in a ${text.length}-char string`);
-  });
+  }));
 
 test("references, placeholders and ordinary configuration are not flagged as secrets", () => {
   for (const ok of [
