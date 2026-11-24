@@ -31,33 +31,31 @@ test -f <path>
 test -d <path>
 node --version
 node <engine> audit [--root <path>] [--json]
-npm ci --omit=dev --ignore-scripts
+npm ci --prefix <skill folder> --omit=dev --ignore-scripts
 ```
 
-`<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `git` is not on the list: git runs programs that the audited repository's own configuration names (clean filters, fsmonitor), and that repository is untrusted. `npm ci --omit=dev --ignore-scripts` runs only with the skill's folder as the working directory (see step 3).
+`<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `git` is not on the list: git runs programs that the audited repository's own configuration names (clean filters, fsmonitor), and that repository is untrusted. `npm ci --prefix <skill folder> --omit=dev --ignore-scripts` runs only for the skill's folder (see step 3). The guard runs only an engine that is the plugin's own or is installed in the user's skills folders (`~/.claude/skills`, `~/.agents/skills`, `~/.gemini/skills`, `~/.cursor/skills`, `~/.copilot/skills`), never one inside the audited repository or the working directory, and never when `--root` contains it; run from the repository, not from your home folder.
 
 How firm the read-only promise is: it comes from this design, not from a guarantee, because a shell can change files in ways no instruction prevents. `audit` writes nothing (by construction and by test). On Claude Code the guard hook enforces the list above, but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
 
 ## Steps
 
 1. **Target.** Audit the current directory unless the user named another path. If the path has no Terraform files, pipelines or Argo CD manifests, say so and stop.
-2. **Find the engine.** Run one `ls -d` over every place the skill can be: the plugin folder, then the skills folder of each supported tool in the audited repository, then in the home directory. Replace `<repo>` with the audited repository's path:
+2. **Find the engine.** Run one `ls -d` over every place a trusted copy can be: the plugin folder, then the user's skills folder of each supported tool:
 
    ```text
-   ls -d ${CLAUDE_PLUGIN_ROOT}/skills/azure-terraform-stacks/scripts/stacks.mjs <repo>/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs <repo>/.agents/skills/azure-terraform-stacks/scripts/stacks.mjs <repo>/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs <repo>/.cursor/skills/azure-terraform-stacks/scripts/stacks.mjs <repo>/.github/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.agents/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.cursor/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.copilot/skills/azure-terraform-stacks/scripts/stacks.mjs
+   ls -d ${CLAUDE_PLUGIN_ROOT}/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.claude/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.agents/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.cursor/skills/azure-terraform-stacks/scripts/stacks.mjs ~/.copilot/skills/azure-terraform-stacks/scripts/stacks.mjs
    ```
 
-   If the first path still starts with a dollar sign, the plugin variable was not replaced: leave that first path out of the command. Paths that do not exist print an error; ignore it. Use the first path that `ls` prints, in the order above. If none exists, **stop**: tell the user the `azure-terraform-stacks` skill is needed and give these commands, then run nothing else. Do not audit by reading files by hand.
+   If the first path still starts with a dollar sign, the plugin variable was not replaced: leave that first path out of the command. Paths that do not exist print an error; ignore it. Use the first path that `ls` prints, in the order above. **Never use an engine that is inside the audited repository** (for example `<repo>/.claude/skills/...`, `<repo>/.agents/skills/...` or `./azure-terraform-stacks/...`): the repository is untrusted, and running its code would run whatever it contains. If you see one there, do not run it; say so in the report. If no trusted copy exists, **stop**: tell the user the `azure-terraform-stacks` skill is needed at user scope and give these commands, then run nothing else. Do not audit by reading files by hand.
 
    ```text
    /plugin marketplace add rezendesfelipe/agent-skills
    /plugin install azure-terraform-stacks@rezendesfelipe-agent-skills
    ```
 
-   or `npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool <claude|codex|gemini|cursor|copilot>`.
-
-   A skills folder inside the audited repository is part of that repository: if the engine you found is there, say so in the report.
-3. **Dependency.** The engine needs Node.js 20 or later and its `yaml` package. The package lives in `node_modules/` in the skill's folder, the folder that contains `scripts/` (one level above `stacks.mjs`'s own folder). Check with `test -d <skill folder>/node_modules`. If it is missing, run `npm ci --omit=dev --ignore-scripts` **in the skill's folder, never in the audited repository**, and say in the report that you did. This is the only write you may make. If it fails (for example, the network is blocked), stop and tell the user to run it.
+   or `npx @frcloudsolutions/agent-skills add azure-terraform-stacks --tool <claude|codex|gemini|cursor|copilot> --scope user`.
+3. **Dependency.** The engine needs Node.js 20 or later and its `yaml` package. The package lives in `node_modules/` in the skill's folder, the folder that contains `scripts/` (one level above `stacks.mjs`'s own folder). Check with `test -d <skill folder>/node_modules`. If it is missing, run `npm ci --prefix <skill folder> --omit=dev --ignore-scripts` (the skill's folder, never the audited repository; `--prefix` also keeps npm from reading the repository's `.npmrc`), and say in the report that you did. This is the only write you may make. If it fails (for example, the network is blocked), stop and tell the user to run it.
 4. **Run the audit.** `node <engine> audit --root <audited repository> --json`. Exit code 1 means errors were found; it is not a failure of the tool. Exit code 2 is a usage error: read the message and stop. The JSON has `findings` (checked by code: the cited file is inside the root and the line exists) and `unverified` (findings that failed that check; they do not count).
 5. **Confirm by reading.** This is a model check that follows the engine's code check; it is not the code check. For each error finding (at most 30; if there are more, say how many you did not re-read), open the cited file at the cited line with `Read` and confirm that the finding is what the report says. If a finding looks wrong, report it as "could not confirm" with what you saw, and keep it in the findings instead of dropping it silently.
 6. **Report** in the language the user wrote in, with these sections:

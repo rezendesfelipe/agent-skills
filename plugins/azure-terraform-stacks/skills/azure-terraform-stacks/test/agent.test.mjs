@@ -72,28 +72,24 @@ test("the instructions state the rules, the steps and the report sections", () =
   assert.match(body, /not "compliant"|Do not write "compliant"/);
 });
 
-// The single `ls -d` line of step 2: the plugin path, then the project and user folders of every tool.
+// The single `ls -d` line of step 2: the plugin path, then the USER skills folders of every tool. The project-scope folders
+// (inside the audited repository, which is untrusted) are not looked in: the guard would not run an engine from there.
 const lsLine = () => body.split("\n").map((l) => l.trim()).find((l) => l.startsWith("ls -d ${CLAUDE_PLUGIN_ROOT}"));
 const ENGINE_TAIL = `${SKILL}/scripts/stacks.mjs`;
 
-test("the engine is looked up with one ls -d call: plugin path first, then project folders, then user folders", () => {
+test("the engine is looked up with one ls -d call: the plugin path first, then user folders, never a project folder", () => {
   const line = lsLine();
   assert.ok(line, "step 2 has an `ls -d ${CLAUDE_PLUGIN_ROOT}...` line");
   const paths = line.slice("ls -d ".length).split(/\s+/);
   assert.ok(paths[0].startsWith("${CLAUDE_PLUGIN_ROOT}/skills/") && paths[0].endsWith(ENGINE_TAIL));
-  assert.ok(paths.slice(1).every((p) => p.endsWith(`/${ENGINE_TAIL}`)));
-  assert.ok(paths.slice(1).every((p) => p.startsWith("<repo>/") || p.startsWith("~/")));
-  const firstUser = paths.findIndex((p) => p.startsWith("~/"));
-  assert.ok(paths.slice(1, firstUser).every((p) => p.startsWith("<repo>/")) && paths.slice(firstUser).every((p) => p.startsWith("~/")), "project folders, then user folders");
+  assert.ok(paths.slice(1).every((p) => p.startsWith("~/") && p.endsWith(`/${ENGINE_TAIL}`)));
+  assert.ok(!line.includes("<repo>"));
+  assert.match(body, /Never use an engine that is inside the audited repository/);
 });
 
-test("the skills folders in the agent are exactly the user and project folders of src/lib/tools.mjs, in the tools' order", async () => {
+test("the user skills folders in the agent are exactly the user folders of src/lib/tools.mjs, in the tools' order", async () => {
   const { TOOLS } = await import(pathToFileURL(join(REPO, "src", "lib", "tools.mjs")).href);
-  const uniq = (xs) => [...new Set(xs)];
-  const expected = [
-    ...uniq(Object.values(TOOLS).map((t) => t.project)).map((f) => `<repo>/${f}/${ENGINE_TAIL}`),
-    ...uniq(Object.values(TOOLS).map((t) => t.user)).map((f) => `~/${f}/${ENGINE_TAIL}`),
-  ];
+  const expected = [...new Set(Object.values(TOOLS).map((t) => t.user))].map((f) => `~/${f}/${ENGINE_TAIL}`);
   assert.deepEqual(lsLine().split(/\s+/).slice(3), expected);
 });
 
@@ -113,8 +109,8 @@ test("when the engine is missing it stops instead of auditing by hand", () => {
 });
 
 test("the only permitted write is the engine's own dependency install, outside the audited repository", () => {
-  assert.match(body, /npm ci --omit=dev --ignore-scripts/);
-  assert.match(body, /never in the audited repository/);
+  assert.match(body, /npm ci --prefix <skill folder> --omit=dev --ignore-scripts/);
+  assert.match(body, /never the audited repository/);
   assert.match(body, /This is the only write you may make/);
 });
 
