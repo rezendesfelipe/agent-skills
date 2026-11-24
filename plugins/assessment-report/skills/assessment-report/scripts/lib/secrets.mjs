@@ -8,11 +8,21 @@ const PLACEHOLDER = "(?:var\\.|local\\.|data\\.|module\\.|env\\.|secrets?\\.|os\
 // Names that mean a secret. A prefix such as db_ or client. is allowed; a suffix such as _name or _id is not.
 const SECRET_NAME = "(?:[A-Za-z0-9]+[_.-])*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|secret[_-]?key|private[_-]?key|account[_-]?key|client[_-]?secret)";
 
-const VALUE = "[^\\s\"'<>{}$(),;]{4,}";
+const VALUE = ">?[^\\s\"'<>{}$(),;]{4,}";
 const NOT_CALL = "(?![^\\s\"'<>{}$(),;]*\\()";
-// Only for an unquoted value: a resource address (random_password.db.result, azurerm_key_vault_secret.x.value), a YAML tag,
-// anchor, alias or block indicator (!vault, !!str, &a, *a, |, >) or a word that describes a schema (required, optional).
-const UNQUOTED_REFERENCE = "(?:(?:[A-Za-z_][\\w-]*(?:\\[[^\\]]*\\])?\\.){2,}[\\w-]+(?:\\[[^\\]]*\\])?(?=[\\s,;)]|$)|[!&*|>]|(?:required|optional|sensitive|computed|string|number|bool|object|any)\\b)";
+// Only for an unquoted value. Each form is narrow on purpose: a real password can look like a dotted word or start with
+// "!", "&", "*", "|" or ">", so only what Terraform and YAML really write is excluded.
+//  - a Terraform reference: a keyword prefix (var, local, data, module, each, count, path, terraform, self) with at least
+//    one more segment, or a resource type that contains "_" (random_password, azurerm_key_vault_secret, aws_...) with at
+//    least two more segments; segments are identifiers, each with an optional [n] or [*] index
+//  - a YAML tag (!!str, !vault, a CloudFormation function) followed by a space or the end of the line, with no digits in a
+//    custom tag; an anchor or alias (&name, *name) with a name of letters, "_" and "-" only
+//  - a YAML block indicator (|, >, |-, >+, |2) alone at the end of the line
+//  - a word that describes a schema (required, optional, ...)
+const SEG = "[A-Za-z_][A-Za-z0-9_-]*(?:\\[(?:\\d+|\\*)\\])?";
+const TERRAFORM_REFERENCE = `(?:(?:var|local|data|module|each|count|path|terraform|self)(?:\\[(?:\\d+|\\*)\\])?(?:\\.${SEG})+|[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]*(?:\\[(?:\\d+|\\*)\\])?(?:\\.${SEG}){2,})(?=[\\s,;)]|$)`;
+const YAML_NODE = "(?:!!(?:str|int|float|bool|null|seq|map|binary|set|omap|timestamp)(?=\\s|$)|!(?:vault|Ref|Sub|GetAtt|Join|Select|Base64|FindInMap|ImportValue|If|Equals|Not|Or|And|Split|Cidr|encrypted)(?=\\s|$)|![A-Za-z][A-Za-z_-]*(?=[ \\t]+\\S)|[&*][A-Za-z_-]+(?=\\s|$)|[|>][-+]?\\d?(?=[ \\t]*$))";
+const UNQUOTED_REFERENCE = `(?:${TERRAFORM_REFERENCE}|${YAML_NODE}|(?:required|optional|sensitive|computed|string|number|bool|object|any)\\b)`;
 
 /** Order matters only for reporting; every pattern is tried. */
 export const SECRET_PATTERNS = [
@@ -31,7 +41,7 @@ export const SECRET_PATTERNS = [
   // shared access signature in a URL
   R("sas-signature", /[?&]sig=[A-Za-z0-9%+/=]{16,}/),
   // name = "value" or name: value for names that mean a secret. The value may be short or letters only.
-  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "i")),
+  R("generic-credential", new RegExp(`(?:^|[^A-Za-z0-9])${SECRET_NAME}["']?\\s*[:=]\\s*(?:["'](?!${PLACEHOLDER})${NOT_CALL}${VALUE}|(?!${PLACEHOLDER})(?!${UNQUOTED_REFERENCE})${NOT_CALL}${VALUE})`, "im")),
 ];
 
 export const SECRET_KINDS = SECRET_PATTERNS.map((p) => p.kind);

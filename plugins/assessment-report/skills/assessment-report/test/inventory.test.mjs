@@ -151,6 +151,13 @@ test("resource addresses, YAML tags and schema words are not flagged", () => {
     `${TOK}: *shared_${TOK}`,
     `${SEC}: optional`,
     `${PW} = ${addr("random_" + PW, "db[0]", "result")}`,
+    `${PW} = ${addr("azurerm_key_vault_" + SEC, "pw", "id")}`,
+    `${PW} = ${addr("module", "a", "b", "c")}`,
+    `${PW} = ${addr("data", "x", "y", "z")}`,
+    `${PW}: |`,
+    `${PW}: >-`,
+    `${PW}: |2`,
+    `${PW}: &anchor_name`,
   ])
     assert.deepEqual(scanString(ok), [], ok);
 });
@@ -192,4 +199,31 @@ test("no file of this change holds a credential-looking literal (build values at
   };
   for (const d of places) walk(d);
   assert.deepEqual(hits, [], "build such values at run time from parts (see cat() in this file and evals/fake-secret.mjs)");
+});
+
+// ---- an unquoted value that only looks like a reference or a YAML marker is still a secret (review cycle 3, R-1) ----
+test("dotted words and values that start with ! & * | > are flagged: they are passwords, not references", () => {
+  const dotted = [
+    `${PW} = ${addr("Summer", "Winter", "2025")}`,
+    `${CSEC}: ${addr("my", "real", SEC)}`,
+    `${PW} = ${addr("Sup3r", "S3cret", "Pass")}`,
+    `${SEC} = ${addr("prod", "db", "passw0rd")}`,
+    `${TOK} = ${addr("a", "b", "c")}`,
+    `${PW} = ${addr("prod_db", "passw0rd")}`,
+  ];
+  const marked = [
+    `${PW} = !Passw0rd123`,
+    `${PW} = *Hunter2Hunter2`,
+    `${PW}: |hunter2pass`,
+    `${PW}: >hunter2pass`,
+    `${PW} = &Abc12345`,
+    `${PW} = !Hunter2!`,
+    `${PW} = "hunter2"`,
+  ];
+  for (const bad of [...dotted, ...marked]) assert.ok(scanString(bad).length > 0, `not flagged: ${bad.replace(/=.*/, "=...").replace(/:.*/, ": ...")}`);
+});
+
+test("a secret on one line of a multi-line text is flagged next to a harmless block indicator", () => {
+  assert.ok(scanString(`${PW}: |\n  text\n${TOK}: ${cat("Hunt", "er2", "pass")}`).length > 0);
+  assert.deepEqual(scanString(`${PW}: |\n  text`), []);
 });
