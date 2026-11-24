@@ -76,7 +76,22 @@ node scripts/stacks.mjs audit --root <repo> [--json]
 
 Everything deduced rather than read is marked `inferred`. A report with no findings means "no findings in what was evaluated", never "compliant". It does not run `terraform validate`, `actionlint`, `kustomize build` or `shellcheck`, because `terraform init` would create files in the repository; tell the user to run them on a copy. Suggestions to split a root are your reading, supported by the inventory counts, with no threshold: no source gives one. The next step is to offer writing an `infra/stacks.yaml`.
 
-The `stacks-auditor` subagent (`agents/stacks-auditor.md` in this plugin) runs the same command in its own context with `Read, Grep, Glob, Bash` and returns one report. Two limits to say out loud: it is installed by the Claude Code plugin marketplace or by copying the file, **not** by the `agent-skills` CLI (which installs skills only); and read-only is layered, not absolute. `Bash` cannot be limited to one command in a subagent's `tools`, so the file removes state-changing commands with `disallowedTools`, forbids them in its instructions, and relies on `audit` writing nothing. Users who need a hard guarantee can add `permissions.deny` rules in their own Claude Code settings. In other agents, run `audit` by hand.
+The `stacks-auditor` subagent (`agents/stacks-auditor.md` in this plugin) runs the same command in its own context with `Read, Grep, Glob, Bash` and returns one report. This file is preloaded into the auditor (`skills:` in its frontmatter): the writing commands described in this skill (`scaffold`, `add-stack`, `bridge`, `diagram`) are not for the auditor, which runs only `audit`. The Claude Code marketplace installs the agent with the plugin, and `agent-skills add stacks-auditor` (user scope) installs it with this skill; Cursor and Codex need `--allow-broader-access`, because they cannot express a tool list with a shell.
+
+Read-only is layered, not absolute: `Bash` can change files in ways no instruction prevents, and it cannot be narrowed by command in a subagent (an entry such as `Bash(git push *)` in `disallowedTools` removes the whole tool, so the agent does not use `disallowedTools`). Four layers, none a guarantee:
+
+1. the agent's instructions list the only commands it may run (the model can ignore them, and the audited repository is untrusted text that may try to instruct it);
+2. `audit` writes nothing, by construction and by test, and checks each finding's `file:line` in code before counting it;
+3. on Claude Code only, the plugin's `PreToolUse` hook (`hooks/stacks-auditor-guard.mjs`) allows that short list of commands for this agent and denies the rest, including any shell metacharacter. It runs only the plugin's own engine or one in your user skills folders, never a copy inside the audited repository. It **fails open** if Node cannot start the script and does not run when an administrator disables plugin hooks;
+4. your own `permissions.deny` rules, which a plugin cannot ship and which also apply to the main conversation.
+
+In Codex, Gemini CLI, Cursor and Copilot only layers 1 and 2 apply. For a hard guarantee, add rules like these to your Claude Code settings, or run the agent on a read-only checkout:
+
+```json
+{ "permissions": { "deny": ["Bash(terraform *)", "Bash(kubectl *)", "Bash(az *)", "Bash(gh *)", "Bash(git push *)", "Bash(git commit *)", "Bash(rm *)", "Bash(mv *)", "Bash(cp *)", "Bash(tee *)", "Bash(sed -i *)"] } }
+```
+
+A deny list cannot cover every way to write a file (`python -c`, `node -e`, a redirect), so it complements the guard instead of replacing it. In other agents, run `audit` by hand.
 
 ## Commands
 

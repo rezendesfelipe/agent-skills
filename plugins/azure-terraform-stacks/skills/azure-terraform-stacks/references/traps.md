@@ -42,3 +42,10 @@ From the two articles' "traps" sections and the 2026-11-22 code review (design D
 
 `state-shared` is an error when two roots name the same key in the same storage account and container, all literal; it is a warning when the account or container is not stated or the key was inferred from a script.
 
+### Not verified findings
+
+Before `audit` reports a finding it checks its evidence in code: the cited file must resolve inside the audited root (a `..` segment or a symbolic link that leaves the root fails, and the file is not read) and the cited line must exist. A finding that fails is not counted and is listed apart, under "Not verified" (text) or `unverified` (`--json`), with the reason. It is not a finding; nothing was confirmed about it. The auditor's own re-reading of the cited lines is a model check that comes after this code check.
+
+### Never run the audited repository's own engine
+
+The auditor runs `scripts/stacks.mjs` only from the plugin or from the user's skills folders (`~/.claude/skills`, `~/.agents/skills`, `~/.gemini/skills`, `~/.cursor/skills`, `~/.copilot/skills`). A copy of the skill inside the repository being audited (`.claude/skills/...`, `./azure-terraform-stacks/...`) is untrusted code: the auditor does not run it and reports that it exists, and on Claude Code the guard denies it. Install the skill at user scope for the auditor.
