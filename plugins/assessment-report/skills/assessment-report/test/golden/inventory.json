@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0",
+  "revision": "inventory:a79d1378b063b24b",
+  "revisionKind": "inventory-hash",
+  "inventoryHash": "a79d1378b063b24b1f325230cb33b8b2f1fb58ecc5e03b777c73f79a4c6bbc47",
+  "maxFileBytes": 1048576,
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "files": [
+    {
+      "path": "docs/notas.md",
+      "size": 132,
+      "sha256": "5f038aa53503ad309d96bab2ccdcac38a158571664e4636ed9ac9eea15058284"
+    },
+    {
+      "path": "docs/runbook.md",
+      "size": 98,
+      "sha256": "bef686c6d15f3bda7f4569cb8cd2a6c7b11074a62af82c8d0aa620f61697c7f6"
+    },
+    {
+      "path": "infra/main.tf",
+      "size": 655,
+      "sha256": "b2150cb814fb550de49e95eeefe83f7f54191ebf7d6e22edd0577f46eb9d902b"
+    },
+    {
+      "path": "infra/variables.tf",
+      "size": 159,
+      "sha256": "3270f9e29dd4a0fac9f63469de449975c12d73ab2099784bde271cb9f3def768"
+    },
+    {
+      "path": "pipelines/deploy.yml",
+      "size": 204,
+      "sha256": "83a1d0249b6aaa7706f19db7790800b5cda3e9cd4b09ec446ccffe1d49a51577"
+    },
+    {
+      "path": "src/app.js",
+      "size": 118,
+      "sha256": "f29f1804d8bd09bc211481d6d36894e0de1cd53a465a21f533fb0731ef097f75"
+    }
+  ],
+  "exclusions": []
+}

@@ -1,0 +1,206 @@
+{
+  "suite": "consistency",
+  "cases": [
+    {
+      "id": "K-clean",
+      "patch": [],
+      "expect": {
+        "codes": []
+      }
+    },
+    {
+      "id": "K-finding-without-evidence",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.evidence",
+          "value": []
+        }
+      ],
+      "expect": {
+        "codes": [
+          "computed-field-mismatch",
+          "missing-evidence"
+        ]
+      }
+    },
+    {
+      "id": "K-finding-without-rationale",
+      "patch": [
+        {
+          "op": "delete",
+          "path": "findings.0.rationale"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "missing-rationale"
+        ]
+      }
+    },
+    {
+      "id": "K-finding-without-severity",
+      "patch": [
+        {
+          "op": "delete",
+          "path": "findings.0.severity"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "missing-field"
+        ]
+      }
+    },
+    {
+      "id": "K-dangling-evidence",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.evidence",
+          "value": [
+            "E-099"
+          ]
+        }
+      ],
+      "expect": {
+        "codes": [
+          "computed-field-mismatch",
+          "dangling-reference"
+        ]
+      }
+    },
+    {
+      "id": "K-dangling-finding",
+      "patch": [
+        {
+          "op": "set",
+          "path": "actions.0.addresses",
+          "value": [
+            "F-099"
+          ]
+        }
+      ],
+      "options": {
+        "acceptRoadmapViolations": true
+      },
+      "expect": {
+        "codes": [
+          "dangling-reference"
+        ]
+      }
+    },
+    {
+      "id": "K-action-without-wave",
+      "patch": [
+        {
+          "op": "delete",
+          "path": "actions.0.wave"
+        }
+      ],
+      "options": {
+        "acceptRoadmapViolations": true
+      },
+      "expect": {
+        "codes": [
+          "schema"
+        ]
+      }
+    },
+    {
+      "id": "K-unknown-summary-token",
+      "patch": [
+        {
+          "op": "set",
+          "path": "summary",
+          "value": "{{count.bogus}}"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "unknown-token"
+        ]
+      }
+    },
+    {
+      "id": "K-unregistered-framework",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.controls",
+          "value": [
+            {
+              "framework": "nist",
+              "controlId": "1"
+            }
+          ]
+        }
+      ],
+      "expect": {
+        "codes": [
+          "unregistered-framework"
+        ]
+      }
+    },
+    {
+      "id": "K-framework-without-version",
+      "patch": [
+        {
+          "op": "delete",
+          "path": "frameworks.0.version"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "framework-incomplete"
+        ]
+      }
+    },
+    {
+      "id": "K-placeholder-author",
+      "patch": [
+        {
+          "op": "set",
+          "path": "meta.author",
+          "value": "[REPLACE: author]"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "placeholder"
+        ]
+      }
+    },
+    {
+      "id": "K-hand-edited-severity",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.severity",
+          "value": "Critical"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "computed-field-mismatch"
+        ]
+      }
+    },
+    {
+      "id": "K-schema-violation",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.impact",
+          "value": "huge"
+        }
+      ],
+      "expect": {
+        "codes": [
+          "computed-field-mismatch",
+          "schema"
+        ]
+      }
+    }
+  ]
+}

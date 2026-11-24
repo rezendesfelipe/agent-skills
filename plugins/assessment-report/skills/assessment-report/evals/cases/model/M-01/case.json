@@ -1,0 +1,13 @@
+{
+  "id": "M-01",
+  "title": "Infrastructure repository: Terraform plus a deploy pipeline",
+  "root": "repo",
+  "client": "Synthetic Orders Co",
+  "lang": "en",
+  "scope": {
+    "in": [],
+    "out": [],
+    "questions": ["Is the infrastructure configured safely enough for production?", "Does the repository match what its README claims?"],
+    "assumptions": ["The repository is the source of truth for the infrastructure."]
+  }
+}

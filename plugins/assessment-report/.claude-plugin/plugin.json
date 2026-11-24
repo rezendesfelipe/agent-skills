@@ -1,0 +1,10 @@
+{
+  "name": "assessment-report",
+  "description": "Produces a technical assessment report for a client in which every finding is backed by evidence that a script has checked, everything unchecked is labelled, prioritization follows fixed rules, and the deliverable is an executive document with a technical annex for docs-generator.",
+  "version": "0.1.0",
+  "author": {
+    "name": "rezendesfelipe"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/rezendesfelipe/agent-skills"
+}

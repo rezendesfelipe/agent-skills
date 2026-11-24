@@ -1,0 +1,160 @@
+{
+  "suite": "render",
+  "cases": [
+    {
+      "id": "G-frontmatter-fields",
+      "patch": [],
+      "contains": [
+        "title: \"Technical assessment\"",
+        "author: \"Eval Author\"",
+        "version: \"1.0\"",
+        "lang: \"en\"",
+        "summary: |2",
+        "annexes:",
+        "changes:",
+        "sources:"
+      ]
+    },
+    {
+      "id": "G-summary-tokens-expanded",
+      "patch": [],
+      "contains": [
+        "1 finding, 1 High."
+      ],
+      "notContains": [
+        "{{"
+      ]
+    },
+    {
+      "id": "G-portuguese-labels",
+      "patch": [
+        {
+          "op": "set",
+          "path": "meta.lang",
+          "value": "pt-BR"
+        }
+      ],
+      "contains": [
+        "lang: \"pt-BR\"",
+        "# Principais achados",
+        "| ID | Achado | Severidade | Confiança | Esforço |"
+      ],
+      "notContains": [
+        "# Main findings"
+      ]
+    },
+    {
+      "id": "G-spanish-labels",
+      "patch": [
+        {
+          "op": "set",
+          "path": "meta.lang",
+          "value": "es"
+        }
+      ],
+      "contains": [
+        "lang: \"es\"",
+        "# Hallazgos principales"
+      ],
+      "notContains": [
+        "# Main findings"
+      ]
+    },
+    {
+      "id": "G-fence-escaped",
+      "patch": [
+        {
+          "op": "set",
+          "path": "evidence.0.quote",
+          "value": "a ```b``` c"
+        },
+        {
+          "op": "set",
+          "path": "evidence.0.startLine",
+          "value": 1
+        }
+      ],
+      "file": "annex-findings.md",
+      "contains": [
+        "‵‵‵b‵‵‵",
+        "(escaped)"
+      ],
+      "notContains": [
+        "```b```"
+      ]
+    },
+    {
+      "id": "G-markup-escaped-in-table",
+      "patch": [
+        {
+          "op": "set",
+          "path": "findings.0.title",
+          "value": "A | B <script>x</script>"
+        }
+      ],
+      "contains": [
+        "A \\| B \\<script\\>x\\</script\\>"
+      ],
+      "notContains": [
+        "<script>x"
+      ]
+    },
+    {
+      "id": "G-unreviewed-stamp",
+      "patch": [],
+      "options": {
+        "unreviewed": true
+      },
+      "contains": [
+        "This report was not human-reviewed."
+      ]
+    },
+    {
+      "id": "G-no-framework-no-sources",
+      "patch": [
+        {
+          "op": "set",
+          "path": "frameworks",
+          "value": []
+        },
+        {
+          "op": "set",
+          "path": "findings.0.controls",
+          "value": []
+        }
+      ],
+      "contains": [
+        "annexes:"
+      ],
+      "notContains": [
+        "sources:",
+        "annex-frameworks.md"
+      ]
+    },
+    {
+      "id": "G-redacted-evidence-shows-no-quote",
+      "patch": [
+        {
+          "op": "set",
+          "path": "evidence.0",
+          "value": {
+            "id": "E-001",
+            "kind": "file",
+            "path": "infra/terraform.tfvars",
+            "startLine": 2,
+            "endLine": 2,
+            "redacted": true,
+            "secretKind": "generic-credential"
+          }
+        }
+      ],
+      "file": "annex-findings.md",
+      "contains": [
+        "redacted secret of kind generic-credential"
+      ],
+      "notContains": [
+        "{{FAKE_SECRET}}"
+      ]
+    }
+  ]
+}

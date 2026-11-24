@@ -1,0 +1,252 @@
+{
+  "suite": "severity",
+  "cases": [
+    {
+      "id": "S-verified-low-rare",
+      "impact": "low",
+      "likelihood": "rare",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Info"
+      }
+    },
+    {
+      "id": "S-verified-low-possible",
+      "impact": "low",
+      "likelihood": "possible",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Info"
+      }
+    },
+    {
+      "id": "S-verified-low-likely",
+      "impact": "low",
+      "likelihood": "likely",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Low"
+      }
+    },
+    {
+      "id": "S-verified-low-almost-certain",
+      "impact": "low",
+      "likelihood": "almost-certain",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Low"
+      }
+    },
+    {
+      "id": "S-verified-moderate-rare",
+      "impact": "moderate",
+      "likelihood": "rare",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Low"
+      }
+    },
+    {
+      "id": "S-verified-moderate-possible",
+      "impact": "moderate",
+      "likelihood": "possible",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Low"
+      }
+    },
+    {
+      "id": "S-verified-moderate-likely",
+      "impact": "moderate",
+      "likelihood": "likely",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-verified-moderate-almost-certain",
+      "impact": "moderate",
+      "likelihood": "almost-certain",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-verified-high-rare",
+      "impact": "high",
+      "likelihood": "rare",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Low"
+      }
+    },
+    {
+      "id": "S-verified-high-possible",
+      "impact": "high",
+      "likelihood": "possible",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-verified-high-likely",
+      "impact": "high",
+      "likelihood": "likely",
+      "confidence": "verified",
+      "expect": {
+        "severity": "High"
+      }
+    },
+    {
+      "id": "S-verified-high-almost-certain",
+      "impact": "high",
+      "likelihood": "almost-certain",
+      "confidence": "verified",
+      "expect": {
+        "severity": "High"
+      }
+    },
+    {
+      "id": "S-verified-severe-rare",
+      "impact": "severe",
+      "likelihood": "rare",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-verified-severe-possible",
+      "impact": "severe",
+      "likelihood": "possible",
+      "confidence": "verified",
+      "expect": {
+        "severity": "High"
+      }
+    },
+    {
+      "id": "S-verified-severe-likely",
+      "impact": "severe",
+      "likelihood": "likely",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Critical"
+      }
+    },
+    {
+      "id": "S-verified-severe-almost-certain",
+      "impact": "severe",
+      "likelihood": "almost-certain",
+      "confidence": "verified",
+      "expect": {
+        "severity": "Critical"
+      }
+    },
+    {
+      "id": "S-corroborated-severe-likely",
+      "impact": "severe",
+      "likelihood": "likely",
+      "confidence": "corroborated",
+      "expect": {
+        "severity": "Medium",
+        "severityUncapped": "Critical"
+      }
+    },
+    {
+      "id": "S-corroborated-high-likely",
+      "impact": "high",
+      "likelihood": "likely",
+      "confidence": "corroborated",
+      "expect": {
+        "severity": "Medium",
+        "severityUncapped": "High"
+      }
+    },
+    {
+      "id": "S-corroborated-moderate-likely",
+      "impact": "moderate",
+      "likelihood": "likely",
+      "confidence": "corroborated",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-corroborated-low-rare",
+      "impact": "low",
+      "likelihood": "rare",
+      "confidence": "corroborated",
+      "expect": {
+        "severity": "Info"
+      }
+    },
+    {
+      "id": "S-reported-severe-likely",
+      "impact": "severe",
+      "likelihood": "likely",
+      "confidence": "reported",
+      "expect": {
+        "severity": "Medium",
+        "severityUncapped": "Critical"
+      }
+    },
+    {
+      "id": "S-reported-high-likely",
+      "impact": "high",
+      "likelihood": "likely",
+      "confidence": "reported",
+      "expect": {
+        "severity": "Medium",
+        "severityUncapped": "High"
+      }
+    },
+    {
+      "id": "S-reported-moderate-likely",
+      "impact": "moderate",
+      "likelihood": "likely",
+      "confidence": "reported",
+      "expect": {
+        "severity": "Medium"
+      }
+    },
+    {
+      "id": "S-reported-low-rare",
+      "impact": "low",
+      "likelihood": "rare",
+      "confidence": "reported",
+      "expect": {
+        "severity": "Info"
+      }
+    },
+    {
+      "id": "S-unverified",
+      "impact": "severe",
+      "likelihood": "likely",
+      "confidence": "unverified",
+      "expect": {
+        "severity": "n/a",
+        "severityUncapped": "Critical"
+      }
+    },
+    {
+      "id": "S-client-scale-override",
+      "impact": "high",
+      "likelihood": "likely",
+      "confidence": "verified",
+      "scale": {
+        "note": "client",
+        "severity": {
+          "high": {
+            "likely": "Critical"
+          }
+        }
+      },
+      "expect": {
+        "severity": "Critical"
+      }
+    }
+  ]
+}
