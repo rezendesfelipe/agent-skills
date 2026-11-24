@@ -21,6 +21,37 @@ jobs:
       - name: Validate OpenSpec specs and changes
         run: npx --yes @fission-ai/openspec@1.7.0 validate --all --strict --no-interactive
 
+  # AEP delivery graph, human gate 1 (docs/aep/delivery-graph.md): a proposal branch `claude/<change>` may
+  # change only openspec/changes/<change>/ until gate 1 is recorded. The check is skipped for branches that
+  # are not a change folder (for example an implementation branch) and for pull requests that carry a
+  # post-gate-1 node label.
+  delivery-check:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Check the scope of a proposal branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          change="${HEAD_REF#claude/}"
+          if [ ! -d "openspec/changes/$change" ]; then
+            echo "No openspec/changes/$change folder: not a proposal branch, scope check skipped."
+            exit 0
+          fi
+          approved=""
+          case ",$LABELS," in
+            *,node:apply,*|*,node:test-and-validate,*|*,node:review,*|*,node:pr-and-ci,*|*,node:merge,*) approved="--approved" ;;
+          esac
+          node scripts/delivery-check.mjs scope "$change" --base "origin/$BASE_REF" $approved
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
