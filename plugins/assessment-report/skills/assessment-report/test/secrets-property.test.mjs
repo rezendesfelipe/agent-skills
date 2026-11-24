@@ -6,11 +6,13 @@ import { performance } from "node:perf_hooks";
 import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, scanString } from "../scripts/lib/secrets.mjs";
 import { fakeSecret, mulberry32 } from "./helpers.mjs";
-import { SCAN_TIME_BOUND_MS, measure, scalesFor } from "./scan-inputs.mjs";
+import { DEADLINE_MS, SCAN_TIME_BOUND_MS, measure, scalesFor, workersStartedCount } from "./scan-inputs.mjs";
 
 const SEED = 424242; // fixed: the same cases on every run and machine
 const CASES = 36;
-const BUDGET_MS = 5000; // initial value: the whole test on a developer machine
+// Initial value, to calibrate: the whole test must stay below max(DEADLINE_MS, TOTAL_FACTOR x Workers started x the smallest
+// Worker round trip seen in this run). There is no absolute limit: on a slow runner Worker start-up dominates the total (60 Workers).
+const TOTAL_FACTOR = 8;
 const c = (...p) => p.join("");
 
 // building blocks of pathological input; none is a credential on its own
@@ -44,22 +46,33 @@ function pathological(rnd, length) {
   return out.slice(0, length) + (rnd() < 0.3 ? "(" : "");
 }
 
-test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw, stay in bounds and scale linearly`, async () => {
+test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw, stay in bounds and scale linearly`, async (t) => {
   const rnd = mulberry32(SEED);
+  const workersBefore = workersStartedCount();
+  let reference = Infinity; // the smallest wall time of one measure() call: the least noisy cost of one Worker on this runner
+  let worstScan = 0;
   const started = performance.now();
   for (let i = 0; i < CASES; i++) {
     const length = 16000 + Math.floor(rnd() * 48000);
     const text = pathological(rnd, length);
     const where = `seed ${SEED}, case ${i}`;
     assert.ok(Array.isArray(scanString(text)), where);
+    const t0 = performance.now();
     const m = await measure({ text }, { runs: 1 }).catch((e) => assert.fail(`${where}: ${e.message}`));
+    reference = Math.min(reference, performance.now() - t0);
+    worstScan = Math.max(worstScan, m.scan);
     assert.ok(m.scan < SCAN_TIME_BOUND_MS, `${where}: ${m.scan.toFixed(0)} ms for ${length} characters`);
     if (i % 3 === 0) {
       const r = await scalesFor(text, text + text).catch((e) => assert.fail(`${where}: ${e.message}`));
       assert.ok(r.ok, `${where}: doubling took ${r.detail}`);
     }
   }
-  assert.ok(performance.now() - started < BUDGET_MS, `the property test took more than ${BUDGET_MS} ms (initial value)`);
+  const total = performance.now() - started;
+  const workers = workersStartedCount() - workersBefore;
+  const ceiling = Math.max(DEADLINE_MS, TOTAL_FACTOR * workers * reference);
+  // numbers only, never an input; `t.diagnostic` is optional so a runtime without it cannot fail the test
+  t.diagnostic?.(`timing: workers ${workers}, reference ${reference.toFixed(1)} ms, total ${total.toFixed(0)} ms, ceiling ${ceiling.toFixed(0)} ms, worst scan ${worstScan.toFixed(1)} ms`);
+  assert.ok(total < ceiling, `the property test took ${total.toFixed(0)} ms, above its ceiling of ${ceiling.toFixed(0)} ms (${TOTAL_FACTOR} x ${workers} Workers x ${reference.toFixed(1)} ms; initial value)`);
 });
 
 test(`property: a planted secret gives the same kinds on one long line as split into short lines (seed ${SEED})`, () => {
