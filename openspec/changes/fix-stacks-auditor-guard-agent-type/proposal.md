@@ -1,6 +1,6 @@
 ## Status
 
-Proposal only, written on 2026-11-24. Nothing is implemented. Gate 1 (the maintainer's approval) is pending; the questions that need an answer are listed in `design.md` ("Decisions for the maintainer").
+Proposed and implemented on 2026-11-24 (same pull request). Gate 1 is recorded: the maintainer approved Q1 to Q4 as recommended and answered Q6 (the plugin was installed through the marketplace; Q5 and the Claude Code version were not informed, see `evidence/live-2026-11-24.md`). Open on purpose: the live re-test (5.1), ticking 6.1 and 6.2 of `fix-stacks-auditor-agent` (4.2) and the release (7.1, gate 2). The `file:line` references below point to `main` before the fix.
 
 ## Why
 
@@ -47,7 +47,7 @@ None.
 
 ## Impact
 
-- `plugins/azure-terraform-stacks/hooks/stacks-auditor-guard.mjs` (agent identity, home check), `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/guard.test.mjs` plus one fixture with the real hook input, and one line in `references/traps.md`.
-- `docs/aep/context-budgets.json`: **no change expected.** None of the files measured by `node scripts/context-budget.mjs` is edited (`SKILL.md`, `agents/stacks-auditor.md`, the other skills); the guard, the tests and `references/traps.md` are not counted. `SKILL.md` is deliberately not touched: its estimate with margin is about 4,514 tokens against a budget of 5,000 (measured on `main` on 2026-11-24, an approximation by bytes divided by 4). If the implementation has to touch a measured file, the command decides and the rule of the file's `note` applies.
+- Implementation scope, outside this change's folder (declared here for `delivery-check scope --approved`): `plugins/azure-terraform-stacks/hooks/stacks-auditor-guard.mjs` (agent identity, home check), `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/guard.test.mjs` plus the fixture `test/fixtures/hook-input-plugin-agent.json`, `references/traps.md` (Windows, interim guidance, home check), and one corrected sentence each in `SKILL.md` and `agents/stacks-auditor.md` (both said the hook enforces the list, false for 0.2.0).
+- `docs/aep/context-budgets.json`: **no change.** (Planned as: none of the files measured by `node scripts/context-budget.mjs` is edited; in the end `SKILL.md` and the agent file got one sentence each, still within the budgets, `docs/aep/context-budgets.json` untouched.) Original text: none of the files measured by `node scripts/context-budget.mjs` is edited (`SKILL.md`, `agents/stacks-auditor.md`, the other skills); the guard, the tests and `references/traps.md` are not counted. `SKILL.md` is deliberately not touched: its estimate with margin is about 4,514 tokens against a budget of 5,000 (measured on `main` on 2026-11-24, an approximation by bytes divided by 4). If the implementation has to touch a measured file, the command decides and the rule of the file's `note` applies.
 - Users who installed plugin 0.2.0: exposed until a release; see design.
 - No new runtime dependency.

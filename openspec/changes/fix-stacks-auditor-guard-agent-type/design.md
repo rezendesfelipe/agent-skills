@@ -25,6 +25,10 @@ These need an answer at gate 1. Each has a recommendation and a fallback.
 | Q5 | Which parts of 6.1 and 6.2 did the live session also observe (the agent's effective tools include `Bash`; the preloaded skill is in the subagent's context; any denial on screen)? | Needed to word the evidence file; the capture described to us covers only the hook running, the variable and the `agent_type` |
 | Q6 | Which Claude Code version and how was the plugin installed (marketplace or `--plugin-dir`)? Does the namespaced value also appear with `--plugin-dir`? | Needed for the evidence file; if `--plugin-dir` gives another value, Decision 1 is revisited |
 
+## Answers at gate 1 (2026-11-24)
+
+Q1 to Q4: as recommended. Q5: not informed (the effective tools, the preloaded skill and any denial on screen were not reported). Q6: the plugin was installed through the marketplace; the Claude Code version and whether `--plugin-dir` gives the same value were not informed. Recorded in `evidence/live-2026-11-24.md`.
+
 ## Decisions
 
 ### Decision 1. The match rule for `agent_type`
