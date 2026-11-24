@@ -82,7 +82,7 @@ Read-only is layered, not absolute: `Bash` can change files in ways no instructi
 
 1. the agent's instructions list the only commands it may run (the model can ignore them, and the audited repository is untrusted text that may try to instruct it);
 2. `audit` writes nothing, by construction and by test, and checks each finding's `file:line` in code before counting it;
-3. on Claude Code only, the plugin's `PreToolUse` hook (`hooks/stacks-auditor-guard.mjs`) allows that short list of commands for this agent and denies the rest, including any shell metacharacter. It runs only the plugin's own engine or one in your user skills folders, never a copy inside the audited repository. It **fails open** if Node cannot start the script and does not run when an administrator disables plugin hooks;
+3. on Claude Code only, the plugin's `PreToolUse` hook (`hooks/stacks-auditor-guard.mjs`) allows that short list of commands for this agent and denies the rest, including any shell metacharacter. Plugin 0.2.0 never applied it (see `references/traps.md`). It runs only the plugin's own engine or one in your user skills folders, never a copy inside the audited repository. It **fails open** if Node cannot start the script and does not run when an administrator disables plugin hooks;
 4. your own `permissions.deny` rules, which a plugin cannot ship and which also apply to the main conversation.
 
 In Codex, Gemini CLI, Cursor and Copilot only layers 1 and 2 apply. For a hard guarantee, add rules like these to your Claude Code settings, or run the agent on a read-only checkout:

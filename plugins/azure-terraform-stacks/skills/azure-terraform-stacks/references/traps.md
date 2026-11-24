@@ -49,3 +49,9 @@ Before `audit` reports a finding it checks its evidence in code: the cited file 
 ### Never run the audited repository's own engine
 
 The auditor runs `scripts/stacks.mjs` only from the plugin or from the user's skills folders (`~/.claude/skills`, `~/.agents/skills`, `~/.gemini/skills`, `~/.cursor/skills`, `~/.copilot/skills`). A copy of the skill inside the repository being audited (`.claude/skills/...`, `./azure-terraform-stacks/...`) is untrusted code: the auditor does not run it and reports that it exists, and on Claude Code the guard denies it. Install the skill at user scope for the auditor.
+
+### What the auditor's guard does and does not do
+
+- The guard applies only to the plugin's subagent (`agent_type` `azure-terraform-stacks:stacks-auditor`) and to the agent installed without the plugin (`stacks-auditor`), by exact match. Any other value is not touched. Plugin 0.2.0 compared only the short name, which Claude Code does not send for a plugin subagent, so on 0.2.0 the guard never applied. Until you have a release that contains the fix, add the `permissions.deny` rules from `SKILL.md` to your Claude Code settings and run the auditor on a read-only checkout or a copy, or do not use it. If Claude Code ever changes the format of `agent_type`, the guard becomes inert again without any sign: re-test it live (a denied `terraform --version`, an allowed `audit`) on each Claude Code version you use.
+- It denies every command of the auditor when `HOME` is defined and is empty, relative or different from the home directory Node reports, because it cannot tell where `~` points; set `HOME` to the user's home directory and start the session again.
+- On Windows the guard denies a backslash and a quote, so write paths with forward slashes in a shell such as Git Bash; the differential test against the real `bash` is skipped on Windows and the guard is not verified there.
