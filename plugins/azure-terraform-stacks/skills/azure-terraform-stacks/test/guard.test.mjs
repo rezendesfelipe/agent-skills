@@ -13,7 +13,7 @@ import { HERE } from "./helpers.mjs";
 const SKILL_DIR = join(HERE, "..");
 const PLUGIN = join(SKILL_DIR, "..", "..");
 const GUARD = join(PLUGIN, "hooks", "stacks-auditor-guard.mjs");
-const { SHAPES, USER_SKILL_FOLDERS, decide, pathsOf } = await import(pathToFileURL(GUARD).href);
+const { SHAPES, USER_SKILL_FOLDERS, decide, pathsOf, guard, PLUGIN: GUARD_PLUGIN, AGENT: GUARD_AGENT, AGENTS } = await import(pathToFileURL(GUARD).href);
 
 // The plugin's own engine: trusted. A fake home with one user-installed engine (.gemini) and stubs for the other cases.
 const ENGINE = join(SKILL_DIR, "scripts", "stacks.mjs");
@@ -420,4 +420,226 @@ test("differential: commands denied for quotes, backslashes or tildes are exactl
   }
   const argv = realArgv(`ls -d "~/x" ~/x`, repo, HOME);
   assert.deepEqual(argv, ["ls", "-d", "~/x", join(HOME, "x")], "bash leaves a quoted tilde literal and expands an unquoted one");
+});
+
+// ---- fix-stacks-auditor-guard-agent-type: which calls the guard applies to ----
+// Claude Code sends `agent_type` "azure-terraform-stacks:stacks-auditor" for the plugin's subagent (captured live on 2026-11-24;
+// see openspec/changes/fix-stacks-auditor-guard-agent-type/evidence/live-2026-11-24.md). The fixture has the shape of that input.
+const REAL_AGENT_TYPE = "azure-terraform-stacks:stacks-auditor";
+const FIXTURE = JSON.parse(readFileSync(join(HERE, "fixtures", "hook-input-plugin-agent.json"), "utf8"));
+// Spawns the hook with a raw input object (or string). `env` overrides entries of the environment; an undefined value removes one.
+const run = (input, env = {}) => {
+  const e = { ...process.env, HOME, USERPROFILE: HOME, ...env };
+  for (const k of Object.keys(e)) if (e[k] === undefined) delete e[k];
+  const r = spawnSync(process.execPath, [GUARD], { input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", env: e });
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr };
+};
+const fromFixture = (command, { cwd = AUDITED, env, ...rest } = {}) => run({ ...FIXTURE, ...rest, tool_input: { command }, cwd }, env);
+
+test("the fixture is the shape of a real hook input for the plugin's subagent, with no machine-specific data", () => {
+  assert.equal(FIXTURE.agent_type, REAL_AGENT_TYPE);
+  assert.equal(FIXTURE.tool_name, "Bash");
+  assert.equal(FIXTURE.hook_event_name, "PreToolUse");
+  assert.equal(FIXTURE.cwd, "__CWD__", "the cwd is a placeholder replaced at run time");
+  assert.deepEqual(Object.keys(FIXTURE).sort(), ["agent_type", "cwd", "hook_event_name", "tool_input", "tool_name"], "no session id, transcript path or user name");
+});
+
+test("regression (real value): the plugin's subagent is restricted, not ignored", () => {
+  for (const cmd of ["terraform --version", "rm -rf x", "a; b", "git status", "node -e 1"]) {
+    const r = fromFixture(cmd);
+    assert.equal(r.code, 2, `${cmd} must be denied for ${REAL_AGENT_TYPE}: ${r.stderr}`);
+    assert.match(r.stderr, /stacks-auditor guard: /);
+  }
+  // an engine inside the audited repository is never run, with the real value too
+  const repo = tmp("ats-guard-real-");
+  const inRepo = stubSkill(join(repo, ".claude", "skills", "azure-terraform-stacks"));
+  const r = fromFixture(`node ${join(inRepo, "scripts", "stacks.mjs")} audit --root ${repo}`, { cwd: repo });
+  assert.equal(r.code, 2);
+  assert.match(r.stderr, /inside the working directory/);
+});
+
+test("regression (real value): the audit and the other allowed shapes still run", () => {
+  for (const cmd of [`node ${ENGINE} audit --root ${AUDITED} --json`, `node ${ENGINE} audit`, "node --version", `ls -d ${ENGINE}`, `test -f ${ENGINE}`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`]) {
+    const r = fromFixture(cmd);
+    assert.equal(r.code, 0, `${cmd}: ${r.stderr}`);
+    assert.equal(r.stdout + r.stderr, "");
+  }
+});
+
+test("the short value (agent installed without the plugin) is restricted as before", () => {
+  assert.equal(fromFixture("terraform --version", { agent_type: "stacks-auditor" }).code, 2);
+  assert.equal(fromFixture(`node ${ENGINE} audit`, { agent_type: "stacks-auditor" }).code, 0);
+});
+
+test("agent_type is matched by exact equality with two literals; every other value exits 0 and prints nothing", () => {
+  const cases = [
+    ["absent", undefined], ["null", null], ["empty string", ""], ["number", 5], ["boolean", true], ["object", { name: "stacks-auditor" }], ["array", ["stacks-auditor"]],
+    ["general-purpose", "general-purpose"], ["upper case", "Stacks-Auditor"], ["namespaced, upper case agent", "azure-terraform-stacks:Stacks-Auditor"],
+    ["namespaced, upper case plugin", "Azure-Terraform-Stacks:stacks-auditor"], ["other plugin", "other-plugin:stacks-auditor"], ["extra segment after", "azure-terraform-stacks:stacks-auditor:x"],
+    ["extra segment before", "x:azure-terraform-stacks:stacks-auditor"], ["suffix", "stacks-auditor-2"], ["namespaced suffix", "azure-terraform-stacks:stacks-auditor-2"],
+    ["only the namespace", "azure-terraform-stacks:"], ["leading space", " azure-terraform-stacks:stacks-auditor"], ["trailing space", "azure-terraform-stacks:stacks-auditor "],
+    ["trailing tab", "stacks-auditor\t"], ["leading tab", "\tstacks-auditor"], ["leading no-break space", "\u00a0stacks-auditor"], ["trailing no-break space", "azure-terraform-stacks:stacks-auditor\u00a0"],
+    ["trailing newline", "stacks-auditor\n"], ["slash instead of colon", "azure-terraform-stacks/stacks-auditor"],
+  ];
+  for (const [name, value] of cases) {
+    const input = { ...FIXTURE, cwd: AUDITED, tool_input: { command: "terraform apply" } };
+    if (value === undefined) delete input.agent_type; else input.agent_type = value;
+    const r = run(input);
+    assert.equal(r.code, 0, `agent_type ${name} (${JSON.stringify(value)}) must not be touched: ${r.stderr}`);
+    assert.equal(r.stdout + r.stderr, "", `agent_type ${name} must print nothing`);
+  }
+});
+
+test("the plugin and agent names in the guard are the ones in plugin.json and in the agent's frontmatter, and the accepted list is exactly the two literals", () => {
+  const pluginName = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")).name;
+  const front = /^---\n([\s\S]*?)\n---/.exec(AGENT)?.[1] ?? "";
+  const agentName = /^name:\s*(\S+)\s*$/m.exec(front)?.[1];
+  assert.equal(GUARD_PLUGIN, pluginName, "PLUGIN of the guard must equal name in plugin.json");
+  assert.equal(GUARD_AGENT, agentName, "AGENT of the guard must equal name in agents/stacks-auditor.md");
+  assert.deepEqual([...AGENTS].sort(), [agentName, `${pluginName}:${agentName}`].sort());
+  assert.equal(`${GUARD_PLUGIN}:${GUARD_AGENT}`, REAL_AGENT_TYPE, "the live capture of 2026-11-24");
+});
+
+// ---- the home directory the guard judges must be the one `~` expands to ----
+test("home check: an empty HOME denies every command of the auditor, and the reason names HOME", () => {
+  for (const cmd of ["node --version", `node ${ENGINE} audit --root ${AUDITED}`, "ls -d ~/x", "terraform --version"]) {
+    for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+      const r = fromFixture(cmd, { agent_type, env: { HOME: "" } });
+      assert.equal(r.code, 2, `${cmd} with an empty HOME`);
+      assert.match(r.stderr, /HOME/);
+    }
+  }
+});
+
+test("home check: HOME equal to the home directory decides as usual; HOME not defined adds no denial", () => {
+  const same = fromFixture("node --version", { env: { HOME, USERPROFILE: HOME } });
+  assert.equal(same.code, 0, same.stderr);
+  assert.equal(fromFixture(`node ${USER_ENGINE} audit --json`, { env: { HOME, USERPROFILE: HOME } }).code, 0);
+  const unset = fromFixture("node --version", { env: { HOME: undefined } });
+  assert.equal(unset.code, 0, `HOME undefined: ${unset.stderr}`);
+  assert.doesNotMatch(unset.stderr, /HOME/);
+  assert.equal(fromFixture("terraform --version", { env: { HOME: undefined } }).code, 2, "the allowlist still applies when HOME is undefined");
+});
+
+test("home check: HOME that differs from os.homedir(), or is relative, denies (unit, with injected values)", () => {
+  const input = (agent_type) => ({ ...FIXTURE, agent_type, cwd: AUDITED, tool_input: { command: "node --version" } });
+  const here = resolve(HOME);
+  const other = resolve(HOME, "..", "somewhere-else");
+  for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+    assert.equal(guard(input(agent_type), { env: { HOME: other }, home: here }).allow, false);
+    assert.equal(guard(input(agent_type), { env: { HOME: "" }, home: here }).allow, false);
+    assert.equal(guard(input(agent_type), { env: { HOME: "" }, home: "" }).allow, false, "an empty HOME is denied even when homedir() also returns empty");
+    assert.equal(guard(input(agent_type), { env: { HOME: "rel/home" }, home: "rel/home" }).allow, false, "a relative HOME is not a home directory");
+    assert.match(guard(input(agent_type), { env: { HOME: other }, home: here }).reason, /HOME/);
+    assert.equal(guard(input(agent_type), { env: { HOME: here }, home: here }).allow, true);
+    assert.equal(guard(input(agent_type), { env: {}, home: here }).allow, true, "HOME not defined: no denial");
+  }
+  // not the auditor: never touched, whatever HOME is
+  assert.equal(guard({ ...input("general-purpose"), tool_input: { command: "terraform apply" } }, { env: { HOME: "" }, home: here }).allow, true);
+  assert.equal(guard({ tool_name: "Bash", tool_input: { command: "terraform apply" } }, { env: { HOME: "" }, home: here }).allow, true);
+});
+
+test("home check: another agent with an empty HOME exits 0 and prints nothing", () => {
+  for (const agent_type of ["general-purpose", "other-plugin:stacks-auditor", ""]) {
+    const r = fromFixture("terraform apply", { agent_type, env: { HOME: "" } });
+    assert.equal(r.code, 0);
+    assert.equal(r.stdout + r.stderr, "");
+  }
+});
+
+test("os.homedir() with an empty HOME is either empty or the password database's home; the guard denies in both cases", () => {
+  const r = spawnSync(process.execPath, ["-e", "process.stdout.write(JSON.stringify(require('node:os').homedir()))"], { encoding: "utf8", env: { ...process.env, HOME: "" } });
+  assert.equal(r.status, 0);
+  assert.equal(typeof JSON.parse(r.stdout), "string");
+  assert.equal(fromFixture("node --version", { env: { HOME: "" } }).code, 2);
+});
+
+// ---- NIT (a): Unicode spaces and other separators the shell does not split on, checked against the real bash ----
+const UNICODE_SPACES = [
+  "\u00a0", "\u1680", "\u2000", "\u2001", "\u2002", "\u2003", "\u2004", "\u2005", "\u2006", "\u2007", "\u2008", "\u2009", "\u200a",
+  "\u202f", "\u205f", "\u3000", "\u0085", "\u2028", "\u2029", "\u200b", "\u200c", "\u200d", "\u2060", "\ufeff", "\u180e",
+];
+const unicodeCorpus = (c) => [
+  // (i) where a space would separate arguments
+  `ls${c}-d a`, `ls -d${c}a`, `ls -d a${c}b`, `ls -d a ${c} b`, `test${c}-f a`, `test -f${c}a`, `test -d${c}rel`,
+  `node ${ENGINE}${c}audit`, `node ${ENGINE} audit${c}--json`, `node ${ENGINE} audit --json${c}`, `node ${ENGINE} audit --root${c}rel`, `node${c}${ENGINE} audit`,
+  `npm ci --prefix${c}${SKILL_DIR} --omit=dev --ignore-scripts`, `npm ci --prefix ${SKILL_DIR} --omit=dev${c}--ignore-scripts`,
+  // (ii) inside a path, and at its edges
+  `ls -d a${c}b c`, `ls -d ${c}a`, `ls -d a${c}`, `ls -d rel${c}/x`, `ls -d rel/${c}x`, `test -f a${c}b`, `test -d re${c}l`,
+  `node ${ENGINE} audit --root re${c}l`, `node ${ENGINE} audit --root rel${c}`, `node ${ENGINE} audit --root ${c}rel`, `node ${ENGINE}${c} audit`, `node ${ENGINE.slice(0, -4)}${c}.mjs audit`,
+  `npm ci --prefix ${SKILL_DIR}${c} --omit=dev --ignore-scripts`,
+  // (iii) next to --root, --json, ~/ and audit
+  `node ${ENGINE} audit --root${c}`, `node ${ENGINE} audit --jso${c}n`, `node ${ENGINE} audit${c}`, `node ${ENGINE} aud${c}it`, `node ${ENGINE} ${c}audit`,
+  `ls -d ~/${c}x`, `ls -d ~${c}/x`, `ls -d ${c}~/x`, `ls -d a${c}~/x`, `ls -d ~/x${c}~/y`, `ls -d ~/.gemini/skills${c}`, `test -d ~/${c}`,
+  `node ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs${c}audit`, `node ~/.gemini/skills/azure-terraform-stacks/scripts/stacks.mjs audit --root ~/${c}x`,
+];
+const argvOf = (cmd, cwd, locale) => {
+  const r = spawnSync("bash", ["-c", `printf '%s\\0' ${cmd}`], { cwd, env: { PATH: process.env.PATH, HOME, ...(locale ? { LC_ALL: locale } : {}) }, encoding: "utf8" });
+  return r.status === 0 ? r.stdout.split("\0").slice(0, -1) : null;
+};
+
+test("differential (Unicode spaces): for every command the guard approves, one argv word per guard token and the same paths as the real bash, in the C and UTF-8 locales", (t) => {
+  if (process.platform === "win32") return t.skip("needs bash");
+  const repo = hostileTilde();
+  mkdirSync(join(repo, "rel"), { recursive: true });
+  const ctx = { cwd: repo, home: HOME };
+  let approved = 0, denied_ = 0;
+  for (const c of UNICODE_SPACES) {
+    const hex = `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`;
+    for (const cmd of unicodeCorpus(c)) {
+      if (!decide(cmd, ctx).allow) { denied_++; continue; }
+      approved++;
+      const tokens = cmd.split(/[ \t]+/).filter(Boolean);
+      for (const locale of [undefined, "C", "C.UTF-8"]) {
+        const argv = argvOf(cmd, repo, locale);
+        const where = `${hex} in ${JSON.stringify(cmd)} (locale ${locale ?? "default"})`;
+        assert.ok(argv, `bash could not run ${where}`);
+        assert.equal(argv.length, tokens.length, `the shell splits differently from the guard: ${where}`);
+        const real = shellPaths(argv).map((x) => resolve(repo, x));
+        assert.deepEqual(pathsOf(cmd, ctx), real, `guard and shell disagree: ${where}`);
+      }
+    }
+  }
+  assert.ok(approved >= UNICODE_SPACES.length, `the corpus must exercise approved commands with these characters (${approved})`);
+  assert.ok(denied_ > 0, "and denied ones");
+});
+
+test("Unicode spaces: a word that holds one stays one word (a path), never two", () => {
+  // the guard splits on space and tab only; the mutation `split(/\s+/)` would make `a<NBSP>b` two paths
+  const ctx = { cwd: AUDITED, home: HOME };
+  for (const c of UNICODE_SPACES) {
+    const cmd = `ls -d a${c}b`;
+    if (decide(cmd, ctx).allow) assert.deepEqual(pathsOf(cmd, ctx), [resolve(AUDITED, `a${c}b`)], `U+${c.codePointAt(0).toString(16)}`);
+  }
+});
+
+// ---- Review cycle 1: the guard must not throw outside its try ----
+test("os.homedir() throwing (HOME undefined, uid without a passwd entry): the auditor is denied with exit-2 semantics, anyone else is untouched", () => {
+  const boom = () => { throw new Error("uv_os_homedir returned ENOENT"); };
+  for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+    const r = guard({ ...FIXTURE, agent_type, cwd: AUDITED, tool_input: { command: "node --version" } }, { env: {}, homeOf: boom });
+    assert.equal(r.allow, false);
+    assert.match(r.reason, /the guard failed on this command/);
+  }
+  for (const agent_type of [undefined, null, "", "general-purpose", "other-plugin:stacks-auditor"]) {
+    assert.doesNotThrow(() => guard({ ...FIXTURE, agent_type, tool_input: { command: "terraform apply" } }, { env: {}, homeOf: boom }));
+    assert.equal(guard({ ...FIXTURE, agent_type, tool_input: { command: "terraform apply" } }, { env: {}, homeOf: boom }).allow, true);
+  }
+  // another tool of the auditor is not evaluated, so homedir() is not needed either
+  assert.equal(guard({ ...FIXTURE, tool_name: "Write", cwd: AUDITED }, { env: {}, homeOf: boom }).allow, true);
+});
+
+test("tool_name: Write is never touched; an absent tool_name is evaluated like Bash (current behavior, kept on purpose)", () => {
+  const base = { ...FIXTURE, cwd: AUDITED };
+  for (const agent_type of ["stacks-auditor", REAL_AGENT_TYPE]) {
+    const w = run({ ...base, agent_type, tool_name: "Write", tool_input: { command: "terraform apply" } });
+    assert.equal(w.code, 0);
+    assert.equal(w.stdout + w.stderr, "");
+    // Claude Code sends tool_name for a Bash matcher; if it were ever absent the guard judges the command by the allowlist instead of letting it pass
+    const noTool = { ...base, agent_type, tool_input: { command: "terraform apply" } };
+    delete noTool.tool_name;
+    assert.equal(run(noTool).code, 2, "absent tool_name, forbidden command: denied");
+    noTool.tool_input = { command: "node --version" };
+    assert.equal(run(noTool).code, 0, "absent tool_name, allowed command: allowed");
+  }
 });

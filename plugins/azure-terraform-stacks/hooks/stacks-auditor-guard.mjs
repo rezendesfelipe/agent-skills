@@ -14,7 +14,11 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** The agent's `name` (agents/stacks-auditor.md) and the plugin's `name` (.claude-plugin/plugin.json); a test keeps both equal to the files. */
 export const AGENT = "stacks-auditor";
+export const PLUGIN = "azure-terraform-stacks";
+/** The only two `agent_type` values the guard applies to, compared with `===` (design, Decision 1): no suffix, pattern or trimming. */
+export const AGENTS = new Set([AGENT, `${PLUGIN}:${AGENT}`]);
 
 /** The allowed command shapes, in the words the agent's instructions use. */
 export const SHAPES = [
@@ -180,12 +184,34 @@ export function pathsOf(command, { cwd, home = homedir() } = {}) {
   return [];
 }
 
-/** The hook's decision for one input object (already parsed). */
-export function guard(input) {
-  if (!input || typeof input !== "object" || input.agent_type !== AGENT) return allow(); // not our agent: touch nothing
+/**
+ * Null when `~` means the same directory to the guard and to the shell, or the reason when it may not. The guard judges `~/x`
+ * against `home` (Node's `os.homedir()`); the shell expands `~` from `HOME`. Both agree on POSIX when HOME is set and not empty.
+ * An empty or relative HOME is never a home directory (an empty one makes `~/x` mean `/x` in the shell), and when HOME is not
+ * defined both sides use the password database or USERPROFILE, so nothing is added.
+ */
+export function homeProblem(env = process.env, home = homedir()) {
+  const h = env.HOME;
+  if (h === undefined) return null;
+  const bad = (why) => `HOME ${why}, so the guard cannot tell where \`~\` points. Set HOME to the user's home directory and start the session again.`;
+  if (h === "") return bad("is empty");
+  if (!isAbsolute(h)) return bad("is not an absolute path");
+  if (typeof home !== "string" || home === "") return bad("is set but Node reports no home directory");
+  if (norm(resolve(h)) !== norm(resolve(home))) return bad("differs from the home directory Node reports (os.homedir())");
+  return null;
+}
+
+/** The hook's decision for one input object (already parsed). `env` and `home` are for tests. */
+// `homeOf` computes the home directory and is called only once the agent is recognized, inside the try: os.homedir() throws when HOME is
+// undefined and the uid has no passwd entry, and that must block the auditor (exit 2) and must not touch anyone else (exit 0, no output).
+export function guard(input, { env = process.env, home, homeOf = homedir } = {}) {
+  if (!input || typeof input !== "object" || !AGENTS.has(input.agent_type)) return allow(); // not our agent: touch nothing
   if (input.tool_name !== undefined && input.tool_name !== "Bash") return allow();
   try {
-    return decide(input.tool_input?.command, { cwd: input.cwd });
+    const h = home ?? homeOf();
+    const problem = homeProblem(env, h);
+    if (problem) return deny(problem);
+    return decide(input.tool_input?.command, { cwd: input.cwd, home: h });
   } catch (e) {
     return deny(`the guard failed on this command (${e?.message ?? e})`); // once it is our agent, an internal error blocks
   }

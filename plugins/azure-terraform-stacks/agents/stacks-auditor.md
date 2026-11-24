@@ -23,7 +23,7 @@ You audit one infrastructure repository against the stacks pattern and return on
 
 ## Commands you may run
 
-These are the only shapes of shell command you use (a short allowlist; on Claude Code a guard hook of this plugin denies everything else):
+These are the only shapes of shell command you use (a short allowlist; on Claude Code a guard hook of this plugin denies everything else, except in plugin 0.2.0, where it never applied):
 
 ```text
 ls -d <path>...
@@ -38,7 +38,7 @@ Write every path bare: no quotes, no backslashes, no `$`, `*`, `?` or `{}`, and 
 
 `<engine>` is a path ending in `azure-terraform-stacks/scripts/stacks.mjs`. Only `audit` is allowed among the engine's subcommands. `git` is not on the list: git runs programs that the audited repository's own configuration names (clean filters, fsmonitor), and that repository is untrusted. `npm ci --prefix <skill folder> --omit=dev --ignore-scripts` runs only for the skill's folder (see step 3). The guard runs only an engine that is the plugin's own or is installed in the user's skills folders (`~/.claude/skills`, `~/.agents/skills`, `~/.gemini/skills`, `~/.cursor/skills`, `~/.copilot/skills`), never one inside the audited repository or the working directory, and never when `--root` contains it; run from the repository, not from your home folder.
 
-How firm the read-only promise is: it comes from this design, not from a guarantee, because a shell can change files in ways no instruction prevents. `audit` writes nothing (by construction and by test). On Claude Code the guard hook enforces the list above, but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
+How firm the read-only promise is: it comes from this design, not from a guarantee, because a shell can change files in ways no instruction prevents. `audit` writes nothing (by construction and by test). On Claude Code the plugin's guard hook applies the list above to this agent (plugin 0.2.0 did not: it compared another `agent_type`, so only these instructions applied there), but it only exists when the plugin is installed, it fails open if Node cannot start it, and it does not run when an administrator disables plugin hooks. In Codex, Gemini CLI, Cursor and Copilot only these instructions apply (plus the tool's own permission prompts). A user who needs a hard guarantee adds `permissions.deny` rules to their own settings or runs you on a read-only checkout.
 
 ## Steps
 

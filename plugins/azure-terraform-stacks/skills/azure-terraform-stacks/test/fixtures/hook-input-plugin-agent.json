@@ -1,0 +1,7 @@
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": { "command": "terraform --version" },
+  "cwd": "__CWD__",
+  "agent_type": "azure-terraform-stacks:stacks-auditor"
+}
