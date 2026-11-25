@@ -159,8 +159,8 @@ jobs:
           node-version: 24
       - name: Verify the vendored yaml (offline)
         run: node scripts/vendor-yaml.mjs verify
-      - name: "Test the vendored yaml (plan B: see above)"
-        run: node --test test/vendor.test.mjs test/yaml-corpus.test.mjs test/no-install.test.mjs
+      - name: Test the azure-terraform-stacks engine (full suite)
+        run: npm test
 
   # Parity of the vendored yaml with the npm package (the devDependency), and the copy against the registry's tarball.
   azure-terraform-stacks-parity:

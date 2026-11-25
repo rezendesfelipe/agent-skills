@@ -1,10 +1,14 @@
 // Generates infra/stacks/*, infra/modules/* (profile), infra/envs/* and infra/scripts/tf.sh.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { hclName, hclRg, naming, stateKey } from "./naming.mjs";
 import { formatHcl } from "./hcl-format.mjs";
 
-const TEMPLATES = new URL("../../templates/", import.meta.url).pathname;
+// The templates directory as a filesystem path. `new URL(...).pathname` is `/D:/a/...` on Windows, so convert with fileURLToPath.
+// `opts.windows` lets a test exercise the Windows conversion on any platform.
+export const templatesDir = (base = import.meta.url, opts) => fileURLToPath(new URL("../../templates/", base), opts);
+const TEMPLATES = templatesDir();
 
 const hq = (s) => JSON.stringify(s); // HCL string literal
 

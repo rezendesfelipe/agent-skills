@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { generateAll } from "../scripts/lib/generate.mjs";
 import { generateDiagrams } from "../scripts/lib/diagram.mjs";
 import { HERE, FIXTURES, manifestOf, tempRepo, expandAdo } from "./helpers.mjs";
 
-const walk = (d, root = d) => readdirSync(d).flatMap((e) => (statSync(join(d, e)).isDirectory() ? walk(join(d, e), root) : [relative(root, join(d, e))]));
+const walk = (d, root = d) => readdirSync(d).flatMap((e) => (statSync(join(d, e)).isDirectory() ? walk(join(d, e), root) : [relative(root, join(d, e)).split(sep).join("/")]));
 
 test("generated files match the golden trees byte for byte", () => {
   for (const f of FIXTURES) {
