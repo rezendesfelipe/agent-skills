@@ -1,6 +1,6 @@
 # Example prompts for azure-terraform-stacks and stacks-auditor
 
-Status: starting examples, written from this skill's and agent's documentation. The blocks marked "Real output" come from running the command shown on fictitious data (Node 22, 2026-11-25, this engine, no Azure access); the text of an agent's report is model-written, so its excerpts are marked illustrative. The prompts were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`). Adapt the words in angle brackets.
+Status: starting examples, written from this skill's and agent's documentation. The blocks marked "Real output" are what the one command shown printed on fictitious data (Node 22, 2026-11-25, this engine, no Azure access; a cut is a line `...`); the text of an agent's report is model-written, so its excerpts are marked illustrative. The prompts were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`). Adapt the words in angle brackets.
 
 Where not to paste: subscription secrets, client secrets, storage account keys, SAS tokens, Terraform state files or `.tfvars` with secrets. The stacks use federated identity and Entra ID, so no key is needed; for IDs you do not have yet, ask for obviously fake placeholders (`00000000-...`).
 Onde não colar: segredos de assinatura, client secrets, chaves de storage account, tokens SAS, arquivos de state do Terraform ou `.tfvars` com segredos. As stacks usam identidade federada e Entra ID, então nenhuma chave é necessária; para IDs que você ainda não tem, peça placeholders claramente falsos (`00000000-...`).
@@ -27,15 +27,35 @@ Use a skill azure-terraform-stacks. Ainda não tenho repositório de infraestrut
 
 What you get: `infra/stacks.yaml`, the plan, about 50 generated files (stacks, pipeline, Argo CD apps, scripts), the check result and the list of manual prerequisites.
 O que você recebe: `infra/stacks.yaml`, o plano, cerca de 50 arquivos gerados (stacks, pipeline, apps do Argo CD, scripts), o resultado da verificação e a lista de pré-requisitos manuais.
+Real output (command: `node scripts/stacks.mjs check-manifest`):
+
+```text output
+✓ infra/stacks.yaml is valid
+```
+
+Real output (command: `node scripts/stacks.mjs plan`):
+
+```text output
+create    infra/argocd/apps/dev-brs-01/orders.yaml
+create    infra/argocd/apps/prod-brs-01/orders.yaml
+create    infra/argocd/bootstrap/root-dev-brs-01.yaml
+...
+54 create
+```
+
 Real output (command: `node scripts/stacks.mjs scaffold`):
 
 ```text output
-✓ infra/stacks.yaml is valid                              # check-manifest
-create    infra/argocd/apps/dev-brs-01/orders.yaml       # plan (first line of the list)
-54 file(s) written                                       # scaffold
-✓ no findings                                            # check
+54 file(s) written
+```
+
+Real output (command: `node scripts/stacks.mjs check`):
+
+```text output
+✓ no findings
 pending:
   - infra/argocd/manifests/orders/overlays/dev-brs-01/kustomization.yaml: waiting for the outputs of app-orders: run "stacks.mjs bridge --stack app-orders --env dev --instance brs-01 --outputs <terraform output -json file>" after apply
+  - infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml: waiting for the outputs of app-orders: run "stacks.mjs bridge --stack app-orders --env prod --instance brs-01 --outputs <terraform output -json file>" after apply
 ```
 
 Tips (en):
@@ -141,7 +161,7 @@ Dicas (pt-BR):
 
 ## Agent: stacks-auditor
 
-Examples for the person typing, or for the main agent that writes the delegation. The auditor starts with an empty context, so put the path and the language in the request. It runs only `ls -d`, `test`, `node --version`, `node <engine> audit` and the dependency install of its own skill folder; it never edits, commits, opens a pull request or runs `terraform`.
+Examples for the person typing, or for the main agent that writes the delegation. The auditor starts with an empty context, so put the path and the language in the request. It runs only `ls -d`, `test`, `node --version` and `node <engine> audit`, installs nothing, and never edits, commits, opens a pull request or runs `terraform`.
 
 ### `stacks-auditor-basic`: audit the current folder
 
@@ -159,15 +179,22 @@ Real output (command: `node scripts/stacks.mjs audit --root ./legacy-infra`):
 
 ```text output
 1 Terraform root(s), 1 pipeline(s) that run Terraform, 0 Argo CD Application(s); findings: 3 error, 1 warning, 0 info
+
+Terraform roots (resource blocks, modules expanded once; groups are a heuristic):
+  terraform: 2 resource blocks (network 1, other 1); no backend
+  pipeline .github/workflows/infra.yml (github-actions): triggers push
+
 Findings:
   ✗ [manual-trigger] .github/workflows/infra.yml:2: only workflow_dispatch is allowed, found push
+      see references/traps.md#who-can-click-run
   ✗ [versions] terraform: no required_version: Terraform must be >= 1.12 (backend OIDC on Azure DevOps)
+      see references/stacks-and-state.md#versions
   ✗ [versions] terraform/main.tf:3: azurerm must be >= 4.65 (rbac_authorization_enabled, user_assigned_identity_id)
+      see references/stacks-and-state.md#versions
   ! [state-local] terraform: no backend block: this root uses local state, which is lost with the machine and cannot be locked
-Not evaluated:
-  state-key: needs infra/stacks.yaml (the naming pattern and the list of stacks)
-Not covered by this audit:
-  - terraform fmt, init and validate, actionlint, kustomize build and shellcheck were not run
+      see references/stacks-and-state.md#backend
+
+...
 No file in the repository was changed.
 ```
 
@@ -180,34 +207,45 @@ Dicas (pt-BR):
 - Escreva "não altere nada" mesmo assim; combina com a regra do próprio agente e mantém o prompt de delegação honesto.
 - Leia "Não avaliado" e "Não coberto": "sem achados" quer dizer sem achados no que foi avaliado, nunca em conformidade.
 
-### `stacks-auditor-scoped`: a scope and the sections you want
+### `stacks-auditor-scoped`: one folder, and the sections you want
 
 ```text en
-Delegate to stacks-auditor: audit ./infra and ./pipelines only. Language: English. I want findings by severity with file and line, the "Not verified" list kept separate, the "Not evaluated" list with reasons, and the inventory of roots with how each state key was determined.
+Delegate to stacks-auditor: audit only <one folder>. Language: English. One folder is one audit root, so pipelines outside it are not read: if the pipelines are elsewhere, I will ask for a second audit. I want findings by severity with file and line, the "Not verified" list kept separate, the "Not evaluated" list with reasons, and the inventory of roots with how each state key was determined.
 ```
 
 ```text pt-BR
-Delegue ao stacks-auditor: audite apenas ./infra e ./pipelines. Idioma: português do Brasil. Quero os achados por severidade com arquivo e linha, a lista "Não verificado" separada, a lista "Não avaliado" com os motivos, e o inventário das raízes com a forma como cada chave de state foi determinada.
+Delegue ao stacks-auditor: audite apenas <uma pasta>. Idioma: português do Brasil. Uma pasta é uma raiz de auditoria, então pipelines fora dela não são lidos: se os pipelines estiverem em outro lugar, vou pedir uma segunda auditoria. Quero os achados por severidade com arquivo e linha, a lista "Não verificado" separada, a lista "Não avaliado" com os motivos, e o inventário das raízes com a forma como cada chave de state foi determinada.
 ```
 
-What you get: the same report restricted to the paths you named, with the sections you listed in that order.
-O que você recebe: o mesmo relatório restrito aos caminhos indicados, com as seções que você listou nessa ordem.
-Illustrative excerpt, not a captured run:
+What you get: the report for that one folder, with the sections you listed. `audit` takes one root (with two `--root` options the last one wins) and reads GitHub workflows only under `<root>/.github/workflows`, so a second folder is a second audit and a second report, with no aggregation between them.
+O que você recebe: o relatório dessa única pasta, com as seções que você listou. O `audit` aceita uma raiz (com duas opções `--root` vale a última) e lê workflows do GitHub só em `<raiz>/.github/workflows`, então uma segunda pasta é uma segunda auditoria e um segundo relatório, sem agregação entre eles.
+Real output (command: `node scripts/stacks.mjs audit --root ./legacy-infra/terraform`):
 
 ```text output
-Summary: 1 root, 1 pipeline that runs Terraform, 0 Argo CD Applications; 3 errors, 1 warning.
-Findings (errors first): rule id, file:line, what was found, why it matters, reference to read
-Not verified: findings the engine could not check against the file and line (none in this run)
-Inventory: root "terraform": no backend (state key: none, local state) [inferred]
+1 Terraform root(s), 0 pipeline(s) that run Terraform, 0 Argo CD Application(s); findings: 2 error, 1 warning, 0 info
+
+Terraform roots (resource blocks, modules expanded once; groups are a heuristic):
+  .: 2 resource blocks (network 1, other 1); no backend
+
+Findings:
+  ✗ [versions] .: no required_version: Terraform must be >= 1.12 (backend OIDC on Azure DevOps)
+      see references/stacks-and-state.md#versions
+  ✗ [versions] main.tf:3: azurerm must be >= 4.65 (rbac_authorization_enabled, user_assigned_identity_id)
+      see references/stacks-and-state.md#versions
+  ! [state-local] .: no backend block: this root uses local state, which is lost with the machine and cannot be locked
+      see references/stacks-and-state.md#backend
+
+
+...
 ```
 
 Tips (en):
-- The subagent does not see your conversation: restate the paths, the language and the sections in the delegation.
-- Name the sections you need; the default report has seven.
+- Name one folder; the subagent does not see your conversation, so restate the path, the language and the sections in the delegation.
+- To cover pipelines and Terraform together, name the folder that holds both (often the repository root), or ask for one audit per folder and read the reports separately.
 - Ask for the inventory when you want to see how each state key was found: literal or inferred.
 Dicas (pt-BR):
-- O subagente não vê a sua conversa: repita os caminhos, o idioma e as seções na delegação.
-- Nomeie as seções de que precisa; o relatório padrão tem sete.
+- Nomeie uma pasta; o subagente não vê a sua conversa, então repita o caminho, o idioma e as seções na delegação.
+- Para cobrir pipelines e infraestrutura juntos, nomeie a pasta que tem os dois (em geral a raiz do repositório), ou peça uma auditoria por pasta e leia os relatórios separadamente.
 - Peça o inventário quando quiser ver como cada chave de state foi obtida: literal ou inferida.
 
 ### `stacks-auditor-briefing`: a table for a client meeting

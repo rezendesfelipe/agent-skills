@@ -1,6 +1,6 @@
 # Example prompts for assessment-report
 
-Status: starting examples written from this skill's documentation. "Real output" blocks come from running the commands shown on fictitious data (Node 22, 2026-11-25); the prompts were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`).
+Status: starting examples written from this skill's documentation. "Real output" blocks are what the one command shown printed on fictitious data (Node 22, 2026-11-25; a path is shortened to `...`); the prompts were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`).
 
 Where not to paste: passwords, keys, tokens or personal data in a prompt, a note or a quote. For a committed secret, ask for the place to be cited as redacted.
 Onde não colar: senhas, chaves, tokens ou dados pessoais em um prompt, nota ou citação. Para um segredo versionado, peça que o local seja citado como redigido.
@@ -24,15 +24,13 @@ Use the assessment-report skill to assess the repository in ./client-infra for E
 Use a skill assessment-report para avaliar o repositório em ./client-infra para a Cliente Exemplo S.A. Perguntas a responder: a equipe consegue se recuperar da perda do banco de dados principal, e como é controlado o acesso à produção? Em escopo: infra/ e os pipelines; fora de escopo: código da aplicação. Idioma: português do Brasil. Autor: <meu nome>, versão 0.1, data <hoje>. Escreva só em ./assessment-report/. Pare na etapa de revisão e mostre o pacote; não aprove.
 ```
 
-What you get: `assessment.json` created from your answers, the inventory of files in scope, and a state file that says which step comes next.
-O que você recebe: um `assessment.json` criado a partir das suas respostas, o inventário dos arquivos no escopo e um arquivo de estado que diz qual é o próximo passo.
+What you get: `assessment.json` created from your answers (the title, client, author, version, date and language in the scope), the inventory of files in scope, and the next step.
+O que você recebe: um `assessment.json` criado a partir das suas respostas (título, cliente, autor, versão, data e idioma do escopo), o inventário dos arquivos no escopo e o próximo passo.
 Real output (command: `node scripts/assess.mjs inventory --out ./assessment-report`):
 
 ```text output
-Created ./assessment-report/assessment.json
-Inventory: 1 file(s) in scope, revision inventory:54b0f3ef3175d0c3 (inventory-hash).
-Current node: investigate (A): read-only exploration; draft evidence and findings in assessment.json
-Allowed next: verify (verify)
+Inventory: 1 file(s) in scope, revision inventory:750ad78e46d7372b (inventory-hash).
+Next: investigate (read-only), write evidence and findings in assessment.json, then run verify.
 ```
 
 Tips (en):
@@ -60,9 +58,7 @@ Real output (command: `node scripts/assess.mjs verify --out ./assessment-report`
 
 ```text output
 Verified: 2 pass, 0 fail, 1 not machine-checked.
-All machine-checkable evidence passes. Next: classify   # then classify prints:
-  F-001  Medium   verified      Storage de logs aceita TLS 1.0
-  F-002  High     verified      Sem backup configurado para o banco
+All machine-checkable evidence passes. Next: classify
 ```
 
 Tips (en):
@@ -112,16 +108,17 @@ Revisei o pacote. Altero a justificativa de severidade de F-003 assim: <texto>. 
 
 What you get: the review packet (High and Critical first, with quotes), your approval recorded with your name, then a report and three annexes.
 O que você recebe: o pacote de revisão (Altos e Críticos primeiro, com as citações), a sua aprovação registrada com o seu nome e, depois, um relatório e três anexos.
-Real output (command: `node scripts/assess.mjs review --out ./assessment-report`):
+Real output (command: `node scripts/assess.mjs review --approve --by "Ana Exemplo" --date 2026-11-25 --out ./assessment-report`):
 
 ```text output
-REVIEW PACKET (show this to the user; Critical and High findings first, with their quotes)
-F-002 [High, verified] Sem backup configurado para o banco
-  E-002 absence in infra/**/*.tf [pass]
-  E-003 statement [unchecked]
-# then review --approve and render print:
 Approved by Ana Exemplo on 2026-11-25. Next: render
-Wrote 5 file(s) in ./assessment-report/report: report.md, annex-findings.md, annex-evidence.md, annex-method.md, report.json
+```
+
+Real output (command: `node scripts/assess.mjs render --out ./assessment-report`):
+
+```text output
+Wrote 5 file(s) in .../report: report.md, annex-findings.md, annex-evidence.md, annex-method.md, report.json
+Next: hand report/report.md to the docs-generator skill (it asks which theme to use), then run finish. Without docs-generator, deliver report.md and report.json and say PDF and DOCX need that plugin.
 ```
 
 Tips (en):

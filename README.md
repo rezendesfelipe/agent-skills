@@ -123,9 +123,9 @@ For the other tools use the CLI, which converts the file.
 
 ## Example prompts
 
-Starting examples, not recipes: each skill has a file of prompts with what each one produces and how to get a good result (`references/prompts.md` in the installed skill folder), in English with a Brazilian Portuguese twin. Blocks marked "Real output" were produced by running the command shown on fictitious data; blocks marked "Illustrative excerpt" were not captured from a run. The prompts themselves were not run against a model yet. Never paste secrets, keys or personal data into a prompt.
+Starting examples, not recipes: each skill has a file of prompts with what each one produces and how to get a good result (`references/prompts.md` in the installed skill folder), in English with a Brazilian Portuguese twin. A block marked "Real output" is what one command printed on fictitious data; "Derived" is read from a generated file; "Illustrative excerpt" was not captured from a run. The prompts themselves were not run against a model yet. Never paste secrets, keys or personal data into a prompt.
 
-Exemplos de partida, não receitas: cada skill tem um arquivo de prompts com o que cada um produz e como obter um bom resultado (`references/prompts.md` na pasta da skill instalada), em inglês com gêmeo em português do Brasil. Os blocos "Real output" foram produzidos rodando o comando indicado com dados fictícios; os blocos "Illustrative excerpt" não foram capturados de uma execução. Os prompts em si ainda não foram rodados contra um modelo. Nunca cole segredos, chaves ou dados pessoais em um prompt.
+Exemplos de partida, não receitas: cada skill tem um arquivo de prompts com o que cada um produz e como obter um bom resultado (`references/prompts.md` na pasta da skill instalada), em inglês com gêmeo em português do Brasil. Um bloco "Real output" é o que um comando imprimiu com dados fictícios; "Derived" foi lido de um arquivo gerado; "Illustrative excerpt" não foi capturado de uma execução. Os prompts em si ainda não foram rodados contra um modelo. Nunca cole segredos, chaves ou dados pessoais em um prompt.
 
 ### docs-generator
 

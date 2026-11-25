@@ -342,7 +342,7 @@ Five examples (the order of the sample is level, not length).
 
 ### `stacks-auditor`
 
-All of these are for the person typing, or for the main agent that writes the delegation. They sit in `azure-terraform-stacks/references/prompts.md`, never in the agent file. The agent's allowed commands are `ls -d`, `test -f/-d`, `node --version`, `node <engine> audit`, and `npm ci --prefix <skill folder> --omit=dev --ignore-scripts` (`plugins/azure-terraform-stacks/agents/stacks-auditor.md:28-35`).
+All of these are for the person typing, or for the main agent that writes the delegation. They sit in `azure-terraform-stacks/references/prompts.md`, never in the agent file. The agent's allowed commands are `ls -d`, `test -f/-d`, `node --version` and `node <engine> audit`; it installs nothing (the `npm ci` exception that the proposal text listed was removed by pull request #28, `plugins/azure-terraform-stacks/agents/stacks-auditor.md:60` and the guard's allowed shapes).
 
 **`auditor-basic` (beginner).**
 
@@ -446,32 +446,34 @@ Each has a recommendation. Answer in the pull request; the answers go into this 
 
 Each positive example now has four parts, in this order: the prompt (English block and pt-BR block); **What you get** (one line in each language: format, files, sections); an **output excerpt** of at most 30 lines with one of two labels; and **Tips** (2 to 4 bullets, same count in `Tips (en):` and `Dicas (pt-BR):`) on context, constraints, evidence, scope and what not to paste. Anti-examples keep prompt, `Reason:`/`Motivo:` and `Instead:`/`Em vez disso:`.
 
-**Honesty rule for the excerpt (project decision, enforced by the label check):**
+**Honesty rule for the excerpt (project decision; amended after the independent review of 2026-11-25).** One block, one label, and the label says where the block comes from:
 
-| Output kind | What the file does | Label |
+| Block | What it holds | Label (exact line) |
 |---|---|---|
-| Deterministic engine output (`assess.mjs`, `docs.mjs`, `stacks.mjs`) | the command was run on fictitious data ("Cliente Exemplo S.A.", placeholders `00000000-...`) and an excerpt pasted; the command is named | `Real output (command: \`...\`):` |
-| Text written by a model (an agent's report, a drafted manifest, a table) | an excerpt in the shape the tool documents, using only values that come from a real run or placeholders; no metric is invented | `Illustrative excerpt, not a captured run:` |
+| Output of a command | exactly what that one command printed on fictitious data; a cut is a line `...`; an absolute path is shortened to `...`; no comment line; one command per block (two commands, two blocks) | `Real output (command: \`...\`):` |
+| Read from a generated file | not printed by a command, for example the headings read from the XML of a DOCX; the first line of the block says how it was read | `Derived from the generated file (not command output):` |
+| Text written by a model, or anything that a command cannot reproduce | an excerpt in the shape the tool documents, using only values from a real run or placeholders; no invented metric | `Illustrative excerpt, not a captured run:` |
 
-The test requires exactly one of the two labels, one `text output` block of 1 to 30 lines, and rejects personal and temporary paths, secret-shaped text and non-zero GUIDs in every file. An output longer than 30 lines is shortened and the file is named.
+The test requires one label per `text output` block, a single command in a `Real output` label, no `#` comment line in a `Real output` body, 1 to 30 lines per block, and rejects personal and temporary paths, secret-shaped text and non-zero GUIDs in every file. What it cannot prove is that a `Real output` body equals what the command prints (changing `54` to `9999` passes): a reviewer re-runs the command with the fixtures in `evidence/`, and the test header and `CONTRIBUTING.md` list this and the other gaps.
 
-Real runs made for the excerpts (2026-11-25, Node 22.23.5, fictitious repositories in a scratch folder; the commands and fixtures are in `evidence/real-outputs-2026-11-25.md`):
+Real runs made for the excerpts (2026-11-25, Node 22.23.5, fictitious repositories in a scratch folder; the commands and fixtures are in `evidence/real-outputs-2026-11-25.md`; the table below shows the final state after the correction round, where each example has one block per command):
 
 | Example | Command | Real or illustrative |
 |---|---|---|
-| `docs-new-doc` | `docs.mjs check` and `build --format docx` on a pt-BR source | real (headings read from the DOCX) |
+| `docs-new-doc` | `docs.mjs check`, then `build --format docx`, on a pt-BR source; the headings read from the DOCX | two real blocks, one derived block |
 | `docs-brand` | design-system mapping and a visual check | illustrative (needs a design system and a model) |
-| `docs-report-from-assessment` | `docs.mjs build` of the `report.md` that `assess.mjs render` wrote | real |
-| `azure-first-setup` | `check-manifest`, `plan`, `scaffold`, `check` | real |
+| `docs-report-from-assessment` | `docs.mjs build` of the `report.md` that `assess.mjs render` wrote; the headings read from the DOCX | one real block, one derived block |
+| `azure-first-setup` | `check-manifest`, `plan` (three lines, `...`, the last line), `scaffold`, `check` | four real blocks |
 | `azure-add-stack` | `add-stack` | real |
 | `azure-alz-github` | `check-manifest` on an `alz` manifest with no zone IDs | real |
 | `azure-from-audit` | a manifest drafted by the model | illustrative |
-| `stacks-auditor-basic` | `audit` on a fictitious repository with a push-triggered pipeline and no backend | real (the engine's output; the agent's report is model-written and says so) |
-| `stacks-auditor-scoped`, `-briefing`, `-next-step` | the agent's report, a table, a follow-up | illustrative |
-| `assess-scope-answer` | `init`, `inventory`, `status` | real |
-| `assess-evidence` | `verify`, `classify` | real |
+| `stacks-auditor-basic` | `audit --root ./legacy-infra` on a fictitious repository with a push-triggered pipeline and no backend, cut with `...` | real (the engine's output; the agent's report is model-written and says so) |
+| `stacks-auditor-scoped` | `audit --root ./legacy-infra/terraform`: one folder is one root, pipelines outside it are not read | real |
+| `stacks-auditor-briefing`, `-next-step` | a table, a follow-up | illustrative |
+| `assess-scope-answer` | `inventory` | real (one block) |
+| `assess-evidence` | `verify` | real (one block) |
 | `assess-framework` | a mapping | illustrative (needs a catalog) |
-| `assess-approve-render` | `review`, `review --approve`, `render` | real |
+| `assess-approve-render` | `review --approve`, then `render` | two real blocks |
 
 The `assessment-report` file stays at 149 lines (a limit asked for by the maintainer, not an existing test), uses no word of the technology list of `skill-docs.test.mjs`, and has no checkbox list; a longer output is replaced by a short one and the generated file is named.
 
@@ -488,7 +490,7 @@ The `assessment-report` file stays at 149 lines (a limit asked for by the mainta
 
 The agent file is the system prompt: it holds no example block and does not mention `prompts.md` (a test fails otherwise). This answers the question "where do an agent's examples live": in the skill it loads, or in the README, never in itself.
 
-**Enforcement.** `test/prompt-examples.test.mjs` is in the root `npm test` (Linux, macOS, Windows; Node 20, 22, 24). It discovers the catalog by reading the folders; no name is listed in the test. It fails for any skill or agent without the file, the pointer, the section, the matching English and pt-BR blocks, the labeled output, the tips or the README starter prompt. It is red first: commit fc2d6e1 has the test alone and 14 of 15 tests fail (no prompts file existed).
+**Enforcement.** (After the review of 2026-11-25 the test also requires an anti-example for each agent in its skill's "What not to ask", with an id that starts with the agent's name, or, for an agent without skills, in its README section.) `test/prompt-examples.test.mjs` is in the root `npm test` (Linux, macOS, Windows; Node 20, 22, 24). It discovers the catalog by reading the folders; no name is listed in the test. It fails for any skill or agent without the file, the pointer, the section, the matching English and pt-BR blocks, the labeled output, the tips or the README starter prompt. It is red first: commit fc2d6e1 has the test alone and 14 of 15 tests fail (no prompts file existed).
 
 **Mutations (permanent tests, plus one run by hand).** The test copies `README.md`, the `SKILL.md`, the `prompts.md` and the agent files into a scratch folder, checks that the copy is clean, plants one mistake and expects an error that names it:
 

@@ -28,9 +28,17 @@
 - [ ] 4.1 Run S1 to S7 of `design.md`, section 8, and write `evidence/smoke-<date>.md` (model, tool and plugin versions, what was observed, failures included). Until then each `prompts.md` status says the prompts were not run against a model. **How to verify:** the file exists and the three status lines name what was run. Open on purpose: it needs the user.
 - [ ] 4.2 If S7 shows that `references/prompts.md` is not readable after a marketplace or CLI install in some tool, record it under Known limitations. **How to verify:** an entry, or a note that it was not needed.
 
+## 4b. Correction round after the independent review (2026-11-25, verdict: approved with reservations, no blocker)
+
+- [x] 4b.1 Red first: commit 0f045ca makes the test require one command per `Real output` label, no comment line in its body, one label per block (`Real`, `Derived` or `Illustrative`), and one anti-example per agent; 18 of 22 failed on the then-current files. **How to verify:** the commit alone.
+- [x] 4b.2 Rewrite every `Real output` block as one command with its exact output (cuts as `...`, paths as `...`), move the DOCX headings to `Derived` blocks, re-run each command (`evidence/real-outputs-2026-11-25.md`). **How to verify:** the test; a reviewer re-runs one command per skill.
+- [x] 4b.3 `stacks-auditor`: remove the false "dependency install" claim; rewrite `stacks-auditor-scoped` for one root (re-run: with two `--root` the last wins; GitHub workflows are read only under `<root>/.github/workflows`); no `[inferred]` on a root without a backend. **How to verify:** `grep -rn "dependency install" .` finds nothing in this change.
+- [x] 4b.4 `docs-generator` wording about the default theme follows `SKILL.md` (a run with no one to answer uses it and says so). `CONTRIBUTING.md`: the language exception covers the README section and the pt-BR labels; the agent checklist; the gaps the test does not cover.
+- [x] 4b.5 `CHANGELOG.md` has one `## [Unreleased]`.
+
 ## 5. Review and hand-off
 
-- [x] 5.1 `CHANGELOG.md` `[Unreleased]` (none existed) with Added, Changed and Known limitations; no version, date or tag. **How to verify:** read the section.
+- [x] 5.1 `CHANGELOG.md`: the entries are merged into the one `## [Unreleased]` section that pull request #28 created (a second heading added by mistake was removed), with Added, Changed and Known limitations; no version, date or tag. **How to verify:** `grep -c '^## \[Unreleased\]' CHANGELOG.md` prints 1.
 - [ ] 5.2 Independent review in a fresh context, read-only, of the whole change against the spec scenarios (secret-shaped text, auditor examples, labels honest, pt-BR meaning, budget numbers). Verdict `review:approved` or `review:changes-requested`, comment linked in the pull request. Open on purpose: the author does not review itself.
 - [ ] 5.3 Draft pull request body updated with the template; labels `node:*` and `cycle:<n>` of 3. Merge, archive (`openspec archive add-prompt-examples`) and the release are for the integrator and the maintainer.
 

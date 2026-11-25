@@ -1,6 +1,6 @@
 # Example prompts for docs-generator
 
-Status: starting examples, written from this skill's documentation. The blocks marked "Real output" come from running the command shown on fictitious data (Node 22, 2026-11-25); the prompts themselves were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`). Adapt the words in angle brackets.
+Status: starting examples, written from this skill's documentation. The blocks marked "Real output" are what the one command shown printed on fictitious data (Node 22, 2026-11-25; a path is shortened to `...`, a cut is a line `...`); a block marked "Derived" is read from a generated file, not printed by a command; the prompts themselves were not run against a model yet (see the smoke checklist of the OpenSpec change `add-prompt-examples`). Adapt the words in angle brackets.
 
 Where not to paste: passwords, keys, tokens, personal data or confidential client text in a prompt or in the notes. The notes you paste become the document and the file is saved on disk.
 Onde não colar: senhas, chaves, tokens, dados pessoais ou texto confidencial de cliente no prompt ou nas notas. As notas que você colar viram o documento, e o arquivo fica salvo em disco.
@@ -30,15 +30,27 @@ Use a skill docs-generator para escrever um documento de design da nova funciona
 
 What you get: a Markdown source, then a PDF and a DOCX with cover, table of contents, executive summary, your sections, sources and change log.
 O que você recebe: um texto-fonte em Markdown e, a partir dele, um PDF e um DOCX com capa, sumário, resumo executivo, suas seções, fontes e histórico de alterações.
+Real output (command: `node scripts/docs.mjs check agendamento.md`):
+
+```text output
+✓ source is valid
+```
+
 Real output (command: `node scripts/docs.mjs build agendamento.md --theme clean-modern --format docx`):
 
 ```text output
-✓ source is valid                      # node scripts/docs.mjs check agendamento.md
-✓ ./out/agendamento.docx
-# the lines below are the headings read from word/document.xml
+theme: clean-modern (.../themes/clean-modern.json; from --theme)
+✓ .../agendamento.docx
+```
+
+Derived from the generated file (not command output):
+
+```text output
+(paragraph style and text, read from word/document.xml of the DOCX; "..." marks the table of contents entries left out)
 Title      Agendamento de pedidos
 Subtitle   Documento de design da primeira versão
-TOC        Resumo executivo, Contexto, Decisão, Riscos, Fontes, Histórico de alterações
+TOCHeading Sumário
+...
 Heading1   Resumo executivo
 Heading1   Contexto
 Heading1   Decisão
@@ -82,11 +94,11 @@ Checked: cover, page 4 (table), last page. Not checked: fonts on your machine.
 ```
 
 Tips (en):
-- Name the design system or the token file; otherwise the skill asks, and it never falls back to the default on its own.
+- Name the design system or the token file; otherwise the skill asks which theme to use (only a run with no one to answer uses the default, and says so).
 - Ask for the approval step in the prompt when brand fidelity matters; a contrast failure comes with a suggested color, not a silent change.
 - Ask what could not be viewed: a run without image viewing says so only if you ask for it.
 Dicas (pt-BR):
-- Nomeie o design system ou o arquivo de tokens; senão a skill pergunta, e ela nunca usa o padrão por conta própria.
+- Nomeie o design system ou o arquivo de tokens; senão a skill pergunta qual tema usar (só uma execução sem ninguém para responder usa o padrão, e avisa).
 - Peça a etapa de aprovação quando a fidelidade à marca importar; uma falha de contraste vem com uma cor sugerida, não com uma troca silenciosa.
 - Pergunte o que não pôde ser visto: uma execução sem visualização de imagens só diz isso se você pedir.
 
@@ -107,16 +119,28 @@ O que você recebe: o relatório em DOCX e PDF com o resumo executivo primeiro, 
 Real output (command: `node scripts/docs.mjs build report.md --theme clean-modern --format docx`):
 
 ```text output
-✓ source is valid                      # node scripts/docs.mjs check report.md
-✓ ./rep/report.docx
-# the lines below are the headings read from word/document.xml
+theme: clean-modern (.../themes/clean-modern.json; from --theme)
+✓ .../report.docx
+```
+
+Derived from the generated file (not command output):
+
+```text output
+(paragraph style and text, read from word/document.xml of the DOCX; "..." marks the table of contents entries left out)
 Title      Avaliação técnica
 Subtitle   Cliente Exemplo S.A.
+TOCHeading Sumário
+...
 Heading1   Resumo executivo
 Heading1   Avaliação em resumo
 Heading1   Principais achados
+Heading2   F-002: Sem backup configurado para o banco
 Heading1   Matriz de severidade e esforço
+Heading2   Ganhos rápidos
 Heading1   Roteiro: 30, 60 e 90 dias
+Heading2   Onda 1: dias 0-30
+Heading2   Onda 2: dias 31-60
+Heading2   Onda 3: dias 61-90
 Heading1   Decisões necessárias do cliente
 Heading1   O que não pôde ser verificado
 Heading1   Escopo e limites
@@ -147,7 +171,7 @@ Make this report as HTML and PowerPoint, and put all its tables into an Excel wo
 Gere este relatório em HTML e PowerPoint e coloque todas as tabelas dele em uma planilha Excel. Escolha qualquer tema, não me pergunte.
 ```
 
-Reason: the engine builds `pdf` and `docx` only; Excel output is an empty template with the theme's look, not a workbook; and the skill never picks a theme on its own.
-Motivo: o motor gera apenas `pdf` e `docx`; a saída Excel é um modelo vazio com a aparência do tema, não uma planilha com dados; e a skill nunca escolhe um tema sozinha.
+Reason: the engine builds `pdf` and `docx` only; Excel output is an empty template with the theme's look, not a workbook; and the skill asks which theme to use (only a run with no one to answer uses the default, and says so).
+Motivo: o motor gera apenas `pdf` e `docx`; a saída Excel é um modelo vazio com a aparência do tema, não uma planilha com dados; e a skill pergunta qual tema usar (só uma execução sem ninguém para responder usa o padrão, e avisa).
 Instead: ask for PDF and DOCX, ask for the Excel template and Office theme only if you want the look, and answer the theme question.
 Em vez disso: peça PDF e DOCX, peça o modelo Excel e o tema Office só se quiser a aparência, e responda à pergunta do tema.

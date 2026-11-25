@@ -27,19 +27,30 @@ Each positive example (every example outside "What not to ask") SHALL have, afte
 - **THEN** the repository tests fail and name the example
 
 ### Requirement: Honest outputs
-The label of an output excerpt SHALL be either `Real output (command: \`<command>\`):` or `Illustrative excerpt, not a captured run:`. Where the output of a tool is deterministic (an engine command), the example SHALL use the first label and the excerpt SHALL come from running the named command on fictitious data. Where it depends on a model, the example SHALL use the second label, SHALL use only values that come from a real run or placeholders, and SHALL NOT invent a metric. No excerpt SHALL contain a credential, a literal in the format of one, a GUID other than zeros, or a personal or temporary path. The commands and fixtures of the real runs SHALL be recorded under the change's `evidence/`.
+Every output excerpt SHALL be in its own `text output` block of 1 to 30 lines with exactly one label line before it, one of: `Real output (command: \`<command>\`):`, `Derived from the generated file (not command output):` or `Illustrative excerpt, not a captured run:`. A `Real output` block SHALL hold what exactly one command printed on fictitious data, with a cut marked by a line `...` and a path shortened to `...`, SHALL name exactly one command in its label, and SHALL NOT contain comment lines or text that the command did not print; two commands are two blocks. Text that a command did not print (a parse of a generated file, a synthesis) SHALL be in a `Derived` block that says how it was read, or in an `Illustrative` block when it depends on a model or cannot be reproduced by the named command. An `Illustrative` block SHALL use only values that come from a real run or placeholders and SHALL NOT invent a metric. No excerpt SHALL contain a credential, a literal in the format of one, a GUID other than zeros, or a personal or temporary path. The commands and fixtures of the real runs SHALL be recorded under the change's `evidence/`. The test SHALL list in its header what it does not prove, and `CONTRIBUTING.md` SHALL say that a reviewer re-runs a `Real output` command.
 
 #### Scenario: Label required
-- **WHEN** an excerpt carries neither label
+- **WHEN** an excerpt carries no label, or a block has no label of its own
 - **THEN** the repository tests fail
+
+#### Scenario: One command per block
+- **WHEN** a `Real output` label names two commands, or its body has a comment line
+- **THEN** the repository tests fail and name the example
 
 #### Scenario: Personal path in an excerpt
 - **WHEN** a `prompts.md` contains `/home/`, `/Users/`, `/root/`, `/tmp/` or a Windows user path
 - **THEN** the repository tests fail and name the file
 
 #### Scenario: Reproducible
-- **WHEN** a reviewer runs a command named in a `Real output` label on the fixtures in `evidence/`
-- **THEN** the output matches the excerpt apart from the omitted lines
+- **WHEN** a reviewer runs the command of a `Real output` label on the fixtures in `evidence/`
+- **THEN** the output matches the block apart from the lines cut with `...`
+
+### Requirement: Each agent has an anti-example
+For every agent, the `What not to ask` section of the `prompts.md` of the skill it lists SHALL have at least one example whose id starts with the agent's name and a hyphen; for an agent that lists no skill, its README section SHALL have at least one anti-example (an example with `Reason:` and `Instead:` lines) and at least one positive example.
+
+#### Scenario: Anti-example removed
+- **WHEN** the anti-example of an agent is removed or renamed so that no id starts with its name
+- **THEN** the repository tests fail and name the agent
 
 ### Requirement: Progressive disclosure and context budget
 The examples SHALL NOT be placed in a `SKILL.md`, in an agent file or in a `description`. Each `SKILL.md` SHALL point to its `references/prompts.md` with one line, once, one level deep. The file SHALL NOT be listed under `loadedWith` in `docs/aep/context-budgets.json`. The change SHALL NOT raise any declared budget or the `BUDGET` constant of `azure-terraform-stacks` and SHALL leave `node scripts/context-budget.mjs` and every existing budget test passing. The `SKILL.md` of `assessment-report` SHALL stay at or under 150 lines.
