@@ -307,7 +307,8 @@ function scratch() {
   }
   return dir;
 }
-const edit = (file, fn) => writeFileSync(file, fn(readFileSync(file, "utf8")));
+// The checkout may have CRLF (Windows); the edits are written for LF, and the checks read the files as LF.
+const edit = (file, fn) => writeFileSync(file, fn(lf(readFileSync(file, "utf8"))));
 const prompts = (dir, skill) => {
   const { skills } = discover(dir);
   return join(skills.find((s) => s.name === skill).dir, "references", "prompts.md");
