@@ -1,0 +1,1063 @@
+{
+  "inProcess": {
+    "alias-bomb": {
+      "parse": {
+        "error": {
+          "name": "ReferenceError",
+          "message": "Excessive alias count indicates a resource exhaustion attack",
+          "linePos": null
+        }
+      },
+      "roundTrip": {
+        "ok": "l0: &l0 [ x, x, x, x, x, x, x, x, x ]\nl1: &l1 [ *l0, *l0, *l0, *l0, *l0, *l0, *l0, *l0, *l0 ]\nl2: &l2 [ *l1, *l1, *l1, *l1, *l1, *l1, *l1, *l1, *l1 ]\nl3: &l3 [ *l2, *l2, *l2, *l2, *l2, *l2, *l2, *l2, *l2 ]\nl4: &l4 [ *l3, *l3, *l3, *l3, *l3, *l3, *l3, *l3, *l3 ]\nl5: &l5 [ *l4, *l4, *l4, *l4, *l4, *l4, *l4, *l4, *l4 ]\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "error": {
+                "name": "ReferenceError",
+                "message": "Excessive alias count indicates a resource exhaustion attack",
+                "linePos": null
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "alias-reuse": {
+      "parse": {
+        "ok": {
+          "base": {
+            "a": 1,
+            "b": [
+              1,
+              2
+            ]
+          },
+          "x": {
+            "a": 1,
+            "b": [
+              1,
+              2
+            ]
+          },
+          "y": {
+            "a": 1,
+            "b": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "roundTrip": {
+        "ok": "base: &b { a: 1, b: [ 1, 2 ] }\nx: *b\ny: *b\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "base": {
+                  "a": 1,
+                  "b": [
+                    1,
+                    2
+                  ]
+                },
+                "x": {
+                  "a": 1,
+                  "b": [
+                    1,
+                    2
+                  ]
+                },
+                "y": {
+                  "a": 1,
+                  "b": [
+                    1,
+                    2
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "tag-custom": {
+      "parse": {
+        "ok": {
+          "a": "1",
+          "b": "2"
+        }
+      },
+      "roundTrip": {
+        "ok": "a: !custom \"1\"\nb: !!str \"2\"\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [
+              {
+                "name": "YAMLWarning",
+                "code": "TAG_RESOLVE_FAILED",
+                "message": "Unresolved tag: !custom at line 1, column 4:\n\na: !custom 1\n   ^^^^^^^\n",
+                "linePos": [
+                  {
+                    "line": 1,
+                    "col": 4
+                  },
+                  {
+                    "line": 1,
+                    "col": 11
+                  }
+                ]
+              }
+            ],
+            "js": {
+              "ok": {
+                "a": "1",
+                "b": "2"
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": [
+        {
+          "name": "YAMLWarning",
+          "code": "TAG_RESOLVE_FAILED"
+        }
+      ]
+    },
+    "tag-core": {
+      "parse": {
+        "ok": {
+          "a": 3,
+          "b": "1",
+          "c": null,
+          "d": true
+        }
+      },
+      "roundTrip": {
+        "ok": "a: !!int 3\nb: !!float \"1\"\nc: !!null \nd: !!bool true\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [
+              {
+                "name": "YAMLWarning",
+                "code": "TAG_RESOLVE_FAILED",
+                "message": "Unresolved tag: tag:yaml.org,2002:float at line 2, column 4:\n\nb: !!float 1\n   ^^^^^^^\n",
+                "linePos": [
+                  {
+                    "line": 2,
+                    "col": 4
+                  },
+                  {
+                    "line": 2,
+                    "col": 11
+                  }
+                ]
+              }
+            ],
+            "js": {
+              "ok": {
+                "a": 3,
+                "b": "1",
+                "c": null,
+                "d": true
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": [
+        {
+          "name": "YAMLWarning",
+          "code": "TAG_RESOLVE_FAILED"
+        }
+      ]
+    },
+    "merge-key": {
+      "parse": {
+        "ok": {
+          "x": {
+            "a": 1
+          },
+          "y": {
+            "<<": {
+              "a": 1
+            },
+            "b": 2
+          }
+        }
+      },
+      "roundTrip": {
+        "ok": "x: &m { a: 1 }\ny:\n  <<: *m\n  b: 2\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "x": {
+                  "a": 1
+                },
+                "y": {
+                  "<<": {
+                    "a": 1
+                  },
+                  "b": 2
+                }
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "dup-keys": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "DUPLICATE_KEY",
+          "message": "Map keys must be unique at line 2, column 1:\n\na: 1\na: 2\n^\n",
+          "linePos": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 2
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [
+              {
+                "name": "YAMLParseError",
+                "code": "DUPLICATE_KEY",
+                "message": "Map keys must be unique at line 2, column 1:\n\na: 1\na: 2\n^\n",
+                "linePos": [
+                  {
+                    "line": 2,
+                    "col": 1
+                  },
+                  {
+                    "line": 2,
+                    "col": 2
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 2
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "multi-doc": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "MULTIPLE_DOCS",
+          "message": "Source contains multiple documents; please use YAML.parseAllDocuments() at line 2, column 1:\n\na: 1\n---\n^\n",
+          "linePos": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 1
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 1
+              }
+            }
+          },
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "b": 2
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "doc-markers": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "MULTIPLE_DOCS",
+          "message": "Source contains multiple documents; please use YAML.parseAllDocuments() at line 4, column 1:\n\n...\n---\n^\n",
+          "linePos": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 1
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 1
+              }
+            }
+          },
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "b": 2
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "doc-directive": {
+      "parse": {
+        "ok": {
+          "a": 1
+        }
+      },
+      "roundTrip": {
+        "ok": "%YAML 1.2\n---\na: 1\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 1
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "crlf": {
+      "parse": {
+        "ok": {
+          "a": 1,
+          "b": [
+            "x",
+            "y"
+          ],
+          "c": "one\ntwo\n"
+        }
+      },
+      "roundTrip": {
+        "ok": "a: 1\nb:\n  - x\n  - y\nc: |\n  one\n  two\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 1,
+                "b": [
+                  "x",
+                  "y"
+                ],
+                "c": "one\ntwo\n"
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "lone-cr": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "BLOCK_AS_IMPLICIT_KEY",
+          "message": "Nested mappings are not allowed in compact mappings at line 1, column 4:\n\na: 1\rb: 2\n   ^\n",
+          "linePos": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 5
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [
+              {
+                "name": "YAMLParseError",
+                "code": "BLOCK_AS_IMPLICIT_KEY",
+                "message": "Nested mappings are not allowed in compact mappings at line 1, column 4:\n\na: 1\rb: 2\n   ^\n",
+                "linePos": [
+                  {
+                    "line": 1,
+                    "col": 4
+                  },
+                  {
+                    "line": 1,
+                    "col": 5
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": {
+                  "1\rb": "2\r"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "bom": {
+      "parse": {
+        "ok": {
+          "a": 1,
+          "b": [
+            1,
+            2
+          ]
+        }
+      },
+      "roundTrip": {
+        "ok": "a: 1\nb: [ 1, 2 ]\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": 1,
+                "b": [
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "tabs": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "TAB_AS_INDENT",
+          "message": "Tabs are not allowed as indentation at line 2, column 1:\n\na:\n\t- b\n^\n",
+          "linePos": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 2
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [
+              {
+                "name": "YAMLParseError",
+                "code": "TAB_AS_INDENT",
+                "message": "Tabs are not allowed as indentation at line 2, column 1:\n\na:\n\t- b\n^\n",
+                "linePos": [
+                  {
+                    "line": 2,
+                    "col": 1
+                  },
+                  {
+                    "line": 2,
+                    "col": 2
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": [
+                  "b"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "tab-in-flow": {
+      "parse": {
+        "ok": {
+          "a": [
+            1,
+            2
+          ]
+        }
+      },
+      "roundTrip": {
+        "ok": "a: [ 1, 2 ]\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": [
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "unknown-alias": {
+      "parse": {
+        "error": {
+          "name": "ReferenceError",
+          "message": "Unresolved alias (the anchor must be set before the alias): z",
+          "linePos": null
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Unresolved alias (the anchor must be set before the alias): z",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "error": {
+                "name": "ReferenceError",
+                "message": "Unresolved alias (the anchor must be set before the alias): z",
+                "linePos": null
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "syntax-error": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "BAD_INDENT",
+          "message": "Flow sequence in block collection must be sufficiently indented and end with a ] at line 2, column 1:\n\na: [\n\n^\n",
+          "linePos": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 2
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [
+              {
+                "name": "YAMLParseError",
+                "code": "BAD_INDENT",
+                "message": "Flow sequence in block collection must be sufficiently indented and end with a ] at line 2, column 1:\n\na: [\n\n^\n",
+                "linePos": [
+                  {
+                    "line": 2,
+                    "col": 1
+                  },
+                  {
+                    "line": 2,
+                    "col": 2
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": []
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "bad-indent": {
+      "parse": {
+        "error": {
+          "name": "YAMLParseError",
+          "code": "BAD_INDENT",
+          "message": "All mapping items must start at the same column at line 3, column 1:\n\n  b: 1\n c: 2\n^\n",
+          "linePos": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 2
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "error": {
+          "name": "Error",
+          "message": "Document with errors cannot be stringified",
+          "linePos": null
+        }
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [
+              {
+                "name": "YAMLParseError",
+                "code": "BAD_INDENT",
+                "message": "All mapping items must start at the same column at line 3, column 1:\n\n  b: 1\n c: 2\n^\n",
+                "linePos": [
+                  {
+                    "line": 3,
+                    "col": 1
+                  },
+                  {
+                    "line": 3,
+                    "col": 2
+                  }
+                ]
+              }
+            ],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": {
+                  "b": 1
+                },
+                "c": 2
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "empty": {
+      "parse": {
+        "ok": null
+      },
+      "roundTrip": {
+        "ok": "null\n"
+      },
+      "all": {
+        "ok": []
+      },
+      "processWarnings": []
+    },
+    "comments": {
+      "parse": {
+        "ok": null
+      },
+      "roundTrip": {
+        "ok": "# only a comment\n\nnull\n"
+      },
+      "all": {
+        "ok": []
+      },
+      "processWarnings": []
+    },
+    "scalars-core": {
+      "parse": {
+        "ok": {
+          "a": "yes",
+          "b": 8,
+          "c": 31,
+          "d": "1_000",
+          "e": null,
+          "f": "2001-01-01",
+          "g": "#Infinity",
+          "h": "x",
+          "i": "y\n"
+        }
+      },
+      "roundTrip": {
+        "ok": "a: yes\nb: 0o10\nc: 0x1f\nd: 1_000\ne: ~\nf: 2001-01-01\ng: .inf\nh: 'x'\ni: \"y\\n\"\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": "yes",
+                "b": 8,
+                "c": 31,
+                "d": "1_000",
+                "e": null,
+                "f": "2001-01-01",
+                "g": "#Infinity",
+                "h": "x",
+                "i": "y\n"
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "block-scalars": {
+      "parse": {
+        "ok": {
+          "a": "x\ny\n",
+          "b": "p q",
+          "c": "keep\n\n"
+        }
+      },
+      "roundTrip": {
+        "ok": "a: |\n  x\n  y\nb: >-\n  p q\nc: |+\n  keep\n\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "a": "x\ny\n",
+                "b": "p q",
+                "c": "keep\n\n"
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "complex-keys": {
+      "parse": {
+        "ok": {
+          "[ a, b ]": 1,
+          "{ c: d }": 2
+        }
+      },
+      "roundTrip": {
+        "ok": "? [ a, b ]\n: 1\n? { c: d }\n: 2\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "[ a, b ]": 1,
+                "{ c: d }": 2
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": [
+        {
+          "name": "Warning"
+        },
+        {
+          "name": "Warning"
+        }
+      ]
+    },
+    "unicode": {
+      "parse": {
+        "ok": {
+          "kéy": "über 😀",
+          "é": 1
+        }
+      },
+      "roundTrip": {
+        "ok": "kéy: über 😀\n\"é\": 1\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "kéy": "über 😀",
+                "é": 1
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "manifest-comments": {
+      "parse": {
+        "ok": {
+          "version": 1,
+          "regions": {
+            "brazilsouth": "brs"
+          },
+          "stacks": [
+            {
+              "name": "network-platform",
+              "type": "network",
+              "owner": "platform"
+            },
+            {
+              "name": "app-orders",
+              "type": "app",
+              "owner": "orders",
+              "dependsOn": [
+                "network-platform"
+              ]
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "ok": "version: 1\n# the regions\nregions: { brazilsouth: brs } # short codes\nstacks:\n  # first\n  - { name: network-platform, type: network, owner: platform } # trailing\n  - {\n      name: app-orders,\n      type: app,\n      owner: orders,\n      dependsOn: [ network-platform ]\n    }\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "version": 1,
+                "regions": {
+                  "brazilsouth": "brs"
+                },
+                "stacks": [
+                  {
+                    "name": "network-platform",
+                    "type": "network",
+                    "owner": "platform"
+                  },
+                  {
+                    "name": "app-orders",
+                    "type": "app",
+                    "owner": "orders",
+                    "dependsOn": [
+                      "network-platform"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "processWarnings": []
+    },
+    "add-stack": {
+      "parse": {
+        "ok": {
+          "version": 1,
+          "stacks": [
+            {
+              "name": "network-platform",
+              "type": "network",
+              "owner": "platform"
+            }
+          ]
+        }
+      },
+      "roundTrip": {
+        "ok": "version: 1\n# keep me\nstacks:\n  - { name: network-platform, type: network, owner: platform } # trailing\n"
+      },
+      "all": {
+        "ok": [
+          {
+            "errors": [],
+            "warnings": [],
+            "js": {
+              "ok": {
+                "version": 1,
+                "stacks": [
+                  {
+                    "name": "network-platform",
+                    "type": "network",
+                    "owner": "platform"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "addStack": {
+        "ok": "version: 1\n# keep me\nstacks:\n  - { name: network-platform, type: network, owner: platform } # trailing\n  - {\n      name: app-orders,\n      type: app,\n      owner: orders,\n      dependsOn: [ network-platform ]\n    }\n"
+      },
+      "processWarnings": []
+    }
+  },
+  "child": {
+    "flow-5000": {
+      "status": 0,
+      "signal": null,
+      "steps": [
+        {
+          "error": "YAMLParseError",
+          "code": "RESOURCE_EXHAUSTION"
+        }
+      ]
+    },
+    "block-3000": {
+      "status": 0,
+      "signal": null,
+      "steps": [
+        {
+          "error": "YAMLParseError",
+          "code": "RESOURCE_EXHAUSTION"
+        }
+      ]
+    },
+    "scalar-1MiB": {
+      "status": 0,
+      "signal": null,
+      "steps": [
+        {
+          "ok": "object:1"
+        }
+      ]
+    },
+    "aliases-many": {
+      "status": 0,
+      "signal": null,
+      "steps": [
+        {
+          "ok": "object:2001"
+        }
+      ]
+    }
+  }
+}
