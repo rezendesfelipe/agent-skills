@@ -91,11 +91,10 @@ test("strict mode: stable aliases for subscriptions, resource groups and names, 
   assert.ok(Object.keys(al.map()).length >= 3);
 });
 
-test("parity: our scanner gives the same answers as the one of assessment-report", async () => {
-  if (!hasAssess()) return;
+test("parity: our scanner gives the same answers as the one of assessment-report", { skip: !hasAssess() && "the assessment-report plugin is not in this checkout" }, async () => {
   const base = join(dirname(ASSESS()), "lib", "secrets.mjs");
   assert.ok(existsSync(base));
   const theirs = (await import(pathToFileURL(base).href)).scanString;
-  const samples = [fake.awsKey(), fake.storageKey(), fake.connString(), fake.generic(), "plain text", "keyName: mykey1", "password: var.db_password", `${["gh", "p_"].join("")}${"a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"}`, "https://user:pw12345@host/x"];
+  const samples = [fake.awsKey(), fake.storageKey(), fake.connString(), fake.generic(), "plain text", "keyName: mykey1", "password: var.db_password", `${["gh", "p_"].join("")}${"a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"}`, ["https://user", ":", "pw12345", "@host/x"].join("")];
   for (const s of samples) assert.deepEqual(repoScan(s), theirs(s), s.slice(0, 20));
 });

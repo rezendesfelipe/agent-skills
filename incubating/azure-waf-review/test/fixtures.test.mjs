@@ -35,6 +35,14 @@ test("fixtures hold no real GUID, no credential shape and no raw control charact
   assert.ok(readFileSync(join(FIX, "arg", "CO-ORP-001.json"), "utf8").includes("\\u001b"), "an ESC name is in the fixture");
 });
 
+test("the key has the shape its schema names", () => {
+  const schema = readJson(join(FIX, "key.schema.json"));
+  for (const k of schema.required) assert.ok(k in KEY, k);
+  for (const f of KEY.flaws) assert.ok(typeof f.check === "string" && f.armIds.every((x) => x.startsWith("/subscriptions/")));
+  for (const d of KEY.decoys) for (const k of schema.properties.decoys.items.required) assert.ok(k in d, k);
+  for (const st of [KEY.expectedStatesIncompleteScope, KEY.expectedStatesCompleteScope]) for (const v of Object.values(st)) assert.match(v, /^(fail|pass|not-applicable|needs-questionnaire|answered|not-verified:[a-z-]+)$/);
+});
+
 test("the key: every location it names exists in the fixture", () => {
   const t = readJson(join(FIX, "tenant.json"));
   const ids = new Set(t.resources.map((r) => r.id));

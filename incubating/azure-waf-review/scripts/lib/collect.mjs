@@ -74,10 +74,10 @@ const isTruncated = (b) => b?.resultTruncated === true || String(b?.resultTrunca
 async function argQuery(check, role, scopeParts, transport, st) {
   const lim = check.limits;
   const rows = [];
-  let token = null;
+  let cursor = null;
   let pages = 0;
   for (;;) {
-    const req = { query: check.sources.collector[role], ...scopeParts, options: { $top: PAGE_SIZE, ...(token ? { $skipToken: token } : {}), resultFormat: "objectArray" } };
+    const req = { query: check.sources.collector[role], ...scopeParts, options: { $top: PAGE_SIZE, ...(cursor ? { $skipToken: cursor } : {}), resultFormat: "objectArray" } };
     const r = await call(() => transport.resourceGraph(req, { checkId: check.id, role, page: pages + 1 }), st);
     if (r.timeout) return { timeout: true };
     const data = r.body?.data;
@@ -89,7 +89,7 @@ async function argQuery(check, role, scopeParts, transport, st) {
     if (rows.length > lim.maxRows) throw new Void("truncated");
     if (!next) return { rows, pages };
     if (pages >= lim.maxPages) throw new Void("truncated");
-    token = next;
+    cursor = next;
   }
 }
 

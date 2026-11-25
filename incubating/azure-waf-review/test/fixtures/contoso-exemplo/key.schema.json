@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer key of the synthetic tenant Contoso Exemplo",
+  "type": "object",
+  "required": ["flaws", "decoys", "invisibleSubscription", "expectedStatesIncompleteScope", "expectedStatesCompleteScope", "hostile"],
+  "properties": {
+    "flaws": { "type": "array", "items": { "type": "object", "required": ["check", "armIds"], "properties": { "check": { "type": "string" }, "armIds": { "type": "array", "items": { "type": "string" } } } } },
+    "decoys": { "type": "array", "items": { "type": "object", "required": ["check", "armId", "why"] } },
+    "invisibleSubscription": { "type": "object", "required": ["id", "plantedFlaw"] },
+    "expectedStatesIncompleteScope": { "type": "object", "additionalProperties": { "type": "string" } },
+    "expectedStatesCompleteScope": { "type": "object", "additionalProperties": { "type": "string" } },
+    "hostile": { "type": "object", "required": ["tagKey", "valueMustNeverAppear"] }
+  }
+}

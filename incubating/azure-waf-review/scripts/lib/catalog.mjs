@@ -13,7 +13,7 @@ const PREFIX = { security: "SE", reliability: "RE", cost: "CO", operations: "OE"
 export const WAF_CHECKLIST_SIZES = { RE: 10, SE: 12, CO: 14, OE: 11, PE: 12 };
 const SOURCES = ["collector", "mcp", "questionnaire"];
 const TYPES = ["string", "bool", "number", "enum"];
-const TOP_KEYS = new Set(["id", "pillar", "title", "waf", "wafReason", "chain", "noApi", "sources", "proves", "doesNotProve", "outputFields", "redact", "limits", "requires", "severityHint"]);
+export const TOP_KEYS = new Set(["id", "pillar", "title", "waf", "wafReason", "chain", "noApi", "sources", "proves", "doesNotProve", "outputFields", "redact", "limits", "requires", "severityHint"]);
 const GUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 /** Built-in role definition ids are public constants of Azure (not tenant data) and may appear in a query. */
 const BUILTIN_GUIDS = new Set(["8e3af657-a8ff-443c-a75c-2fe8c4bcb635", "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"]);

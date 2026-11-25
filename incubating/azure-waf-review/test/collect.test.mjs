@@ -149,6 +149,21 @@ test("all or nothing: a failure at page 3 of violations leaves no part and no pa
   assert.ok(!["pass", "fail"].includes(e.state));
 });
 
+test("all or nothing: a re-run that fails removes the parts of the earlier run (no stale evidence next to a voided check)", async () => {
+  const s = setup();
+  const first = await go("SE-STG-001", scripted({ evaluated: [{ rows: [{ n: 5 }] }], violations: [{ rows: [row(1)] }] }), s);
+  assert.equal(stateLabel(first), "fail");
+  assert.deepEqual(filesOf(s, "SE-STG-001"), ["SE-STG-001.001.jsonl"]);
+  const second = await go("SE-STG-001", scripted({ violations: [{ status: 500, errorClass: "http" }] }), s);
+  assert.equal(stateLabel(second), "not-verified:error");
+  assert.deepEqual(filesOf(s, "SE-STG-001"), []);
+  const third = await go("SE-STG-001", scripted({ evaluated: [{ rows: [{ n: 5 }] }], violations: [{ rows: [row(1)] }] }), s);
+  assert.equal(stateLabel(third), "fail");
+  const fourth = await go("SE-STG-001", scripted({ evaluated: [{ rows: [{ n: 5 }] }], violations: [{ rows: [] }] }), s, { scope: scope({ complete: false, expected: 3 }) });
+  assert.equal(stateLabel(fourth), "not-verified:scope-incomplete");
+  assert.deepEqual(filesOf(s, "SE-STG-001"), [], "a clean result that cannot count as a pass leaves no part");
+});
+
 test("all or nothing: an error in evaluated voids a clean violations result, and the reverse", async () => {
   const a = await go("SE-STG-001", scripted({ evaluated: [{ status: 500, errorClass: "http" }], violations: [{ rows: [] }] }), setup());
   assert.equal(stateLabel(a), "not-verified:error");

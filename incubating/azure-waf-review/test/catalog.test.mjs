@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { cpSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CATALOG_DIR, loadCatalog, validateCatalog, validateCheck } from "../scripts/lib/catalog.mjs";
+import { CATALOG_DIR, TOP_KEYS, loadCatalog, validateCatalog, validateCheck } from "../scripts/lib/catalog.mjs";
 import { kqlProblems, projectionProblems } from "../scripts/lib/kql.mjs";
 import { tmp } from "./helpers.mjs";
 
@@ -77,6 +77,13 @@ test("KQL allowlist: read operators pass, the rest is refused", () => {
   ]) assert.ok(kqlProblems(q).length, `accepted: ${q}`);
 });
 
+test("take, limit and sample are refused by their own rule, not only by the operator list", () => {
+  for (const w of ["take", "limit", "sample"]) {
+    const msgs = kqlProblems(`resources | where id != '' | extend z = ${w}`).join("\n");
+    assert.match(msgs, new RegExp(`word "${w}"`), `${w} as a word inside an expression`);
+  }
+});
+
 test("KQL allowlist: words inside string literals and longer identifiers are not operators", () => {
   assert.deepEqual(kqlProblems("resources | where name == 'take a sample' | extend limits = 1, taken = 2 | project id"), []);
 });
@@ -86,8 +93,14 @@ test("projection: only typed scalars, never properties, tags or an object", () =
   const q = (proj) => `resources | where type =~ 'x' | project ${proj}`;
   assert.deepEqual(projectionProblems(q("id, name"), f(["id", "name"])), []);
   assert.deepEqual(projectionProblems(q("id, a=tostring(properties.publicNetworkAccess)"), f(["id", "a"])), []);
-  for (const bad of ["id, properties", "id, tags", "id, sku", "id, identity", "id, zones", "id, tostring(properties)", "id, t=tostring(tags)", "id, x=tostring(properties.networkAcls)", "id, x=tostring(properties.siteConfig)", "id, x=tostring(properties.siteConfig.appSettings)", "id, x=todynamic(properties.a)", "id, x=pack_all()"])
-    assert.ok(projectionProblems(q(bad), f(["id", ...(bad.includes("=") ? ["x", "t"] : [])])).length, `accepted: ${bad}`);
+  // each case declares exactly the columns it projects, so only the projection rule itself can reject it
+  for (const [bad, names] of [["id, properties", ["id", "properties"]], ["id, tags", ["id", "tags"]], ["id, sku", ["id", "sku"]], ["id, identity", ["id", "identity"]], ["id, zones", ["id", "zones"]],
+    ["id, t=tostring(tags)", ["id", "t"]], ["id, x=tostring(properties.networkAcls)", ["id", "x"]], ["id, x=tostring(properties.siteConfig)", ["id", "x"]], ["id, x=tostring(properties.siteConfig.appSettings)", ["id", "x"]],
+    ["id, x=todynamic(properties.a)", ["id", "x"]], ["id, x=pack_all()", ["id", "x"]], ["id, x=tostring(tags)", ["id", "x"]], ["id, x=tostring(properties.primaryKey)", ["id", "x"]], ["id, x=tostring(properties.administratorLoginPassword)", ["id", "x"]]])
+    assert.ok(projectionProblems(q(bad), f(names)).length, `accepted: ${bad}`);
+  assert.ok(projectionProblems(q("id, tostring(properties)"), f(["id"])).length, "an unnamed expression");
+  assert.deepEqual(projectionProblems(q("id, o=tostring(tags['owner'])"), [{ name: "id", type: "string" }, { name: "o", type: "string", tagKey: "owner" }]), []);
+  assert.ok(projectionProblems(q("id, o=tostring(tags['owner'])"), f(["id", "o"])).length, "a tag value needs a tagKey field so the engine can hash it");
   // a projected column that is not a declared output field, and a declared field that the query does not project
   assert.ok(projectionProblems(q("id, name"), f(["id"])).length);
   assert.ok(projectionProblems(q("id"), f(["id", "name"])).length);
@@ -164,4 +177,11 @@ test("an invalid catalog directory fails loudly and names the entry", () => {
   delete j.checks[0].doesNotProve;
   writeFileSync(f, JSON.stringify(j));
   assert.throws(() => loadCatalog(join(dir, "catalog")), new RegExp(j.checks[0].id));
+});
+
+test("check.schema.json documents exactly the keys the validator accepts, and the shipped catalog uses only them", () => {
+  const schema = JSON.parse(readFileSync(join(CATALOG_DIR, "check.schema.json"), "utf8"));
+  assert.deepEqual(Object.keys(schema.properties).sort(), [...TOP_KEYS].sort());
+  for (const k of schema.required) assert.ok(TOP_KEYS.has(k));
+  for (const c of loadCatalog().checks) for (const k of schema.required) assert.ok(k in c, `${c.id} lacks ${k}`);
 });

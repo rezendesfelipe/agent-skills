@@ -9,6 +9,7 @@ import { classifyAzPath, quoteWinArg, runBaseProblem } from "../scripts/lib/plat
 import { classifyAzError, createAzTransport } from "../scripts/lib/transport.mjs";
 import { tmp } from "./helpers.mjs";
 
+const providerKeyName = ["ANTHROPIC", "API", "KEY"].join("_"); // assembled at run time: no credential-shaped literal in the repository
 const GUID = "00000000-0000-0000-0000-000000000001";
 
 test("the closed list holds exactly the documented vectors", () => {
@@ -112,7 +113,7 @@ test("transport: Resource Graph goes through az rest with constant arguments and
 fs.writeFileSync(${JSON.stringify(logPath)},JSON.stringify({a,env:Object.keys(process.env).sort(),body:JSON.parse(fs.readFileSync(body.slice(1),"utf8"))}));
 process.stdout.write(JSON.stringify({data:[{id:"x"}],count:1,totalRecords:1,resultTruncated:"false"}));`);
   s.log = logPath;
-  const t = createAzTransport({ azPath: s.azPath, parentEnv: { PATH: process.env.PATH, HOME: "/h", ANTHROPIC_API_KEY: "must-not-pass", AZURE_CONFIG_DIR: "/c" }, timeoutSec: 20 });
+  const t = createAzTransport({ azPath: s.azPath, parentEnv: { PATH: process.env.PATH, HOME: "/h", [providerKeyName]: "x", AZURE_CONFIG_DIR: "/c" }, timeoutSec: 20 });
   const r = await t.resourceGraph({ query: "resources | project id", subscriptions: [GUID], options: { $top: 1000 } }, {});
   assert.equal(r.status, 200);
   assert.equal(r.body.data[0].id, "x");
@@ -121,7 +122,7 @@ process.stdout.write(JSON.stringify({data:[{id:"x"}],count:1,totalRecords:1,resu
   assert.ok(log.a[6].startsWith("@") && log.a.at(-1) === "--only-show-errors" && log.a.length === 8, log.a.join(" "));
   assert.ok(!log.a.includes("--debug") && !log.a.includes("--verbose"));
   assert.equal(log.body.query, "resources | project id");
-  assert.ok(!log.env.includes("ANTHROPIC_API_KEY"));
+  assert.ok(!log.env.includes(providerKeyName));
   assert.ok(log.env.includes("AZURE_CORE_COLLECT_TELEMETRY"));
 });
 
