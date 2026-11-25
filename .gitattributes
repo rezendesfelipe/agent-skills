@@ -23,3 +23,9 @@ plugins/assessment-report/skills/assessment-report/test/*.mjs text eol=lf
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/vendor/** -text
 # The corpus golden file is compared as data; keep it LF.
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/yaml-corpus/golden.json text eol=lf
+
+# azure-terraform-stacks: the templates are read by the generator and the golden trees are compared byte for byte, so they must be LF
+# on every OS (the rules above are anchored at the repository root and do not reach the skill's own test/ and templates/ folders).
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/fixtures/** text eol=lf
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/golden/** text eol=lf
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/templates/** text eol=lf
