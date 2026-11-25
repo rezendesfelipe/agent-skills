@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { HERE } from "./helpers.mjs";
-import { verify, verifyRegistry, update, watch } from "../scripts/vendor-yaml.mjs";
+import { verify, verifyRegistry, update, watch, selected } from "../scripts/vendor-yaml.mjs";
 
 const SKILL = join(HERE, "..");
 const VENDOR = join(SKILL, "scripts", "vendor", "yaml");
@@ -167,4 +167,18 @@ test("watch: an advisory for the recorded version fails, a clean answer passes, 
   assert.match(adv.problems[0], /TEST-1/);
   const down = await watch({ vendorDir: VENDOR, fetchImpl: answer({}, false, 503), latest: "2.9.1" });
   assert.equal(down.ok, false);
+});
+
+test("the selection rule accepts dist/**/*.js, package.json and LICENSE only, and rejects '..' segments, absolute paths and backslashes", () => {
+  for (const ok of ["package.json", "LICENSE", "dist/index.js", "dist/schema/core/int.js"]) assert.equal(selected(ok), true, ok);
+  for (const bad of ["dist/../x.js", "dist/a/../b.js", "dist/..", "dist/./x.js", "dist//x.js", "/dist/x.js", "/etc/x.js", "dist\\x.js", "dist/a\\..\\x.js", "C:/dist/x.js", "dist/x.d.ts", "dist/cli.mjs", "browser/index.js", "README.md", "../LICENSE"]) assert.equal(selected(bad), false, bad);
+});
+
+test("a record that lists a path with '..' is a problem", () => {
+  const d = copyVendor();
+  const p = join(d, "PROVENANCE.json");
+  const rec = JSON.parse(readFileSync(p, "utf8"));
+  rec.files.push({ path: "dist/../x.js", sha256: "0".repeat(64) });
+  writeFileSync(p, JSON.stringify(rec, null, 2));
+  bad(verify({ vendorDir: d, lockfile: LOCK }), "dist/../x.js");
 });
