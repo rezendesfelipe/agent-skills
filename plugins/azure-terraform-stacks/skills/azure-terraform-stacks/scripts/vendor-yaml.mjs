@@ -29,7 +29,11 @@ const NAME = "yaml";
 export const SELECTION = "every dist/**/*.js file of the published tarball, plus package.json and LICENSE; not kept: *.d.ts, dist/cli.mjs, browser/, bin.mjs, util.js, README.md";
 
 /** The selection rule, on a path relative to the package root (forward slashes). */
-export const selected = (p) => p === "package.json" || p === "LICENSE" || /^dist\/.+\.js$/.test(p);
+export const selected = (p) => {
+  if (typeof p !== "string" || p.includes("\\") || p.startsWith("/") || /^[A-Za-z]:/.test(p)) return false; // backslash, absolute, drive letter
+  if (p.split("/").some((seg) => seg === "" || seg === "." || seg === "..")) return false; // no empty, "." or ".." segment
+  return p === "package.json" || p === "LICENSE" || /^dist\/.+\.js$/.test(p);
+};
 
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex");
 const sri512 = (buf) => `sha512-${createHash("sha512").update(buf).digest("base64")}`;
