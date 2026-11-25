@@ -43,9 +43,19 @@ Rules for every change: work on a branch `claude/<change-name>`, open the pull r
    npm test
    openspec validate --all --strict
    ```
+   The `azure-terraform-stacks` engine needs no install: `cd plugins/azure-terraform-stacks/skills/azure-terraform-stacks && node --test test/*.test.mjs` runs without `node_modules/`. Its parity tests compare the vendored `yaml` with the npm package and are skipped (with a message) until you run `npm ci` there; `REQUIRE_YAML_ORACLE=1` turns that skip into a failure, as CI does.
    `node scripts/delivery-check.mjs tasks <change>` names the first task of `tasks.md` still unticked, and `node scripts/context-budget.mjs` checks the context budget (an estimate, labeled as one; see `docs/aep/context-budget.md`).
 5. **Open a draft pull request.** CI runs the same checks. It leaves draft after the checks pass; an independent, read-only review follows.
 6. **Archive.** The integrator (see the roles in `docs/aep/roles.md`) merges only on an approved review verdict and green CI, then runs `openspec archive <change>` so the specs move into `openspec/specs/`. The maintainer can still archive by hand.
+
+## Updating the vendored yaml
+
+The engine of `azure-terraform-stacks` carries `yaml` in `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/vendor/yaml/` (see `references/traps.md` there). Never edit those files by hand; CI fails on one changed byte.
+
+1. In the skill folder run `node scripts/vendor-yaml.mjs update <x.y.z>`. It downloads the tarball with `npm pack`, checks its integrity against the registry, keeps only `dist/**/*.js`, `package.json` and `LICENSE`, writes `PROVENANCE.json`, moves the `devDependencies` pin and the lockfile, and prints what was added, changed and removed.
+2. Read the diff of `scripts/vendor/yaml/` and the release notes of `yaml`. Run `npm ci` and then `REQUIRE_YAML_ORACLE=1 node --test test/*.test.mjs`. A change of behavior shows up as a diff of `test/yaml-corpus/golden.json` (regenerate it with `node test/yaml-corpus/update.mjs` and read the diff; do not accept a change you cannot explain).
+3. Run `node scripts/vendor-yaml.mjs verify --registry`.
+4. Commit the vendor folder, `package.json`, `package-lock.json` and the golden file together, and add a CHANGELOG entry. A version bump of the plugin is a separate decision (gate 2).
 
 ## Adding an agent
 

