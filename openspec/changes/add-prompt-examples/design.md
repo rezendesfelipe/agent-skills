@@ -1,4 +1,4 @@
-Motivation and scope: `proposal.md`. Required behavior: `specs/prompt-examples/spec.md` and `specs/stacks-auditor/spec.md`. Status: for gate 1. Nothing here was run against a model. Builds on the merged `add-custom-agents` (agent install), `fix-stacks-auditor-agent` (the auditor's allowlist and preload) and `define-aep-delivery-graph` (context budgets). Paths are relative to the repository root; `file:line` references are from `main` at 4a72778.
+Motivation and scope: `proposal.md`. Required behavior: `specs/prompt-examples/spec.md` and `specs/stacks-auditor/spec.md`. Status: gate 1 approved on 2026-11-25 (section 14); implemented. Nothing here was run against a model. Builds on the merged `add-custom-agents` (agent install), `fix-stacks-auditor-agent` (the auditor's allowlist and preload) and `define-aep-delivery-graph` (context budgets). Paths are relative to the repository root; `file:line` references in sections 1 to 13 are from `main` at 4a72778 (the proposal). `main` moved afterwards (pull request #28 vendored `yaml`: azure `SKILL.md` is 13,904 bytes, `no-install.test.mjs` caps it at 13,947 and forbids `npm ci`; the auditor file is 10,039 bytes); the numbers that matter for the implementation are in section 16.
 
 ## 1. Sources read, and what is not verified
 
@@ -178,7 +178,7 @@ Nothing here runs in CI: it needs an API or a signed-in tool and is not determin
 
 The final text of each file says which of these were run, by whom, with which model, and what failed. Until the evidence exists, the status line says "not run against a model".
 
-## 9. Sample prompts (sketch for tone and level)
+## 9. Sample prompts (sketch for tone and level; superseded by the files, see section 16)
 
 These are samples only. Final wording, count and ids are decided after Q1 to Q10. Facts and names are fictional; nothing here is a credential. The pt-BR twin is shown with each.
 
@@ -435,3 +435,78 @@ Each has a recommendation. Answer in the pull request; the answers go into this 
 - **Q8. Smoke.** The maintainer runs S1 to S7 before the release (gate 2), not before merge; until then each file says "not run against a model". **Recommended: yes.** Alternative: block the merge on S5 to S7, which delays a documentation change on a test that depends on the live guard.
 - **Q9. Size.** The sketch has 19 examples; the final files keep 4 to 6 each (about 4 beginner/advanced/consultancy plus 1 or 2 anti-examples). **Recommended: cut to 4 positive plus 1 anti per file; 3 for docs-generator.**
 - **Q10. Tone and form of the sample.** Second person "você", imperative, product words in English, fictional client "Cliente Exemplo S.A.", placeholders in angle brackets, naming the skill in beginner prompts and describing the job in advanced ones. **Recommended: as in section 9.** Say what to change.
+
+## 14. Maintainer decisions, 2026-11-25 (gate 1)
+
+- **Q1 to Q10: approved as recommended in section 13.** A (`references/prompts.md` + pointer + README section); English canonical with pt-BR twin and no `es`; Q4 option B (shorten the `## Examples` block of azure and name the auditor in the pointer); the agent file untouched; README with one starter prompt per capability and a test of equality; a new root test; smoke S1 to S7 by the maintainer before the release; 4 positive examples and 1 anti-example per file (3 positive in `docs-generator`); the tone of section 9.
+- **Amendment 1** (the maintainer's words): "Os exemplos devem mostrar o que é produzido pela skill e como conseguir bons resultados." See section 15.
+- **Amendment 2**: "Também todas novas skills e agentes que vierem deverão ter esses exemplos." See section 16 for the rule and the test.
+
+## 15. Amendment 1: what is produced, and how to get good results
+
+Each positive example now has four parts, in this order: the prompt (English block and pt-BR block); **What you get** (one line in each language: format, files, sections); an **output excerpt** of at most 30 lines with one of two labels; and **Tips** (2 to 4 bullets, same count in `Tips (en):` and `Dicas (pt-BR):`) on context, constraints, evidence, scope and what not to paste. Anti-examples keep prompt, `Reason:`/`Motivo:` and `Instead:`/`Em vez disso:`.
+
+**Honesty rule for the excerpt (project decision, enforced by the label check):**
+
+| Output kind | What the file does | Label |
+|---|---|---|
+| Deterministic engine output (`assess.mjs`, `docs.mjs`, `stacks.mjs`) | the command was run on fictitious data ("Cliente Exemplo S.A.", placeholders `00000000-...`) and an excerpt pasted; the command is named | `Real output (command: \`...\`):` |
+| Text written by a model (an agent's report, a drafted manifest, a table) | an excerpt in the shape the tool documents, using only values that come from a real run or placeholders; no metric is invented | `Illustrative excerpt, not a captured run:` |
+
+The test requires exactly one of the two labels, one `text output` block of 1 to 30 lines, and rejects personal and temporary paths, secret-shaped text and non-zero GUIDs in every file. An output longer than 30 lines is shortened and the file is named.
+
+Real runs made for the excerpts (2026-11-25, Node 22.23.5, fictitious repositories in a scratch folder; the commands and fixtures are in `evidence/real-outputs-2026-11-25.md`):
+
+| Example | Command | Real or illustrative |
+|---|---|---|
+| `docs-new-doc` | `docs.mjs check` and `build --format docx` on a pt-BR source | real (headings read from the DOCX) |
+| `docs-brand` | design-system mapping and a visual check | illustrative (needs a design system and a model) |
+| `docs-report-from-assessment` | `docs.mjs build` of the `report.md` that `assess.mjs render` wrote | real |
+| `azure-first-setup` | `check-manifest`, `plan`, `scaffold`, `check` | real |
+| `azure-add-stack` | `add-stack` | real |
+| `azure-alz-github` | `check-manifest` on an `alz` manifest with no zone IDs | real |
+| `azure-from-audit` | a manifest drafted by the model | illustrative |
+| `stacks-auditor-basic` | `audit` on a fictitious repository with a push-triggered pipeline and no backend | real (the engine's output; the agent's report is model-written and says so) |
+| `stacks-auditor-scoped`, `-briefing`, `-next-step` | the agent's report, a table, a follow-up | illustrative |
+| `assess-scope-answer` | `init`, `inventory`, `status` | real |
+| `assess-evidence` | `verify`, `classify` | real |
+| `assess-framework` | a mapping | illustrative (needs a catalog) |
+| `assess-approve-render` | `review`, `review --approve`, `render` | real |
+
+The `assessment-report` file stays at 149 lines (a limit asked for by the maintainer, not an existing test), uses no word of the technology list of `skill-docs.test.mjs`, and has no checkbox list; a longer output is replaced by a short one and the generated file is named.
+
+## 16. Amendment 2: a permanent rule, and how a machine enforces it
+
+**Rule (project decision; spec: ADDED requirements on `contribution-workflow`).** Every skill and every agent ships example prompts. Where they live:
+
+| Capability | Where | How the test finds it |
+|---|---|---|
+| Skill | `references/prompts.md` in its folder; `SKILL.md` contains `references/prompts.md` exactly once | folders `plugins/*/skills/*` that have a `SKILL.md` |
+| Agent with `skills:` | a section `## Agent: <name>` in the `prompts.md` of one of the skills it lists (the CLI installs that skill with the agent, `src/lib/operations.mjs:25-81`; the marketplace installs both) | files `plugins/*/agents/*.md`, `skills` read with `parseDocument` |
+| Agent without `skills:` | `### <name>` in the README section "Example prompts", with the full examples under `#### \`id\`: title` headings | same |
+| Every skill and agent | a starter prompt in the README section, equal (both languages) to the first example of its file | same |
+
+The agent file is the system prompt: it holds no example block and does not mention `prompts.md` (a test fails otherwise). This answers the question "where do an agent's examples live": in the skill it loads, or in the README, never in itself.
+
+**Enforcement.** `test/prompt-examples.test.mjs` is in the root `npm test` (Linux, macOS, Windows; Node 20, 22, 24). It discovers the catalog by reading the folders; no name is listed in the test. It fails for any skill or agent without the file, the pointer, the section, the matching English and pt-BR blocks, the labeled output, the tips or the README starter prompt. It is red first: commit fc2d6e1 has the test alone and 14 of 15 tests fail (no prompts file existed).
+
+**Mutations (permanent tests, plus one run by hand).** The test copies `README.md`, the `SKILL.md`, the `prompts.md` and the agent files into a scratch folder, checks that the copy is clean, plants one mistake and expects an error that names it:
+
+1. a fictitious skill without examples; 2. a fictitious agent with no `skills:` and no README section; 3. a fictitious agent that lists a skill without its `## Agent:` section; 4. a missing pt-BR block; 5. a missing output label; 6. a secret-shaped line (built at run time from parts, never written as a literal); 7. a GUID that is not zeros; 8. a personal path; 9. a second pointer; 10. an auditor example that asks for a fix and a pull request; 11. an example block inside the agent file; 12. a README starter prompt that differs by one character; 13. a capability missing from the README section. The template `templates/prompts/prompts.md` is also copied into a scratch skill and must pass. By hand, once: a fictitious skill `zz-fake-skill` and agent `zz-fake-agent` were added under `plugins/` of the worktree and the test failed with five errors naming them; they were removed.
+
+**Also.** `CONTRIBUTING.md` has a section "Example prompts" and resolves the conflict with "Content is in English" (English canonical, pt-BR twin for examples only, in the same pull request); `templates/skill/SKILL.md` points to the file and `templates/prompts/prompts.md` is the starting point; `.github/pull_request_template.md` has a checklist item. There is no new workflow: the rule rides on the existing `test` job (it runs `npm test`), so the required check names do not change.
+
+**Limits.** The test proves structure, labels, secret-shaped text and a word lint for the auditor. It does not prove that a prompt works, that the pt-BR text means what the English means, or that a `Real output` excerpt was really produced by the named command (a reviewer can re-run it; the evidence file lists them).
+
+## 17. Numbers after the change (bytes / 4, an approximation)
+
+| File | Before (main 40757db) | After | Ceiling |
+|---|---|---|---|
+| azure `SKILL.md` | 13,904 | 13,836 | 14,000 (`plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/budget.test.mjs:23`, 3,500 tokens) and 13,947 (`plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/no-install.test.mjs:58-60`) |
+| docs-generator `SKILL.md` | 9,250 | 9,335 | declared 3,500 tokens (3,035 with margin) |
+| assessment-report `SKILL.md` | 8,161 | 8,237 | declared 3,000 tokens (2,678 with margin); 59 lines of 150 |
+| `agent:stacks-auditor` (file + preloaded `SKILL.md`) | about 5,986 tokens (10,039 + 13,904 bytes) | about 5,969 tokens (10,039 + 13,836 bytes) | declared 9,000 (7,760 with margin) |
+| `stacks-auditor.md` | 10,039 | 10,039 (not touched) | |
+
+No budget, `BUDGET` or ceiling was raised.
+

@@ -13,10 +13,11 @@ import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { execFileSync } from "node:child_process";
 import { test } from "node:test";
 import { parseDocument } from "../src/lib/frontmatter.mjs";
 import { scanString } from "../plugins/assessment-report/skills/assessment-report/scripts/lib/secrets.mjs";
-import { REPO_ROOT } from "./helpers.mjs";
+import { REPO_ROOT, runBin, sandbox } from "./helpers.mjs";
 
 const POINTER = "references/prompts.md";
 const MAX_OUTPUT_LINES = 30;
@@ -383,3 +384,58 @@ mutate("a README starter prompt that differs by one character fails", (d) => {
 mutate("a missing README entry for a capability fails", (d) => {
   edit(join(d, "README.md"), (t) => t.replace(/^### assessment-report$/m, "### assessment-report-renamed"));
 }, /no "### assessment-report"/);
+
+test("the prompts template, copied into a new skill, passes the checks once its placeholders are kept as they are", () => {
+  const dir = scratch();
+  try {
+    const sd = join(dir, "plugins", "tpl", "skills", "tpl-skill");
+    mkdirSync(join(sd, "references"), { recursive: true });
+    writeFileSync(join(sd, "SKILL.md"), read(join(REPO_ROOT, "templates", "skill", "SKILL.md")).replace("name: skill-name", "name: tpl-skill"));
+    cpSync(join(REPO_ROOT, "templates", "prompts", "prompts.md"), join(sd, "references", "prompts.md"));
+    const first = parse(read(join(sd, "references", "prompts.md"))).find((s) => s.h2 === "Beginner").examples[0];
+    const en = block(first, "text en")[0].content.join("\n");
+    const pt = block(first, "text pt-BR")[0].content.join("\n");
+    edit(join(dir, "README.md"), (t) => t.replace("## Layout", `### tpl-skill\n\n\`\`\`text en\n${en}\n\`\`\`\n\n\`\`\`text pt-BR\n${pt}\n\`\`\`\n\n## Layout`));
+    const errors = checkRepo(dir).filter((x) => /tpl-skill|README\.md: "Example prompts" has no "### tpl-skill"/.test(x));
+    assert.deepEqual(errors, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---- the examples reach the installed folder and the package ------------------------------------------------------------
+test("the CLI installs references/prompts.md with each skill, and with the skill an agent lists", () => {
+  const { skills, agents } = discover(REPO_ROOT);
+  const box = sandbox({ tools: [".claude"] });
+  try {
+    for (const s of skills) {
+      const r = runBin(["add", s.name, "--tool", "claude", "--scope", "user", "--yes"], { ...box, root: REPO_ROOT });
+      assert.equal(r.code, 0, r.stderr + r.stdout);
+      assert.ok(existsSync(join(box.home, ".claude", "skills", s.name, "references", "prompts.md")), `${s.name}: references/prompts.md was not installed`);
+    }
+  } finally {
+    box.cleanup();
+  }
+  for (const a of agents.filter((x) => x.skills.length)) {
+    const b = sandbox({ tools: [".claude"] });
+    try {
+      const r = runBin(["add", a.name, "--tool", "claude", "--scope", "user", "--yes"], { ...b, root: REPO_ROOT });
+      assert.equal(r.code, 0, r.stderr + r.stdout);
+      for (const name of a.skills) assert.ok(existsSync(join(b.home, ".claude", "skills", name, "references", "prompts.md")), `agent ${a.name}: skill ${name} was installed without references/prompts.md`);
+    } finally {
+      b.cleanup();
+    }
+  }
+});
+
+test("npm pack includes every references/prompts.md", () => {
+  const win = process.platform === "win32";
+  const out = execFileSync(win ? "npm.cmd" : "npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { cwd: REPO_ROOT, encoding: "utf8", shell: win });
+  const parsed = JSON.parse(out);
+  const entry = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+  const files = entry.files.map((f) => f.path);
+  for (const s of discover(REPO_ROOT).skills) {
+    const rel = `${s.dir.slice(REPO_ROOT.length).replace(/\\/g, "/").replace(/^\//, "")}/references/prompts.md`;
+    assert.ok(files.includes(rel), `${rel} is not in the package`);
+  }
+});

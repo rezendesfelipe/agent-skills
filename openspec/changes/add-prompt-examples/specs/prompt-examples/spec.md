@@ -5,7 +5,7 @@ Gives users of the skills and of the `stacks-auditor` agent example prompts to s
 ## ADDED Requirements
 
 ### Requirement: Prompt examples file per skill
-Each of the skills `docs-generator`, `azure-terraform-stacks` and `assessment-report` SHALL have a file `references/prompts.md` inside its skill folder. The file SHALL start with a one-line status that says what was tested, by whom, with which model and tool version and on which date, or that no model run was done; SHALL have a contents list; and SHALL describe its examples as starting examples, never as optimal prompts. Each example SHALL have an id that is unique in the file, a one-sentence statement of why it works, and a prompt block. Examples SHALL be grouped by level: beginner, advanced, consultancy, and a section "What not to ask" whose entries each give the reason and a safe alternative.
+Each of the skills `docs-generator`, `azure-terraform-stacks` and `assessment-report` SHALL have a file `references/prompts.md` inside its skill folder. The file SHALL start with a one-line status that says what was tested, by whom, with which model and tool version and on which date, or that no model run was done; SHALL have a contents list; and SHALL describe its examples as starting examples, never as optimal prompts. Each example SHALL have an id that is unique in the file and a prompt block in English and one in pt-BR (see "Language"), and, for a positive example, the parts described in "Each example shows what is produced and how to get good results". Examples SHALL be grouped by level: beginner, advanced, consultancy, and a section "What not to ask" whose entries each give the reason and a safe alternative.
 
 #### Scenario: File present for each skill
 - **WHEN** the repository tests run
@@ -14,6 +14,32 @@ Each of the skills `docs-generator`, `azure-terraform-stacks` and `assessment-re
 #### Scenario: No claim of effectiveness
 - **WHEN** a `prompts.md` is read
 - **THEN** it calls its prompts starting examples and its status line says what was not run, and it does not say that a prompt maximizes, guarantees or optimizes a result
+
+### Requirement: Each example shows what is produced and how to get good results
+Each positive example (every example outside "What not to ask") SHALL have, after its prompts: a line "What you get:" and its pt-BR twin "O que você recebe:" that say the format, files or sections the tool produces; exactly one output excerpt in a block of 1 to 30 lines with exactly one label; and the lists "Tips (en):" and "Dicas (pt-BR):" with 2 to 4 bullets each and the same number in both. The tips SHALL be objective advice on context, constraints, evidence, scope or what not to paste, and SHALL NOT promise a result.
+
+#### Scenario: Example without an output
+- **WHEN** a positive example has no output block, no label, or more than one label
+- **THEN** the repository tests fail and name the file and the example id
+
+#### Scenario: Tips in both languages
+- **WHEN** the number of tips in English differs from the number in pt-BR, or is not between 2 and 4
+- **THEN** the repository tests fail and name the example
+
+### Requirement: Honest outputs
+The label of an output excerpt SHALL be either `Real output (command: \`<command>\`):` or `Illustrative excerpt, not a captured run:`. Where the output of a tool is deterministic (an engine command), the example SHALL use the first label and the excerpt SHALL come from running the named command on fictitious data. Where it depends on a model, the example SHALL use the second label, SHALL use only values that come from a real run or placeholders, and SHALL NOT invent a metric. No excerpt SHALL contain a credential, a literal in the format of one, a GUID other than zeros, or a personal or temporary path. The commands and fixtures of the real runs SHALL be recorded under the change's `evidence/`.
+
+#### Scenario: Label required
+- **WHEN** an excerpt carries neither label
+- **THEN** the repository tests fail
+
+#### Scenario: Personal path in an excerpt
+- **WHEN** a `prompts.md` contains `/home/`, `/Users/`, `/root/`, `/tmp/` or a Windows user path
+- **THEN** the repository tests fail and name the file
+
+#### Scenario: Reproducible
+- **WHEN** a reviewer runs a command named in a `Real output` label on the fixtures in `evidence/`
+- **THEN** the output matches the excerpt apart from the omitted lines
 
 ### Requirement: Progressive disclosure and context budget
 The examples SHALL NOT be placed in a `SKILL.md`, in an agent file or in a `description`. Each `SKILL.md` SHALL point to its `references/prompts.md` with one line, once, one level deep. The file SHALL NOT be listed under `loadedWith` in `docs/aep/context-budgets.json`. The change SHALL NOT raise any declared budget or the `BUDGET` constant of `azure-terraform-stacks` and SHALL leave `node scripts/context-budget.mjs` and every existing budget test passing. The `SKILL.md` of `assessment-report` SHALL stay at or under 150 lines.

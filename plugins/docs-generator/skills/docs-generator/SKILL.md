@@ -80,3 +80,5 @@ These come from the research behind the default design (sources in `references/w
 
 **Input:** "Make an Excel template in the same style as our documents."
 **Output:** `<theme>.xltx` and `<theme>.thmx` from the same `docs-theme.json`, with instructions to open or apply them.
+
+More prompts, with what each produces and what not to ask: `references/prompts.md`.

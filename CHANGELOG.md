@@ -32,6 +32,25 @@ Change `vendor-stacks-engine-yaml` (OpenSpec; pull request #28). No version, tag
 
 - `scripts/vendor-yaml.mjs` (`verify`, `verify --registry`, `update <version>`), tests for the integrity check with mutations, a golden corpus of hostile and awkward YAML (alias bomb, tags, merge key, duplicate keys, several documents, CRLF, BOM, tabs, deep nesting, a 1 MiB scalar, a round trip with comments) run in child processes where memory is at risk, and a differential test against the npm package.
 
+## [Unreleased]
+
+Plugins touched (each needs a version bump at release, set by the maintainer at gate 2): `docs-generator`, `azure-terraform-stacks`, `assessment-report`. No version, tag or npm publish is part of this entry.
+
+### Added
+
+- **Example prompts** for every skill and for the `stacks-auditor` agent (OpenSpec change `add-prompt-examples`): `references/prompts.md` in `docs-generator`, `azure-terraform-stacks` (with a section for the auditor) and `assessment-report`, each with beginner, advanced and consultancy examples, what each produces (an excerpt of a real run on fictitious data, or one labeled "Illustrative excerpt, not a captured run"), tips, and a "What not to ask" list. English is canonical with a pt-BR twin. They are loaded on demand and do not grow the context of a skill or agent; the agent file is unchanged. A short "Example prompts" section in `README.md` has a starter prompt for each capability.
+- **A permanent rule**: every new skill or agent must ship such examples. `test/prompt-examples.test.mjs` (in `npm test`) discovers `plugins/*/skills/*` and `plugins/*/agents/*` and fails for one without the file, the single pointer, matching English and pt-BR blocks, labeled outputs, or a README starter prompt; it also scans for secret-shaped text (with the scanner of `assessment-report`), non-zero GUIDs and personal paths, and checks that the auditor's examples ask for nothing it cannot do. Mutation tests plant a fictitious skill and agent without examples. `templates/prompts/prompts.md` is the starting point; `CONTRIBUTING.md` and `.github/pull_request_template.md` carry the rule.
+
+### Changed
+
+- `azure-terraform-stacks` `SKILL.md`: the `## Examples` block keeps one example and points to `references/prompts.md` (13,904 to 13,836 bytes, below the 13,947 ceiling of `no-install.test.mjs` and the 14,000 of `budget.test.mjs`; no budget was raised). The other two `SKILL.md` files gain one pointer line.
+- `CONTRIBUTING.md`: "Content is in English" now excepts the pt-BR twin of example prompts; new section "Example prompts".
+
+### Known limitations
+
+- The prompts were **not run against a model**. Only the "Real output" excerpts come from running an engine command. The manual smoke checklist S1 to S7 of `openspec/changes/add-prompt-examples/design.md` is for the maintainer to run before the release.
+- The auditor's example lint (words for changes and commands) is a heuristic; review decides.
+
 ## [0.6.0] - 2026-11-24
 
 _Date planned; adjust it if the merge happens on another day (the tag lands on the merge commit)._
