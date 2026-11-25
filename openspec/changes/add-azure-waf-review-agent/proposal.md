@@ -1,0 +1,64 @@
+## Status
+
+Proposal only, written 2026-11-25 for the maintainer's gate 1. Nothing is implemented. Facts about the Azure MCP Server, Resource Graph, Advisor, Defender, RBAC, draw.io and Claude Code were read in this session; what could not be confirmed is listed in `design.md` ("Verification of the research" and "Not verified") and each item has a manual test. The real tenant is private and belongs to the user: no agent that worked on this change had access to it.
+
+## Why
+
+A consultant (here: the owner of the repository, for an internal client) needs a Well-Architected review of a real, private Azure tenant that has **no infrastructure as code and no diagrams**. Today this repository has the pieces but not the path:
+
+- `azure-terraform-stacks` and its `stacks-auditor` read **repositories**, not a live tenant.
+- `assessment-report` turns evidence into a verified report, but its evidence is files in a folder; nothing produces such files from Azure.
+- AWS and Google publish Well-Architected review skills; for Azure the closest public work is `microsoft/azure-skills` (read 2026-11-25), which has `azure-compliance` (runs `azqr` plus Key Vault expiry checks), `azure-resource-visualizer` (Mermaid diagrams of one resource group) and `azure-diagnostics`, but **no Well-Architected review**, no tenant-wide scope, no draw.io, no coverage statement and no verifiable evidence.
+
+Reading a whole tenant has three problems that a prompt alone does not solve:
+
+1. **The Azure MCP Server does not cover everything.** Its command reference on `main` (read in full, 2026-11-25) has no generic Resource Graph query, no Defender for Cloud (secure score, assessments), no policy compliance state (only `policy assignment list`), no management-group hierarchy and no network namespace (VNets, NSGs, peerings, firewalls). The user's instruction is: "what the MCP does not cover and you need, create a way to verify it". A review that silently skips these areas would be dishonest.
+2. **Volume.** A tenant has thousands of resources. Raw MCP output in the model's context does not scale; a deterministic collector that writes to disk and returns summaries does.
+3. **Trust.** A finding about a customer environment must point at evidence that code can check, and a check that could not run must say so, not pass.
+
+## What Changes
+
+- **New plugin `azure-waf-review`** (`plugins/azure-waf-review/`) with:
+  - **Agent `azure-waf-reviewer`**: a read-only subagent in an isolated context that pre-loads the skills below, reads the tenant through the **Azure MCP Server in read-only mode** plus a **deterministic collector**, and returns a summary and the paths of three artifacts: `assessment.json`, an editable **draw.io** architecture diagram, and a **pt-BR Well-Architected report** (stamped "not human reviewed" until the user approves).
+  - **Skill `azure-waf-review`**: the procedure, the rubric, a **fixed check catalog** (id, pillar, WAF recommendation ID with doc date, source chain, query, what it proves), the **collector** (`scripts/waf.mjs`, Node 20, no dependencies, read-only) and the **coverage matrix** per check and per pillar.
+  - **Skill `architecture-diagram`**: generic and reusable; turns a topology JSON into a layered draw.io file (tenant, subscription, network levels) with a deterministic layout and the design system of the project (`CLAUDE.md`).
+  - `.mcp.json` declaring the Azure MCP Server **pinned to a stable version** with `--read-only` and an explicit `--namespace` allowlist, and `hooks/hooks.json` with a `PreToolUse` guard for this agent only (Claude Code only; layered, never a guarantee).
+- **Coverage with a fallback chain, per check:** Azure MCP (read-only) → collector with a fixed catalog (Resource Graph KQL, read-only REST GET, fixed-argv `az` reads) → questionnaire answered by the user → **"not verified"**, with the reason (`no-permission`, `no-api`, `timeout`, `scope-incomplete`, `unanswered`). The report has a coverage section per pillar that states what was and was not checked.
+- **Evidence and confidence.** Every collected datum is a line of a JSONL file under `collected/`, sealed by a manifest (check ID, catalog hash, query hash, UTC time, ARM IDs, SHA-256). The existing `assessment-report` verifier checks the lines as `file` evidence. Data typed by the model from an MCP answer is recorded as a `statement` and capped at `reported` (Medium at most). A sealed finding may be Critical only after the user re-ran the one query (`reverify`). The change does **not** modify `assessment-report`.
+- **Privacy by construction.** Read-only role (Reader plus Security Reader at the root management group, never an elevated access), explicit consent before collection, redaction of secrets, keys, connection strings, tag values and application data, output folder that ignores itself in git, a declared statement that the data passes through the model provider.
+- **Tests without the tenant:** a synthetic tenant "Contoso Exemplo" (2 subscriptions, planted flaws, an answer key), deterministic tests for the catalog, collector, topology, diagram and the `assessment.json` → pt-BR report pipeline, and a **manual test script for the user** to run on the real tenant, with a way to report results without exposing client data.
+- **Example prompts** (permanent rule) in `references/prompts.md` of the skill (section `## Agent: azure-waf-reviewer`), English and pt-BR, four positive examples and anti-examples.
+- Delivery in five small pull requests; the release (versions, tag, npm) stays out of this change and needs the maintainer's explicit OK.
+
+## Capabilities
+
+### New Capabilities
+- `azure-waf-review`: the skill, the check catalog and its format, the coverage matrix and fallback chain, evidence and confidence rules for tenant data, privacy rules, the questionnaire, and the mapping to `assessment.json` and the pt-BR report.
+- `azure-waf-collector`: the collector engine (`waf.mjs`): fixed catalog execution, Resource Graph paging at tenant scope, limits, error taxonomy, redaction, sealing, resume and `reverify`.
+- `architecture-diagram`: the topology format, levels, deterministic layout, design system, validation and limits of the draw.io generator.
+- `azure-waf-reviewer`: the plugin, the agent (tools, skills, graph, interrupts), the MCP declaration, the guard hook, the context budgets and the example prompts.
+
+### Modified Capabilities
+<!-- none. The `assessment-report` capability is still an active change (add-assessment-report-skill) and not yet in openspec/specs/, so nothing can be MODIFIED there; this change consumes it unchanged. The pending decision about the confidence cap for tool output is answered inside the new capabilities and offered to the maintainer as a follow-up (design, Decision 7). -->
+
+## Non-goals
+
+- Implementing anything in this pull request: it adds only `openspec/changes/add-azure-waf-review-agent/`. No skill, agent, plugin, hook, workflow, `README.md`, `.claude-plugin/marketplace.json`, `package.json` or `docs/aep/context-budgets.json` is touched.
+- **Changing the tenant, ever.** No write call, no remediation, no pull request against the tenant, no policy assignment, no Advisor recommendation update (`advisor recommendation update` exists in the MCP and is filtered by `--read-only`). The agent recommends; it does not apply.
+- Microsoft Entra ID (users, groups, Conditional Access, PIM, MFA, app registrations). Azure RBAC and Entra roles are separate systems and reading Entra needs the Microsoft Graph API and other roles (design, "Not verified"). v1 records identity checks that need Entra as `not verified: no-api` or as questionnaire items.
+- Application code, data-plane content (blob contents, Key Vault secret values, database rows, queue messages) and logs with user content. The collector reads configuration, not data.
+- Costs in money (Cost Management API, invoices, reservations utilization). v1 uses Advisor and Resource Graph signals for the Cost Optimization pillar and marks the rest `not verified`.
+- Other clouds. AWS and Google follow only if this works and the maintainer asks.
+- Multi-tenant or Lighthouse scope, sovereign clouds and a hosted or remote Azure MCP Server. One tenant, public cloud, local server.
+- A numeric maturity score. The report states coverage and findings, never a score.
+- An own MCP server for the collector (considered and deferred, design Decision 3).
+- Changing `assessment-report`, `docs-generator`, `azure-terraform-stacks` or its diagram generator. They are reused; any gap found becomes a separate change.
+- A release: no version bump, no tag, no npm publish (gate 2).
+
+## Impact
+
+- New (implementation phase, after gate 1): `plugins/azure-waf-review/` (`.claude-plugin/plugin.json`, `.mcp.json`, `agents/azure-waf-reviewer.md`, `hooks/`, `skills/azure-waf-review/`, `skills/architecture-diagram/`), a plugin entry in `.claude-plugin/marketplace.json`, README catalog rows and starter prompts, entries in `docs/aep/context-budgets.json`, tests under each skill, a fixture tenant and manual test script.
+- Depends on `assessment-report` (verifier, severity, roadmap, pt-BR locale) and optionally on `docs-generator` (DOCX or PDF, run by the main conversation after the agent returns). Plugin `dependencies` and the pre-loading of a skill that lives in another plugin are **not verified** (design, Decision 1): plan B is written.
+- Runtime: Node 20 or later for every script of this repository. **The Azure MCP package `@azure/mcp` declares `node >=22` in its `package.json`** (read 2026-11-25), so the MCP side may need Node 22 or another install route (`dnx`, `uvx`, Docker); this is a prerequisite to state, not a change to the repository's Node 20 rule.
+- Security surface: a `.mcp.json` (the first in the catalog), a new guard hook and the first scripts in the catalog that call the network (`management.azure.com` through `az`, fixed argv). Both are described and bounded in `design.md`.
+- This pull request itself adds only files under `openspec/changes/add-azure-waf-review-agent/`.
