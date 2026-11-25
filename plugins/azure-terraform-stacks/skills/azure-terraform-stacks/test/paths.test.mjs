@@ -24,11 +24,8 @@ test("templatesDir keeps percent-encoded characters of a Windows path decoded", 
   assert.equal(dir, "C:\\Users\\Ana Silva\\repo\\templates\\");
 });
 
-test("templatesDir decodes a POSIX path with a space (%20) on every platform", () => {
-  const dir = templatesDir("file:///tmp/a%20b/c/scripts/lib/x.mjs"); // no option: the platform decides (on Windows it is a drive-less path)
-  assert.ok(dir.includes("a b"), dir);
-  assert.ok(!dir.includes("%20"), dir);
-  assert.ok(/templates[\\/]$/.test(dir), dir);
+test("templatesDir decodes a POSIX path with a space (%20), with POSIX semantics on every platform", { skip: !hasWindowsOption && "fileURLToPath(url, { windows }) needs Node >= 20.13" }, () => {
+  assert.equal(templatesDir("file:///tmp/a%20b/c/scripts/lib/x.mjs", { windows: false }), "/tmp/a b/c/templates/");
 });
 
 test("templatesDir points at the real templates on this platform", () => {
