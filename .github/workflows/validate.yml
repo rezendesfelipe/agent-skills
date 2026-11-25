@@ -12,7 +12,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -29,7 +29,7 @@ jobs:
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -60,7 +60,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         node: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -77,7 +77,7 @@ jobs:
       run:
         working-directory: plugins/docs-generator/skills/docs-generator
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -98,7 +98,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [20, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -134,7 +134,7 @@ jobs:
       run:
         working-directory: incubating/azure-waf-review
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -158,7 +158,7 @@ jobs:
       run:
         working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -174,7 +174,7 @@ jobs:
       run:
         working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -195,7 +195,7 @@ jobs:
       run:
         working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -215,7 +215,7 @@ jobs:
       run:
         working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
