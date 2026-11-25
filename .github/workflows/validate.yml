@@ -119,8 +119,37 @@ jobs:
           echo "Skipped tests: ${skipped:-unknown}"
           test "${skipped:-unknown}" = "0"
 
+  # The engine needs no install: its one dependency (yaml) is vendored in scripts/vendor/yaml (OpenSpec change
+  # vendor-stacks-engine-yaml), so these jobs do not run `npm ci`. The tests that compare the vendored copy with the npm package
+  # skip themselves here (no node_modules) and run in the parity job below. Windows (Node 24) checks the vendor files for CRLF.
+  # Plan B, if the full suite fails on Windows for a reason unrelated to the vendored copy: set `suite` for that entry to
+  # `node --test test/vendor.test.mjs test/yaml-corpus.test.mjs test/no-install.test.mjs test/golden-findings.test.mjs` and say why in the pull request.
   azure-terraform-stacks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, node: 20 }
+          - { os: ubuntu-latest, node: 24 }
+          - { os: windows-latest, node: 24 }
+    defaults:
+      run:
+        working-directory: plugins/azure-terraform-stacks/skills/azure-terraform-stacks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Verify the vendored yaml (offline)
+        run: node scripts/vendor-yaml.mjs verify
+      - name: Test the azure-terraform-stacks engine
+        run: npm test
+
+  # Parity of the vendored yaml with the npm package (the devDependency), and the copy against the registry's tarball.
+  azure-terraform-stacks-parity:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -133,9 +162,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
-      - name: Test the azure-terraform-stacks engine
+      - run: npm ci --ignore-scripts
+      - name: Registry signature of the oracle package
+        run: npm audit signatures
+      - name: Test with the oracle (a skipped parity test fails)
+        env:
+          REQUIRE_YAML_ORACLE: "1"
         run: npm test
+      - name: The vendored files equal the published package, byte for byte
+        run: node scripts/vendor-yaml.mjs verify --registry
 
   azure-terraform-stacks-deep:
     runs-on: ubuntu-latest
@@ -161,7 +196,6 @@ jobs:
           curl -sSfL -o "$RUNNER_TEMP/drawio.deb" https://github.com/jgraph/drawio-desktop/releases/download/v24.7.17/drawio-amd64-24.7.17.deb
           sudo apt-get update -qq
           sudo apt-get install -y -qq "$RUNNER_TEMP/drawio.deb" xvfb
-      - run: npm ci
       - name: Scaffold the fixtures, check --deep and export the diagrams
         run: node test/ci-deep.mjs --require-drawio
 

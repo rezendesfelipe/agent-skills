@@ -50,11 +50,25 @@ test("every YAML file under test/fixtures and test/golden: vendored copy equals 
   }
 });
 
-for (const name of [...Object.keys(childCases), ...Object.keys(parityOnlyChildCases)]) {
+for (const name of Object.keys(childCases)) {
   test(`child process case ${name}: same ending for the vendored copy and the package`, opts, () => {
     const a = runChild(name, "facade");
     const b = runChild(name, "package");
     assert.equal(a.status, b.status);
     assert.deepEqual(a.steps, b.steps);
+  });
+}
+
+// A flow collection nested 1,000 deep (a caught stack overflow) and then 10,000 deep, in one process. Observed on yaml 2.9.1: whether V8
+// aborts depends on the stack and heap state, so the same code can end either way depending on how it was loaded (an observation of the
+// change vendor-stacks-engine-yaml, design P1.3). The only claim here: each run either finishes with the parser's own refusal or ends the
+// process; it never hangs.
+for (const name of Object.keys(parityOnlyChildCases)) {
+  test(`child process case ${name}: finishes with the parser's refusal or ends the process, for both copies`, opts, () => {
+    for (const mode of ["facade", "package"]) {
+      const r = runChild(name, mode);
+      assert.notEqual(r.signal, "SIGTERM", `${mode} did not finish within the time limit`);
+      if (r.status === 0) assert.ok(r.steps.every((x) => x.code === "RESOURCE_EXHAUSTION"), JSON.stringify(r.steps));
+    }
   });
 }

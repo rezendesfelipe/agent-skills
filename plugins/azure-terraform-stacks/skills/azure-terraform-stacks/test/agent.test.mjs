@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import YAML from "yaml";
+import YAML from "../scripts/lib/yaml.mjs";
 import { HERE } from "./helpers.mjs";
 
 const PLUGIN = join(HERE, "..", "..", "..");
@@ -57,7 +57,6 @@ test("the instructions state the rules, the steps and the report sections", () =
   for (const phrase of [
     "Do not change the audited repository",
     "Never print the value of a secret",
-    "the skill's folder, the folder that contains `scripts/`",
     "audit [--root <path>]",
     "--root <audited repository>",
     "--json",
@@ -108,10 +107,11 @@ test("when the engine is missing it stops instead of auditing by hand", () => {
   assert.match(body, /\/plugin install azure-terraform-stacks@rezendesfelipe-agent-skills/);
 });
 
-test("the only permitted write is the engine's own dependency install, outside the audited repository", () => {
-  assert.match(body, /npm ci --prefix <skill folder> --omit=dev --ignore-scripts/);
-  assert.match(body, /never the audited repository/);
-  assert.match(body, /This is the only write you may make/);
+test("the auditor installs nothing: the engine's dependency is vendored, and a stale copy is reported, not repaired", () => {
+  assert.ok(!/\bnpm\b/.test(body));
+  assert.match(body, /vendored in the skill/);
+  assert.match(body, /Cannot find package 'yaml'/);
+  assert.match(body, /do not install anything/);
 });
 
 test("SKILL.md is honest about the auditor: preloaded, layered read-only, deny snippet, no claim that disallowedTools filters commands", () => {

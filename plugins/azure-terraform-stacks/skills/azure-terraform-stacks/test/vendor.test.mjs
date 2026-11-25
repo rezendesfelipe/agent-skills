@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { HERE } from "./helpers.mjs";
-import { verify, verifyRegistry, update } from "../scripts/vendor-yaml.mjs";
+import { verify, verifyRegistry, update, watch } from "../scripts/vendor-yaml.mjs";
 
 const SKILL = join(HERE, "..");
 const VENDOR = join(SKILL, "scripts", "vendor", "yaml");
@@ -111,7 +111,7 @@ function fakeTarball(extra = {}) {
   const files = { "package.json": JSON.stringify({ name: "yaml", version: "1.2.3", license: "ISC", type: "commonjs" }), LICENSE: "ISC licence text\n", "dist/index.js": "module.exports = { a: 1 };\n", "dist/sub/b.js": "exports.b = 2;\n", "dist/index.d.ts": "export {};\n", "browser/index.js": "export {};\n", "README.md": "readme\n", ...extra };
   for (const [p, c] of Object.entries(files)) { mkdirSync(join(root, "package", p, ".."), { recursive: true }); writeFileSync(join(root, "package", p), c); }
   const out = join(root, "fake.tgz");
-  const r = spawnSync("tar", ["-czf", out, "-C", root, "package"], { encoding: "utf8" });
+  const r = spawnSync("tar", ["-czf", "fake.tgz", "package"], { cwd: root, encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   return { out, sha256: createHash("sha256").update(readFileSync(out)).digest("hex") };
 }
@@ -150,4 +150,21 @@ test("update refuses a wrong tarball hash and a hand-edited vendor file without 
   assert.throws(() => update({ version: "1.2.3", vendorDir, packageJson, lockfile: null, tarball: out, sha256, runNpm: false }), /hand|differ|--force/i);
   update({ version: "1.2.3", vendorDir, packageJson, lockfile: null, tarball: out, sha256, runNpm: false, force: true });
   assert.deepEqual(verify({ vendorDir, lockfile: null }).problems, []);
+});
+
+test("watch: an advisory for the recorded version fails, a clean answer passes, a newer version only reports", async () => {
+  const answer = (body, ok = true, status = 200) => async (url, init) => {
+    assert.equal(url, "https://api.osv.dev/v1/query");
+    assert.deepEqual(JSON.parse(init.body), { package: { name: "yaml", ecosystem: "npm" }, version: "2.9.1" }); // nothing else is sent
+    return { ok, status, json: async () => body };
+  };
+  const clean = await watch({ vendorDir: VENDOR, fetchImpl: answer({}), latest: "2.9.1" });
+  assert.equal(clean.ok, true); assert.equal(clean.newer, false);
+  const newer = await watch({ vendorDir: VENDOR, fetchImpl: answer({}), latest: "2.10.0" });
+  assert.equal(newer.ok, true); assert.equal(newer.newer, true);
+  const adv = await watch({ vendorDir: VENDOR, fetchImpl: answer({ vulns: [{ id: "TEST-1", summary: "a made-up advisory" }] }), latest: "2.9.1" });
+  assert.equal(adv.ok, false);
+  assert.match(adv.problems[0], /TEST-1/);
+  const down = await watch({ vendorDir: VENDOR, fetchImpl: answer({}, false, 503), latest: "2.9.1" });
+  assert.equal(down.ok, false);
 });

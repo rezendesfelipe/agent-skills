@@ -9,7 +9,7 @@
 //   - it rejects shell metacharacters wholesale instead of parsing the shell, so it never decides what a
 //     compound command "means".
 // The same shapes are listed in agents/stacks-auditor.md ("Commands you may run"); a test keeps them equal.
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,6 @@ export const SHAPES = [
   "test -d <path>",
   "node --version",
   "node <engine> audit [--root <path>] [--json]",
-  "npm ci --prefix <skill folder> --omit=dev --ignore-scripts",
 ];
 
 export const SKILL = "azure-terraform-stacks";
@@ -79,17 +78,8 @@ function trustedSkillDirs(home) {
   return [PLUGIN_SKILL_DIR, ...USER_SKILL_FOLDERS.map((f) => join(home, f, SKILL))].map(realOf).filter(Boolean);
 }
 
-function isEngineDir(dir) {
-  try {
-    if (!existsSync(join(dir, "scripts", "stacks.mjs"))) return false;
-    return JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).name === "azure-terraform-stacks-engine";
-  } catch {
-    return false;
-  }
-}
-
 /**
- * Does `given` (a path as the agent wrote it) name something we trust to run or install? It must resolve (realpath,
+ * Does `given` (a path as the agent wrote it) name something we trust to run? It must resolve (realpath,
  * so a symbolic link is followed), have no `..`, lie neither as written nor once resolved inside the working
  * directory or the audited --root (the audited repository is untrusted), and, once resolved, be exactly `want(dir)`
  * for the plugin's skill folder or a user-installed one. Returns null when fine, or the reason.
@@ -148,18 +138,6 @@ export function decide(command, { cwd, home = homedir() } = {}) {
       const why = untrusted(engine, "the engine", (d) => join(d, "scripts", "stacks.mjs"), { cwd, home, root });
       return why ? deny(why) : allow();
     }
-    case "npm": {
-      // npm ci --prefix <dir> --omit=dev --ignore-scripts, in exactly this order, nothing else. With --prefix npm does not
-      // read the working directory's .npmrc (checked with npm 10.9.9), so the audited repository cannot steer it; the
-      // user's own npm configuration and environment still apply, and extra flags such as --registry, --userconfig,
-      // --globalconfig or --foreground-scripts are denied by this exact match.
-      if (t.length !== 6 || t[1] !== "ci" || t[2] !== "--prefix" || !isPath(t[3]) || t[4] !== "--omit=dev" || t[5] !== "--ignore-scripts")
-        return deny("only `npm ci --prefix <skill folder> --omit=dev --ignore-scripts` is allowed");
-      const why = untrusted(t[3], "the --prefix folder", (d) => d, { cwd, home });
-      if (why) return deny(why);
-      if (!isEngineDir(realOf(expand(t[3], cwd, home)))) return deny("the --prefix folder is not the engine's skill folder (it needs scripts/stacks.mjs and a package.json named azure-terraform-stacks-engine)");
-      return allow();
-    }
     case "git":
       // Task 2.4 of fix-stacks-auditor-agent: `git -c core.fsmonitor=false status --porcelain` still ran a clean filter
       // (`filter.<name>.clean` plus `.gitattributes`) named by the repository's own configuration, so git is not allowed.
@@ -171,7 +149,7 @@ export function decide(command, { cwd, home = homedir() } = {}) {
 
 /**
  * The absolute paths the guard resolves for a command it understands, in order: the arguments of `ls -d`, the one of
- * `test`, the engine and `--root` of `node`, the `--prefix` of `npm`. Used by `decide` and by the differential test, which
+ * `test`, the engine and `--root` of `node`. Used by `decide` and by the differential test, which
  * compares them with what a real shell hands to the program.
  */
 export function pathsOf(command, { cwd, home = homedir() } = {}) {
@@ -180,7 +158,6 @@ export function pathsOf(command, { cwd, home = homedir() } = {}) {
   if (t[0] === "ls") return at(t.slice(2));
   if (t[0] === "test") return at([t[2]]);
   if (t[0] === "node") return at([t[1], ...(t.includes("--root") ? [t[t.indexOf("--root") + 1]] : [])]);
-  if (t[0] === "npm") return at([t[3]]);
   return [];
 }
 

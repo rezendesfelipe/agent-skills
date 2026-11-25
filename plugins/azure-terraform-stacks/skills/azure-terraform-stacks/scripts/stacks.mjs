@@ -5,7 +5,7 @@
 // Exit codes: 0 success, 1 validation or check failure, 2 usage error.
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
-import YAML from "yaml";
+import YAML from "./lib/yaml.mjs";
 import { loadManifest, validateManifest } from "./lib/manifest.mjs";
 import { generateAll } from "./lib/generate.mjs";
 import { planFiles, writePlan } from "./lib/files.mjs";

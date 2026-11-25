@@ -1,6 +1,10 @@
 ## Status
 
-Proposal only, written on 2026-11-25 from `main` at 4a72778 (plugin `azure-terraform-stacks` 0.3.0, npm package 0.6.0, both published). Nothing is implemented, nothing is vendored in this pull request, and no version is chosen. It waits for gate 1 (the maintainer's answers to Q1 to Q8 in `design.md`). The maintainer approved the idea on 2026-11-23 as the follow-up named in Decision 6 of `fix-stacks-auditor-agent`; this document is the proposal that decision asked for.
+Gate 1 recorded on 2026-11-25: the maintainer approved the proposal with these answers (the implementation follows them; Q2 to Q7 as recommended in `design.md`):
+
+- **Q1 = A** (vendor the published `dist/` byte for byte); **Q2** = `scripts/vendor/yaml/` + facade `scripts/lib/yaml.mjs` + `.gitattributes` `-text`; **Q3** = remove the `npm ci --prefix` exception from the guard and step 3 from the agent in this change and release; **Q4** = `yaml` as a `devDependency` + `.github/dependabot.yml`, and **Dependabot alerts are the maintainer's repository setting, not enabled by this change** (an action for the maintainer); **Q5** = weekly `vendor-watch` workflow (registry + OSV); **Q6** = Windows Node 24 in the engine's CI, with plan B documented; **Q7** = vendor exactly 2.9.1; **Q8** = CODEOWNERS or a path rule only if cheap, and it is **not enforcement today**: the ruleset of `main` requires 0 approvals and no code owner review, so a `CODEOWNERS` file would not block anything (none is added); **Q9** = versions, tag and npm are not decided here (gate 2, outside this change: no bump).
+
+The change is implemented on the same branch and pull request (#28). The proposal's original text follows, with the measured values of the implementation recorded in `tasks.md` and in the pull request.
 
 ## Why
 
@@ -45,8 +49,20 @@ None.
 
 ## Impact
 
-- New: `scripts/vendor/yaml/**` (76 files plus the record, about 300 KB), `scripts/lib/yaml.mjs`, `scripts/vendor-yaml.mjs`, tests (`test/vendor.test.mjs`, `test/yaml-parity.test.mjs`, corpus and golden), `.github/workflows/vendor-watch.yml`, possibly `.github/dependabot.yml` (Q4).
-- Changed: five engine and two test imports, `package.json` and `package-lock.json` of the skill (`dependencies` becomes `devDependencies`), `.gitattributes`, `.github/workflows/validate.yml`, `SKILL.md` (one line, not larger), `references/traps.md`, `agents/stacks-auditor.md`, `hooks/stacks-auditor-guard.mjs`, `test/guard.test.mjs`, `test/agent.test.mjs`, `CONTRIBUTING.md` (how to test), `CHANGELOG.md`.
-- Size: skill folder without `node_modules`, `test`: 226,656 bytes now, about 534,000 after. The npm package of the CLI (`files` includes `plugins/*/skills/**`): 498.8 kB packed, 1.6 MB unpacked, 130 files now; about +67 kB packed and +0.3 MB unpacked, +76 files (estimates from a tarball of the same selection; re-measure with `npm pack --dry-run` in task 9.2).
-- Behavior for users: the first run no longer needs a network; an old copy of the skill (before this change) installed next to a new agent file fails with `Cannot find package 'yaml'` and the auditor can no longer install it (`design.md`, "Risks").
-- `SKILL.md` stays at or below 13,947 bytes (3,487 of 3,500 estimated tokens in `test/budget.test.mjs`).
+Files outside this change's folder that the implementation touches (declared for `node scripts/delivery-check.mjs scope vendor-stacks-engine-yaml --approved`; `S` is `plugins/azure-terraform-stacks/skills/azure-terraform-stacks`):
+
+- New, vendored copy: `S/scripts/vendor/yaml/**` (74 `dist/**/*.js`, `package.json`, `LICENSE`, `PROVENANCE.json`), copied byte for byte from the npm tarball of `yaml` 2.9.1.
+- New code: `S/scripts/lib/yaml.mjs` (facade), `S/scripts/vendor-yaml.mjs` (`verify`, `verify --registry`, `update`, `watch`).
+- New tests: `S/test/no-install.test.mjs`, `S/test/vendor.test.mjs`, `S/test/yaml-corpus.test.mjs`, `S/test/yaml-parity.test.mjs`, `S/test/yaml-corpus/{cases,child,run,update}.mjs`, `S/test/yaml-corpus/golden.json`.
+- Changed engine: `S/scripts/stacks.mjs`, `S/scripts/lib/{manifest,check,rules,discover}.mjs` (the import of the parser), `S/package.json` and `S/package-lock.json` (`yaml` moves to `devDependencies`).
+- Changed tests: `S/test/guard.test.mjs`, `S/test/agent.test.mjs`, `S/test/helpers.mjs`.
+- Guard and agent: `plugins/azure-terraform-stacks/hooks/stacks-auditor-guard.mjs`, `plugins/azure-terraform-stacks/agents/stacks-auditor.md`.
+- Text: `S/SKILL.md` (one line, 43 bytes shorter), `S/references/traps.md`, `CONTRIBUTING.md`, `CHANGELOG.md` (`[Unreleased]`).
+- Repository: `.gitattributes`, `.github/workflows/validate.yml`, `.github/workflows/vendor-watch.yml` (new), `.github/dependabot.yml` (new). Not touched: `publish.yml`, rulesets, `docs/aep/context-budgets.json`, any version, `.claude-plugin/marketplace.json`.
+- The two new CI jobs (`azure-terraform-stacks-parity`, and the Windows leg of `azure-terraform-stacks`) and `vendor-watch` are not required checks; making them required is a repository setting for the maintainer.
+
+Measured effect (before the change, then after; estimates of the proposal in parentheses):
+- Skill folder without `node_modules` and `test`: 226,656 bytes, then 555,012 (about 534,000); `scripts/`: 151,770, then 477,722 (about 450,000).
+- npm package of the CLI (`npm pack --dry-run`): 498.8 kB packed, 1.6 MB unpacked, 130 files, then 577.3 kB, 1.9 MB, 209 files (about +67 kB, +0.3 MB, +76 files; the measured files are +79: 76 vendored, the record, the facade and `vendor-yaml.mjs`).
+- `SKILL.md`: 13,947 bytes (3,487 estimated tokens) then 13,904 (3,476); `agent:stacks-auditor` about 6,134 then 5,986 estimated tokens.
+- Behavior for users: the first run needs no network; an old copy of the skill (before this change) next to a new agent file fails with `Cannot find package 'yaml'` and the auditor reports it instead of installing (`design.md`, "Risks").

@@ -30,3 +30,31 @@ for (const name of Object.keys(childCases)) {
     assert.deepEqual(r.steps, golden.child[name].steps);
   });
 }
+
+// The same repository was audited with the engine of `main` (the npm package) and with this one: the JSON output and the exit status
+// were byte-identical (recorded in the pull request of vendor-stacks-engine-yaml); this pins what that run returned.
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { HERE } from "./helpers.mjs";
+
+test("audit on a repository with an alias bomb, a CRLF file with a byte-order mark and a deeply nested file: exit status 1 and the same findings as before", () => {
+  const r = mkdtempSync(join(tmpdir(), "ats-hostile-"));
+  mkdirSync(join(r, ".github", "workflows"), { recursive: true });
+  mkdirSync(join(r, "live"));
+  let b = "l0: &l0 [x,x,x,x,x,x,x,x,x]\n";
+  for (let i = 1; i <= 5; i++) b += `l${i}: &l${i} [${Array(9).fill(`*l${i - 1}`).join(",")}]\n`;
+  const job = "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: terraform apply\n";
+  writeFileSync(join(r, ".github", "workflows", "bomb.yml"), `on: push\n${b}${job}`);
+  writeFileSync(join(r, ".github", "workflows", "crlf.yml"), `\uFEFFon: push\r\n${job.replace(/\n/g, "\r\n").replace("terraform apply", "terraform apply -auto-approve")}`);
+  writeFileSync(join(r, ".github", "workflows", "deep.yml"), `[${"[".repeat(1000)}${"]".repeat(1000)}]\n`);
+  writeFileSync(join(r, "live", "main.tf"), 'terraform {\n  backend "azurerm" {}\n}\n');
+  const env = { ...process.env };
+  delete env.NODE_PATH;
+  const out = spawnSync(process.execPath, [join(HERE, "..", "scripts", "stacks.mjs"), "audit", "--root", r, "--json"], { encoding: "utf8", env });
+  assert.equal(out.status, 1, out.stderr);
+  const j = JSON.parse(out.stdout);
+  assert.equal(j.findings.length, 4);
+  assert.deepEqual([...new Set(j.findings.map((f) => f.rule))].sort(), ["manual-trigger", "state-unknown", "versions"]);
+});

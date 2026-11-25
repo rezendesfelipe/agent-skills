@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # The engine's yaml (a devDependency: the oracle of the parity tests). A pull request that only moves this version fails the
+  # parity job until `node scripts/vendor-yaml.mjs update <version>` has refreshed the vendored copy in the same pull request
+  # (CONTRIBUTING.md, "Updating the vendored yaml"). Dependabot alerts and security updates are repository settings.
+  - package-ecosystem: npm
+    directory: /plugins/azure-terraform-stacks/skills/azure-terraform-stacks
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2

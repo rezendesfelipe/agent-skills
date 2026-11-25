@@ -3,7 +3,7 @@
 // by their contents, not by folder names. Everything deduced rather than read is tagged `inferred`.
 import { readFileSync, statSync } from "node:fs";
 import { join, posix } from "node:path";
-import YAML from "yaml";
+import YAML from "./yaml.mjs";
 import { walk, stripHclComments, braceBody, lineOf } from "./util.mjs";
 
 const MAX_BYTES = 1_500_000;
