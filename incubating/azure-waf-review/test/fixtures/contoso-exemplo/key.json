@@ -186,6 +186,7 @@
     "OE-DIAG-001": "not-verified:no-api",
     "SE-Q-001": "needs-questionnaire",
     "RE-Q-001": "needs-questionnaire",
+    "CO-Q-001": "needs-questionnaire",
     "OE-Q-001": "needs-questionnaire",
     "PE-Q-001": "needs-questionnaire"
   },
@@ -213,6 +214,7 @@
     "OE-DIAG-001": "not-verified:no-api",
     "SE-Q-001": "needs-questionnaire",
     "RE-Q-001": "needs-questionnaire",
+    "CO-Q-001": "needs-questionnaire",
     "OE-Q-001": "needs-questionnaire",
     "PE-Q-001": "needs-questionnaire"
   },

@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { build, ESC_NAME, HOSTILE_TAG } from "./fixtures/contoso-exemplo/build.mjs";
 import { FIX, ASSESS, fake, fixtureCopy, hasAssess, jsonl, planAndCollect, readJson, run, tmp, writeJson } from "./helpers.mjs";
 import { loadCatalog } from "../scripts/lib/catalog.mjs";
+import { sanitizeString } from "../scripts/lib/redact.mjs";
 
 const KEY = readJson(join(FIX, "key.json"));
 const walkFiles = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walkFiles(join(d, e.name)) : [join(d, e.name)]));
@@ -55,7 +56,7 @@ test("scorer, incomplete scope: planted flaws found, the invisible subscription 
   assert.deepEqual(statesOf(cwd), KEY.expectedStatesIncompleteScope);
   for (const f of KEY.flaws) {
     const lines = readdirSync(join(runDir, "collected")).filter((n) => n.startsWith(`${f.check}.`) && n.endsWith(".jsonl")).flatMap((n) => jsonl(join(runDir, "collected", n)));
-    assert.deepEqual(lines.map((l) => l.id).sort(), f.armIds, f.check);
+    assert.deepEqual(lines.map((l) => l.id).sort(), f.armIds.map((x) => sanitizeString(x)).sort(), f.check);
   }
   assert.equal(statesOf(cwd)[KEY.invisibleSubscription.plantedFlaw.check], "not-verified:scope-incomplete");
   const all = walkFiles(runDir).filter((f) => !f.endsWith("run.json")).map((f) => readFileSync(f, "utf8")).join("\n");

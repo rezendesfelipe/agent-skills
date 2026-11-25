@@ -57,7 +57,8 @@ test("plan writes run.json with the catalog hash, the pillars and the scope, and
   assert.equal(runJson.queryBudget, 6000);
   assert.equal(readText(join(cwd, "waf-review", ".gitignore")), "*\n");
   assert.equal(runJson.scope.expected, 3);
-  assert.equal(runJson.scope.visible.length, 2);
+  assert.equal(runJson.scope.subscriptions.length, 2);
+  assert.equal(runJson.scope.visible, 2);
   assert.equal(runJson.scope.complete, false);
 });
 

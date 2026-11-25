@@ -1,0 +1,4 @@
+{
+  "catalogVersion": "0.1.0",
+  "note": "Catalog of the azure-waf-review collector, PR 1a. A sample of the pillars' recommendations, not the framework: every check names what it proves and what it does not."
+}

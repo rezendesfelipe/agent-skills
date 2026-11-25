@@ -33,7 +33,7 @@ test("map: sealed evidence passes the real verifier and the findings are verifie
   const { cwd, runDir } = planAndCollect({ fixtures: completeScope() });
   assert.equal(run(["map", "--run", "r1"], { cwd }).code, 0);
   startAssessment(runDir);
-  const { map } = merge(runDir);
+  const { map } = merge(runDir, { impact: "moderate", likelihood: "possible", effort: "M", rationale: { impact: "synthetic", likelihood: "synthetic" } });
   assert.ok(map.findings.length >= 15, "one finding stub per failing check");
   for (const e of map.evidence.filter((x) => x.kind === "file")) {
     assert.match(e.path, /^[A-Z]{2}-[A-Z]+-\d{3}\.\d{3}\.jsonl$/);
@@ -54,7 +54,7 @@ test("map: the finding text carries the check, the query hash, the time, the par
   const { cwd, runDir } = planAndCollect({});
   run(["map", "--run", "r1"], { cwd });
   const map = readJson(join(runDir, "map.json"));
-  const f = map.findings.find((x) => x.checkId === "SE-STG-001");
+  const f = map.findings.find((x) => x.id === map.checks["SE-STG-001"].finding);
   assert.ok(f);
   assert.match(f.statement, /SE-STG-001/);
   assert.match(f.statement, /[0-9a-f]{12}/);
@@ -72,8 +72,9 @@ test("map: no stub for a check that did not fail, and no evidence from an unseal
   run(["map", "--run", "r1"], { cwd });
   const map = readJson(join(runDir, "map.json"));
   const manifest = readJson(join(runDir, "collected", "manifest.json"));
-  for (const f of map.findings) assert.equal(manifest.checks[f.checkId].state, "fail", f.checkId);
-  assert.ok(!map.findings.some((f) => f.checkId === "SE-NET-002"), "an incomplete scope is not a pass and not a finding");
+  for (const [id, c] of Object.entries(map.checks)) assert.equal(manifest.checks[id].state, "fail", id);
+  assert.equal(Object.values(map.checks).filter((c) => c.finding).length, map.findings.length);
+  assert.ok(!("SE-NET-002" in map.checks), "an incomplete scope is not a pass and not a finding");
 });
 
 test("absence evidence over an empty .001.jsonl is accepted by the real verifier (a pass check)", { skip }, () => {

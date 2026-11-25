@@ -1,0 +1,104 @@
+{
+  "note": "The recommendation ids of the five Well-Architected checklists and our OWN short topic labels. Microsoft's text is not copied. The labels were written from the checklists' subjects and were not re-read against the pages in PR 1a: confirm a label before quoting it. Id ranges and page dates were read on 2026-11-25 (design.md, claim 15).",
+  "checklists": {
+    "security": {
+      "prefix": "SE",
+      "name": "Security",
+      "docDate": "2026-06-26",
+      "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+      "ids": {
+        "SE:01": "Security baseline",
+        "SE:02": "Secure development lifecycle",
+        "SE:03": "Data classification and labels",
+        "SE:04": "Segmentation and perimeters",
+        "SE:05": "Identity and access management",
+        "SE:06": "Network isolation and filtering",
+        "SE:07": "Encryption",
+        "SE:08": "Hardening of components",
+        "SE:09": "Protecting application secrets",
+        "SE:10": "Security monitoring",
+        "SE:11": "Security testing",
+        "SE:12": "Incident response"
+      }
+    },
+    "reliability": {
+      "prefix": "RE",
+      "name": "Reliability",
+      "docDate": "2026-05-29",
+      "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
+      "ids": {
+        "RE:01": "Simplicity and efficiency of design",
+        "RE:02": "Critical flows",
+        "RE:03": "Failure mode analysis",
+        "RE:04": "Reliability and recovery targets",
+        "RE:05": "Redundancy",
+        "RE:06": "Scaling strategy",
+        "RE:07": "Self-preservation and self-healing",
+        "RE:08": "Resiliency testing",
+        "RE:09": "Business continuity and disaster recovery",
+        "RE:10": "Health indicators"
+      }
+    },
+    "cost": {
+      "prefix": "CO",
+      "name": "Cost Optimization",
+      "docDate": "2025-10-30",
+      "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+      "ids": {
+        "CO:01": "Financial responsibility",
+        "CO:02": "Cost model",
+        "CO:03": "Cost data",
+        "CO:04": "Spending guardrails",
+        "CO:05": "Rates and commitments",
+        "CO:06": "Usage and billing increments",
+        "CO:07": "Component costs",
+        "CO:08": "Environment costs",
+        "CO:09": "Flow costs",
+        "CO:10": "Data costs",
+        "CO:11": "Code costs",
+        "CO:12": "Scaling costs",
+        "CO:13": "Personnel time",
+        "CO:14": "Consolidation"
+      }
+    },
+    "operations": {
+      "prefix": "OE",
+      "name": "Operational Excellence",
+      "docDate": "2026-06-11",
+      "url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/checklist",
+      "ids": {
+        "OE:01": "Workload team culture",
+        "OE:02": "Operational procedures",
+        "OE:03": "Planning and ideation",
+        "OE:04": "Development and quality",
+        "OE:05": "Infrastructure as code",
+        "OE:06": "Deployment planning",
+        "OE:07": "Monitoring system",
+        "OE:08": "Emergency response",
+        "OE:09": "Automation of repeated tasks",
+        "OE:10": "Automation design",
+        "OE:11": "Safe deployment practices"
+      }
+    },
+    "performance": {
+      "prefix": "PE",
+      "name": "Performance Efficiency",
+      "docDate": "2026-05-06",
+      "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+      "ids": {
+        "PE:01": "Performance targets",
+        "PE:02": "Capacity planning",
+        "PE:03": "Service and SKU selection",
+        "PE:04": "Collecting performance data",
+        "PE:05": "Scaling and partitioning",
+        "PE:06": "Performance testing",
+        "PE:07": "Code and infrastructure optimization",
+        "PE:08": "Data performance",
+        "PE:09": "Critical flows",
+        "PE:10": "Operational tasks and performance",
+        "PE:11": "Live-issue response",
+        "PE:12": "Continuous performance optimization"
+      }
+    }
+  }
+}

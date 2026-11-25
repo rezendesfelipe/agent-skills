@@ -23,7 +23,7 @@ const goodCheck = () => ({
     questionnaire: { id: "Q-SE-TST-001", text: { en: "Is it so?", "pt-BR": "Isso é assim?" } },
   },
   proves: "The setting is on.", doesNotProve: "That a container is public.",
-  outputFields: FIELDS, redact: [], limits: { maxRows: 20000, maxPages: 20, maxParts: 40, timeoutSec: 30 }, requires: ["Reader"],
+  outputFields: structuredClone(FIELDS), redact: [], limits: { maxRows: 20000, maxPages: 20, maxParts: 40, timeoutSec: 30 }, requires: ["Reader"],
 });
 const ctx = { wafIds: WAF_IDS };
 const problems = (mut) => { const c = goodCheck(); mut(c); return validateCheck(c, ctx); };

@@ -1,0 +1,179 @@
+{
+  "pillar": "performance",
+  "checks": [
+    {
+      "id": "PE-ASP-001",
+      "pillar": "performance",
+      "title": "App Service plans without an autoscale setting",
+      "waf": [
+        {
+          "id": "PE:05",
+          "framework": "azure-waf",
+          "docDate": "2026-05-06",
+          "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+          "relation": "primary",
+          "why": "Scaling should follow demand."
+        },
+        {
+          "id": "PE:03",
+          "framework": "azure-waf",
+          "docDate": "2026-05-06",
+          "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+          "relation": "related",
+          "why": "Capacity choices are part of the performance targets."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.web/serverfarms' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.web/serverfarms' | extend planKey=tolower(id) | join kind=leftanti (resources | where type =~ 'microsoft.insights/autoscalesettings' | extend planKey=tolower(tostring(properties.targetResourceUri)) | project planKey) on planKey | project id, name, subscriptionId, resourceGroup, location, skuName=tostring(sku.name)"
+        }
+      },
+      "proves": "No autoscale setting targets the App Service plan.",
+      "doesNotProve": "Whether the plan needs to scale, or whether scaling is done another way (manual, schedule in another resource).",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "skuName",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "PE-ADV-001",
+      "pillar": "performance",
+      "title": "Advisor performance recommendations",
+      "waf": [
+        {
+          "id": "PE:03",
+          "framework": "azure-waf",
+          "docDate": "2026-05-06",
+          "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+          "relation": "related",
+          "why": "Advisor performance recommendations point at capacity and configuration choices."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "advisorresources | where type =~ 'microsoft.advisor/recommendations' | where tostring(properties.category) =~ 'Performance' | summarize n=count()",
+          "violations": "advisorresources | where type =~ 'microsoft.advisor/recommendations' | where tostring(properties.category) =~ 'Performance' | project id, subscriptionId, impact=tostring(properties.impact), problem=tostring(properties.shortDescription.problem)"
+        }
+      },
+      "proves": "Azure Advisor lists a recommendation in the Performance category for the resource.",
+      "doesNotProve": "That the workload is slow, or that the recommendation fits it.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "impact",
+          "type": "enum",
+          "values": [
+            "High",
+            "Medium",
+            "Low"
+          ]
+        },
+        {
+          "name": "problem",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "PE-Q-001",
+      "pillar": "performance",
+      "title": "Performance targets and load tests",
+      "waf": [
+        {
+          "id": "PE:01",
+          "framework": "azure-waf",
+          "docDate": "2026-05-06",
+          "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+          "relation": "primary",
+          "why": "Performance targets are a design practice."
+        },
+        {
+          "id": "PE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-05-06",
+          "url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+          "relation": "related",
+          "why": "Load testing validates the targets."
+        }
+      ],
+      "chain": [
+        "questionnaire"
+      ],
+      "sources": {
+        "questionnaire": {
+          "id": "Q-PE-Q-001",
+          "text": {
+            "en": "Are performance targets defined for each workload, and has a load test been run against them?",
+            "pt-BR": "As metas de desempenho estão definidas para cada carga de trabalho, e um teste de carga foi executado contra elas?"
+          }
+        }
+      },
+      "proves": "The answer of the person who knows the practice.",
+      "doesNotProve": "Whether the targets are met; no API shows it."
+    }
+  ]
+}

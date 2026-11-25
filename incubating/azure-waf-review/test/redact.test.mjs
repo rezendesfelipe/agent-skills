@@ -38,7 +38,7 @@ test("types: bool, number and enum are checked, not coerced", () => {
 test("control characters, ESC and ANSI sequences, bidi marks and length", () => {
   assert.equal(sanitizeString("a\u001b[2J\u001b[31mb\u0007c\u0000d"), "abcd");
   assert.equal(sanitizeString("x\u001b]0;pwned\u0007y"), "xy");
-  assert.equal(sanitizeString("a‮b⁦c"), "abc");
+  assert.equal(sanitizeString("a\u202eb\u2066c"), "abc");
   assert.equal(sanitizeString("a\r\nb\tc"), "a b c");
   assert.equal(sanitizeString("a".repeat(300)).length <= 256, true);
   assert.ok(!/[\u0000-\u001f\u007f-\u009f]/.test(sanitizeString("\u001b[2J name \u009b0m")));

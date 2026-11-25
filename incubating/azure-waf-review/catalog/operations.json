@@ -1,0 +1,95 @@
+{
+  "pillar": "operations",
+  "checks": [
+    {
+      "id": "OE-LOCK-001",
+      "pillar": "operations",
+      "title": "Subscriptions with no resource lock",
+      "waf": [],
+      "wafReason": "Hygiene check: no checklist item names resource locks.",
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "rest-get",
+          "scope": "subscription",
+          "url": "https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/locks?api-version=2016-09-01",
+          "violationWhen": "empty-value"
+        }
+      },
+      "proves": "The locks list of the subscription is empty.",
+      "doesNotProve": "Intent: a lock is a choice, not a requirement; resource-group and resource locks are listed together, so a subscription with any lock passes.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "OE-DIAG-001",
+      "pillar": "operations",
+      "title": "Diagnostic settings on each resource",
+      "waf": [
+        {
+          "id": "OE:07",
+          "framework": "azure-waf",
+          "docDate": "2026-06-11",
+          "url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/checklist",
+          "relation": "related",
+          "why": "Diagnostic settings feed the monitoring system."
+        }
+      ],
+      "chain": [],
+      "noApi": "microsoft.insights/diagnosticSettings is not in the Resource Graph supported tables (read 2026-11-25).",
+      "sources": {},
+      "proves": "Nothing: v1 has no tenant-scale source for it.",
+      "doesNotProve": "Everything: diagnostic settings are not a Resource Graph table, and one REST call per resource does not fit the query budget."
+    },
+    {
+      "id": "OE-Q-001",
+      "pillar": "operations",
+      "title": "Incident process and on-call",
+      "waf": [
+        {
+          "id": "OE:08",
+          "framework": "azure-waf",
+          "docDate": "2026-06-11",
+          "url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/checklist",
+          "relation": "primary",
+          "why": "An emergency response plan is an operational practice."
+        }
+      ],
+      "chain": [
+        "questionnaire"
+      ],
+      "sources": {
+        "questionnaire": {
+          "id": "Q-OE-Q-001",
+          "text": {
+            "en": "Is there a documented incident process with an on-call rota, and when was it last exercised?",
+            "pt-BR": "Existe um processo de incidentes documentado, com escala de plantão, e quando foi exercitado pela última vez?"
+          }
+        }
+      },
+      "proves": "The answer of the person who knows the practice.",
+      "doesNotProve": "Whether the process works; no API shows it."
+    }
+  ]
+}

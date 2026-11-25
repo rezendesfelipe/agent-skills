@@ -1,0 +1,659 @@
+{
+  "pillar": "security",
+  "checks": [
+    {
+      "id": "SE-STG-001",
+      "pillar": "security",
+      "title": "Storage accounts allow public blob access",
+      "waf": [
+        {
+          "id": "SE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Anonymous reads of blobs are a network and access exposure that the account setting controls."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.storage/storageaccounts' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.storage/storageaccounts' | where properties.allowBlobPublicAccess == true | project id, name, subscriptionId, resourceGroup, location, publicAccess=tostring(properties.allowBlobPublicAccess)"
+        }
+      },
+      "proves": "The account-level setting that allows anonymous reads of blobs is on.",
+      "doesNotProve": "That any container is actually public, that data is sensitive, or what an account with the setting absent does (it is not flagged).",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "publicAccess",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-STG-002",
+      "pillar": "security",
+      "title": "Storage accounts accept old TLS or plain HTTP",
+      "waf": [
+        {
+          "id": "SE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "The minimum TLS version and the HTTPS-only setting limit what traffic the account accepts."
+        },
+        {
+          "id": "SE:07",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "related",
+          "why": "They also describe encryption in transit."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.storage/storageaccounts' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.storage/storageaccounts' | where properties.minimumTlsVersion in~ ('TLS1_0','TLS1_1') or properties.supportsHttpsTrafficOnly == false | project id, name, subscriptionId, resourceGroup, location, minTls=tostring(properties.minimumTlsVersion), httpsOnly=tobool(properties.supportsHttpsTrafficOnly)"
+        }
+      },
+      "proves": "The minimum TLS version is below 1.2 or secure transfer is off.",
+      "doesNotProve": "That clients actually use the old protocol, or that data at rest is unencrypted.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "minTls",
+          "type": "string"
+        },
+        {
+          "name": "httpsOnly",
+          "type": "bool"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-NET-001",
+      "pillar": "security",
+      "title": "Network security group allows management ports from the Internet",
+      "waf": [
+        {
+          "id": "SE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "An inbound allow rule from any source on SSH or RDP is traffic that is not isolated or filtered."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.network/networksecuritygroups' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.network/networksecuritygroups' | mv-expand rule=properties.securityRules | where tostring(rule.properties.access) =~ 'Allow' and tostring(rule.properties.direction) =~ 'Inbound' | where tostring(rule.properties.sourceAddressPrefix) in~ ('*','Internet','0.0.0.0/0') | where tostring(rule.properties.destinationPortRange) in~ ('22','3389','*') | project id, name, subscriptionId, resourceGroup, location, ruleName=tostring(rule.name), port=tostring(rule.properties.destinationPortRange)"
+        }
+      },
+      "proves": "A rule of a network security group allows inbound traffic from *, Internet or 0.0.0.0/0 to port 22, 3389 or *.",
+      "doesNotProve": "Effective reachability after route tables, Azure Firewall or network virtual appliances; rules written with several prefixes or port ranges are not inspected.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "ruleName",
+          "type": "string"
+        },
+        {
+          "name": "port",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-NET-002",
+      "pillar": "security",
+      "title": "SQL servers allow public network access",
+      "waf": [
+        {
+          "id": "SE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Public network access on a database server is exposure the network layer should filter."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.sql/servers' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.sql/servers' | where properties.publicNetworkAccess =~ 'Enabled' | project id, name, subscriptionId, resourceGroup, location, publicNetworkAccess=tostring(properties.publicNetworkAccess)"
+        }
+      },
+      "proves": "The public network access setting of the SQL server is Enabled.",
+      "doesNotProve": "Which firewall rules exist, or whether the server is reachable from the Internet in practice.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "publicNetworkAccess",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-KV-001",
+      "pillar": "security",
+      "title": "Key Vaults without purge protection",
+      "waf": [
+        {
+          "id": "SE:09",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Purge protection keeps deleted secrets and keys recoverable for the retention period."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.keyvault/vaults' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.keyvault/vaults' | where properties.enablePurgeProtection != true | project id, name, subscriptionId, resourceGroup, location, purgeProtection=tobool(properties.enablePurgeProtection), softDelete=tobool(properties.enableSoftDelete)"
+        }
+      },
+      "proves": "Purge protection of the vault is not enabled.",
+      "doesNotProve": "Anything about the secrets, keys or access policies; their values are never read.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "purgeProtection",
+          "type": "bool"
+        },
+        {
+          "name": "softDelete",
+          "type": "bool"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-IAM-001",
+      "pillar": "security",
+      "title": "Owner role held by a user at subscription scope",
+      "waf": [
+        {
+          "id": "SE:05",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "A standing Owner assignment to a user is broad, hard to audit access."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | where tostring(properties.scope) matches regex '^/subscriptions/[^/]+$' | summarize n=count()",
+          "violations": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | where tostring(properties.scope) matches regex '^/subscriptions/[^/]+$' | where tostring(properties.roleDefinitionId) endswith '/8e3af657-a8ff-443c-a75c-2fe8c4bcb635' and tostring(properties.principalType) =~ 'User' | extend principalId=tostring(properties.principalId), principalType=tostring(properties.principalType), roleName='Owner', scope=tostring(properties.scope) | project id, subscriptionId, principalId, principalType, roleName, scope"
+        }
+      },
+      "proves": "A role assignment of Owner at subscription scope has a principal of type User.",
+      "doesNotProve": "Who the principal is (that needs Microsoft Graph), whether the assignment is eligible or active in PIM, or assignments at other scopes.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "principalId",
+          "type": "string"
+        },
+        {
+          "name": "principalType",
+          "type": "enum",
+          "values": [
+            "User",
+            "Group",
+            "ServicePrincipal",
+            "ForeignGroup",
+            "Device"
+          ]
+        },
+        {
+          "name": "roleName",
+          "type": "string"
+        },
+        {
+          "name": "scope",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-DEF-001",
+      "pillar": "security",
+      "title": "Defender for Cloud plans are off",
+      "waf": [
+        {
+          "id": "SE:01",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Defender plans are part of the measured security baseline."
+        }
+      ],
+      "chain": [
+        "collector",
+        "questionnaire"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "securityresources | where type =~ 'microsoft.security/pricings' | summarize n=count()",
+          "violations": "securityresources | where type =~ 'microsoft.security/pricings' | where tostring(properties.pricingTier) =~ 'Free' | project id, name, subscriptionId, tier=tostring(properties.pricingTier)"
+        },
+        "questionnaire": {
+          "id": "Q-SE-DEF-001",
+          "text": {
+            "en": "Which Microsoft Defender for Cloud plans are enabled on the production subscriptions, and who reviews its recommendations?",
+            "pt-BR": "Quais planos do Microsoft Defender for Cloud estão habilitados nas assinaturas de produção, e quem revisa as recomendações?"
+          }
+        }
+      },
+      "proves": "The pricing tier of a Defender for Cloud plan is Free.",
+      "doesNotProve": "Whether another product covers the same resources, or whether alerts are acted on.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "tier",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Security Reader"
+      ]
+    },
+    {
+      "id": "SE-DEF-002",
+      "pillar": "security",
+      "title": "Defender assessments unhealthy",
+      "waf": [
+        {
+          "id": "SE:01",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Unhealthy assessments show where the baseline is not met."
+        },
+        {
+          "id": "SE:10",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "related",
+          "why": "They are a monitoring signal."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "securityresources | where type =~ 'microsoft.security/assessments' | summarize n=count()",
+          "violations": "securityresources | where type =~ 'microsoft.security/assessments' | where tostring(properties.status.code) =~ 'Unhealthy' | project id, subscriptionId, displayName=tostring(properties.displayName), severity=tostring(properties.metadata.severity)"
+        }
+      },
+      "proves": "Defender for Cloud reports the assessment as Unhealthy for the resource.",
+      "doesNotProve": "That the finding is exploitable, or that the assessment list is complete (assessments for plans that are off do not exist).",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "displayName",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "type": "enum",
+          "values": [
+            "High",
+            "Medium",
+            "Low"
+          ]
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Security Reader"
+      ]
+    },
+    {
+      "id": "SE-GOV-001",
+      "pillar": "security",
+      "title": "Subscription with no policy assignment",
+      "waf": [
+        {
+          "id": "SE:01",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "A policy baseline is how a security baseline is applied at scale."
+        },
+        {
+          "id": "SE:04",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "related",
+          "why": "Subscriptions are a segmentation boundary."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | summarize n=count()",
+          "violations": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | join kind=leftanti (policyresources | where type =~ 'microsoft.authorization/policyassignments' | project subscriptionId) on subscriptionId | project id, name, subscriptionId"
+        }
+      },
+      "proves": "No Azure Policy assignment is recorded for the subscription.",
+      "doesNotProve": "Assignments at management group scope that apply to it (the check looks at subscription-level records only), or the quality of the policies.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "SE-Q-001",
+      "pillar": "security",
+      "title": "Identity controls in Microsoft Entra ID",
+      "waf": [
+        {
+          "id": "SE:05",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "Conditional Access, MFA and privileged access are identity practices Azure RBAC data does not show."
+        }
+      ],
+      "chain": [
+        "questionnaire"
+      ],
+      "sources": {
+        "questionnaire": {
+          "id": "Q-SE-Q-001",
+          "text": {
+            "en": "Is multi-factor authentication enforced for all administrators, and is privileged access time-limited (for example PIM)?",
+            "pt-BR": "A autenticação multifator é exigida de todos os administradores, e o acesso privilegiado tem prazo (por exemplo, PIM)?"
+          }
+        }
+      },
+      "proves": "The answer of the person who knows the practice.",
+      "doesNotProve": "The actual configuration; Microsoft Entra ID is not read in v1."
+    }
+  ]
+}

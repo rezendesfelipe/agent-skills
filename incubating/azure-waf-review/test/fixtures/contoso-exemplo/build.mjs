@@ -197,7 +197,7 @@ export function build() {
     for (const [id, v] of Object.entries(A)) s[id] = v.rows.length ? "fail" : v.n === 0 ? "not-applicable" : "pass";
     s["CO-RSV-001"] = "not-verified:no-api";
     s["OE-DIAG-001"] = "not-verified:no-api";
-    for (const q of ["SE-Q-001", "RE-Q-001", "OE-Q-001", "PE-Q-001"]) s[q] = "needs-questionnaire";
+    for (const q of ["SE-Q-001", "RE-Q-001", "CO-Q-001", "OE-Q-001", "PE-Q-001"]) s[q] = "needs-questionnaire";
     if (!complete) for (const [id, st] of Object.entries(s)) if (st === "pass" || st === "not-applicable") s[id] = "not-verified:scope-incomplete";
     return s;
   };
