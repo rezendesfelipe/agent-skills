@@ -122,10 +122,9 @@ jobs:
   # The engine needs no install: its one dependency (yaml) is vendored in scripts/vendor/yaml (OpenSpec change
   # vendor-stacks-engine-yaml), so these jobs do not run `npm ci`. The tests that compare the vendored copy with the npm package
   # skip themselves here (no node_modules) and run in the parity job below. Windows (Node 24) checks the vendor files for CRLF.
-  # Plan B (used): the engine's full suite has never run on Windows and fails there for reasons that predate the vendored copy
-  # (68 of 188 tests on 2026-11-25: scripts/lib/gen-terraform.mjs builds a path from `new URL(...).pathname`, which is `/D:/a/...`
-  # on Windows, and the guard tests assume POSIX paths). So the Windows leg runs only the tests that concern the vendored copy:
-  # the integrity check and its mutations (CRLF checkout, symbolic link), the golden corpus and the run without node_modules.
+  # Windows (Node 24) runs the engine's full suite (change fix-engine-windows-paths): scripts/lib/gen-terraform.mjs built a path from
+  # `new URL(...).pathname` (`/D:/a/...` on Windows), which made every file-generating command and 68 of the 188 tests fail there; that is
+  # fixed and the tests no longer assume POSIX paths. Tests that need a bash executable are skipped on Windows with their reason.
   # The job keeps its original name and matrix (`azure-terraform-stacks (20)` and `(24)`): the ruleset of `main` requires those two contexts.
   azure-terraform-stacks:
     runs-on: ubuntu-latest
@@ -146,7 +145,7 @@ jobs:
       - name: Test the azure-terraform-stacks engine
         run: npm test
 
-  # A separate job with its own name, so no required context is ambiguous. Plan B: only the vendored-yaml tests (see above).
+  # A separate job with its own name, so no required context is ambiguous. It is not a required check.
   azure-terraform-stacks-windows:
     runs-on: windows-latest
     defaults:
