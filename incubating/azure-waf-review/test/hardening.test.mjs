@@ -258,7 +258,7 @@ test("nit: the summary shows a bool as a bool and a number as a number", () => {
 
 test("nit: the secret scan runs BEFORE the cut to 256 characters", () => {
   const jwt = `eyJ${"a".repeat(12)}.eyJ${"b".repeat(12)}.${"c".repeat(20)}`;
-  const value = "x".repeat(236) + jwt; // the cut at 256 would keep the header and half of the payload
+  const value = `${"x".repeat(235)} ${jwt}`; // the cut at 256 would keep the header and half of the payload
   const r = projectRow({ id: "x", name: value }, [{ name: "id", type: "string" }, { name: "name", type: "string" }], { mode: "default", runId: "r1" });
   assert.equal(r.row.name, "[redacted:jwt]");
   assert.equal(r.redactions, 1);
@@ -266,8 +266,7 @@ test("nit: the secret scan runs BEFORE the cut to 256 characters", () => {
 });
 
 test("nit: the scanner also finds a bare storage key (88 base64 characters) and an Entra client secret, built at run time", () => {
-  const b64 = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODk";
-  const bare = `${b64.slice(0, 86)}==`;
+  const bare = `${"QUJD".repeat(22).slice(0, 86)}==`;
   assert.equal(bare.length, 88);
   assert.ok(scanString(`value ${bare} end`).includes("azure-storage-key-bare"));
   const aad = ["abc8", "Q~", "x".repeat(34)].join("");

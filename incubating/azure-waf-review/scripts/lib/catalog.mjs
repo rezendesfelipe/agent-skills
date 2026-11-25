@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAllowedAzVector, isAllowedUrl } from "./azread.mjs";
-import { kqlProblems, neverTypeHits, projectionProblems } from "./kql.mjs";
+import { SCALAR, kqlProblems, neverTypeHits, projectionProblems, sourceProblems } from "./kql.mjs";
 import { sha256, stableStringify } from "./util.mjs";
 
 export const CATALOG_DIR = fileURLToPath(new URL("../../catalog", import.meta.url));
@@ -104,6 +104,8 @@ export function validateCheck(check, { wafIds = new Set() } = {}) {
           if (!TYPES.includes(x?.type)) at(`outputFields[${i}].type "${x?.type}" must be one of ${TYPES.join(", ")}`);
           if (x?.type === "enum" && !(Array.isArray(x.values) && x.values.length && x.values.every(isStr))) at(`outputFields[${i}] is an enum without values`);
           if (x?.alias !== undefined && !["subscription", "resourceGroup", "resource"].includes(x.alias)) at(`outputFields[${i}].alias is not an alias class`);
+          for (const k of Object.keys(x ?? {})) if (!["name", "type", "values", "tagKey", "alias", "source"].includes(k)) at(`outputFields[${i}] has an unknown key "${k}"`);
+          if (col.kind !== "arg") for (const m of sourceProblems(x ?? {})) at(m);
         });
       }
       if (!Array.isArray(c.redact)) at("redact must be a list (may be empty)");
@@ -158,7 +160,7 @@ export function loadCatalog(dir = CATALOG_DIR) {
   }
   for (const m of validateCatalog(checks, { wafIds })) problems.push(m);
   if (problems.length) throw new Error(`catalog is invalid (${problems.length} problem(s)):\n${problems.map((m) => `  - ${m}`).join("\n")}`);
-  const sha = sha256(stableStringify({ version: index.catalogVersion, checks, wafIds: ids, azRead }));
+  const sha = sha256(stableStringify({ version: index.catalogVersion, checks, wafIds: ids, azRead, scalarPaths: SCALAR }));
   return { version: index.catalogVersion, sha256: sha, checks, wafIds, azRead: azRead.vectors };
 }
 

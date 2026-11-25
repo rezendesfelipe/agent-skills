@@ -23,11 +23,11 @@
           "kind": "arg",
           "scope": "tenant",
           "evaluated": "resources | where type =~ 'microsoft.storage/storageaccounts' | summarize n=count()",
-          "violations": "resources | where type =~ 'microsoft.storage/storageaccounts' | where properties.allowBlobPublicAccess == true | project id, name, subscriptionId, resourceGroup, location, publicAccess=tostring(properties.allowBlobPublicAccess)"
+          "violations": "resources | where type =~ 'microsoft.storage/storageaccounts' | where isnull(properties.allowBlobPublicAccess) or properties.allowBlobPublicAccess == true | project id, name, subscriptionId, resourceGroup, location, publicAccess=tostring(properties.allowBlobPublicAccess)"
         }
       },
-      "proves": "The account-level setting that allows anonymous reads of blobs is on.",
-      "doesNotProve": "That any container is actually public, that data is sensitive, or what an account with the setting absent does (it is not flagged).",
+      "proves": "The account-level setting that allows anonymous reads of blobs is on or absent.",
+      "doesNotProve": "That any container is actually public, or that data is sensitive. An account where the setting is absent (null) is flagged because older accounts allowed anonymous reads when it was absent; whether a given account behaves that way is not read.",
       "outputFields": [
         {
           "name": "id",
@@ -54,7 +54,8 @@
         },
         {
           "name": "publicAccess",
-          "type": "string"
+          "type": "string",
+          "source": "properties.allowBlobPublicAccess"
         }
       ],
       "redact": [],
@@ -74,20 +75,20 @@
       "title": "Storage accounts accept old TLS or plain HTTP",
       "waf": [
         {
-          "id": "SE:06",
-          "framework": "azure-waf",
-          "docDate": "2026-06-26",
-          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
-          "relation": "primary",
-          "why": "The minimum TLS version and the HTTPS-only setting limit what traffic the account accepts."
-        },
-        {
           "id": "SE:07",
           "framework": "azure-waf",
           "docDate": "2026-06-26",
           "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "primary",
+          "why": "The minimum TLS version and the HTTPS-only setting decide whether data in transit is protected by modern encryption."
+        },
+        {
+          "id": "SE:06",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
           "relation": "related",
-          "why": "They also describe encryption in transit."
+          "why": "They also limit what traffic the account accepts."
         }
       ],
       "chain": [
@@ -129,11 +130,13 @@
         },
         {
           "name": "minTls",
-          "type": "string"
+          "type": "string",
+          "source": "properties.minimumTlsVersion"
         },
         {
           "name": "httpsOnly",
-          "type": "bool"
+          "type": "bool",
+          "source": "properties.supportsHttpsTrafficOnly"
         }
       ],
       "redact": [],
@@ -173,7 +176,7 @@
         }
       },
       "proves": "A rule of a network security group allows inbound traffic from *, Internet or 0.0.0.0/0 to port 22, 3389 or *.",
-      "doesNotProve": "Effective reachability after route tables, Azure Firewall or network virtual appliances; rules written with several prefixes or port ranges are not inspected.",
+      "doesNotProve": "Effective reachability after route tables, Azure Firewall or network virtual appliances; rule priority and a deny rule that comes first are not evaluated; rules written with several prefixes or several port ranges (the plural properties) are not inspected. Rows are rules while the evaluated count is network security groups, so the two numbers have different units.",
       "outputFields": [
         {
           "name": "id",
@@ -200,11 +203,13 @@
         },
         {
           "name": "ruleName",
-          "type": "string"
+          "type": "string",
+          "source": "rule.name"
         },
         {
           "name": "port",
-          "type": "string"
+          "type": "string",
+          "source": "rule.properties.destinationPortRange"
         }
       ],
       "redact": [],
@@ -271,7 +276,8 @@
         },
         {
           "name": "publicNetworkAccess",
-          "type": "string"
+          "type": "string",
+          "source": "properties.publicNetworkAccess"
         }
       ],
       "redact": [],
@@ -338,11 +344,13 @@
         },
         {
           "name": "purgeProtection",
-          "type": "bool"
+          "type": "bool",
+          "source": "properties.enablePurgeProtection"
         },
         {
           "name": "softDelete",
-          "type": "bool"
+          "type": "bool",
+          "source": "properties.enableSoftDelete"
         }
       ],
       "redact": [],
@@ -395,7 +403,8 @@
         },
         {
           "name": "principalId",
-          "type": "string"
+          "type": "string",
+          "source": "properties.principalId"
         },
         {
           "name": "principalType",
@@ -406,15 +415,18 @@
             "ServicePrincipal",
             "ForeignGroup",
             "Device"
-          ]
+          ],
+          "source": "properties.principalType"
         },
         {
           "name": "roleName",
-          "type": "string"
+          "type": "string",
+          "source": "const:Owner"
         },
         {
           "name": "scope",
-          "type": "string"
+          "type": "string",
+          "source": "properties.scope"
         }
       ],
       "redact": [],
@@ -434,12 +446,20 @@
       "title": "Defender for Cloud plans are off",
       "waf": [
         {
-          "id": "SE:01",
+          "id": "SE:10",
           "framework": "azure-waf",
           "docDate": "2026-06-26",
           "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
           "relation": "primary",
-          "why": "Defender plans are part of the measured security baseline."
+          "why": "Defender plans are threat detection mechanisms integrated with the platform."
+        },
+        {
+          "id": "SE:01",
+          "framework": "azure-waf",
+          "docDate": "2026-06-26",
+          "url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+          "relation": "related",
+          "why": "Their coverage is part of the baseline that is measured."
         }
       ],
       "chain": [
@@ -480,7 +500,8 @@
         },
         {
           "name": "tier",
-          "type": "string"
+          "type": "string",
+          "source": "properties.pricingTier"
         }
       ],
       "redact": [],
@@ -541,7 +562,8 @@
         },
         {
           "name": "displayName",
-          "type": "string"
+          "type": "string",
+          "source": "properties.displayName"
         },
         {
           "name": "severity",
@@ -550,7 +572,8 @@
             "High",
             "Medium",
             "Low"
-          ]
+          ],
+          "source": "properties.metadata.severity"
         }
       ],
       "redact": [],
@@ -594,7 +617,7 @@
           "kind": "arg",
           "scope": "tenant",
           "evaluated": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | summarize n=count()",
-          "violations": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | join kind=leftanti (policyresources | where type =~ 'microsoft.authorization/policyassignments' | project subscriptionId) on subscriptionId | project id, name, subscriptionId"
+          "violations": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | join kind=leftouter (policyresources | where type =~ 'microsoft.authorization/policyassignments' | extend subIdR=subscriptionId | project subIdR) on $left.subscriptionId == $right.subIdR | where isnull(subIdR) | project id, name, subscriptionId"
         }
       },
       "proves": "No Azure Policy assignment is recorded for the subscription.",

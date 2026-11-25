@@ -41,6 +41,8 @@ export const ARG_PATH = "/providers/Microsoft.ResourceGraph/resources";
 
 /** Only https://management.azure.com, GET anywhere with an api-version, and the one read-only POST of Resource Graph. */
 export function isAllowedUrl(url, method) {
+  // characters we never need: other parsers (the az rest library) read them differently from WHATWG, so refuse before parsing
+  if (typeof url !== "string" || /[\\@%#\s\u0000-\u001f\u007f-\uffff]/.test(url)) return false;
   let u;
   try {
     u = new URL(url);

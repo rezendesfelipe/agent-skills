@@ -7,3 +7,11 @@ This folder is **not a plugin and not a skill yet**, on purpose: `scripts/valida
 What is here: the check catalog (`catalog/`), `scripts/waf.mjs` (`plan`, `collect`, `seal-check`, `coverage`, `questionnaire`, `map`, `status`), the synthetic tenant "Contoso Exemplo" (`test/fixtures/contoso-exemplo/`) and the tests (`npm test`, Node 20 or later, no dependencies).
 
 What is not here (PR 1b): `consent`, the stage and identity checks, `cap-check`, `render`, `reverify`, `purge`. Without them `plan` and `collect` run only with `--fixtures`: nothing in this folder reads a real tenant, and no run on one happens before PR 1b is merged.
+
+## Limits you should know
+
+- `kql.mjs` is an allowlist, not a KQL parser: what may be written into the evidence is the reviewed list of scalar paths in `catalog/scalar-paths.json` plus the `source` each output field declares. A `where` may read any column.
+- Tag values are **pseudonymized**, not redacted: a 32-bit hash salted with the run id, which is in `run.json`. It keeps the model from reading the text; it does not keep a name secret.
+- `seal-check` is tamper-evident (hash checks), not tamper-proof against someone who can rewrite the manifest and `run.json` together.
+- The run folder is created `0700`/`0600` on POSIX. On Windows the ACL is not verified and nothing is promised. The production transport does not run on native Windows in this build (fails closed); WSL Ubuntu is the main platform, native Windows is manual test M-10.
+- The `leftouter` rewrites of the three joins are reasoned from the KQL documentation and have not been run against Resource Graph (manual test M-3).

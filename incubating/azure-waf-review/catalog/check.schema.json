@@ -2,69 +2,305 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "azure-waf-review/catalog/check.schema.json",
   "title": "A check of the azure-waf-review catalog",
-  "description": "Documents the format. The binding validator is scripts/lib/catalog.mjs (validateCheck), which also applies the KQL allowlist, the projection rules, the host allowlist and the closed az list; a test keeps the property names of this file equal to the validator's.",
+  "description": "Documents the format. The binding validator is scripts/lib/catalog.mjs (validateCheck), which also applies the KQL allowlist, the projection rules, the host allowlist and the closed az list; a test keeps the property names of this file equal to the validator's. Reviewed scalar paths: catalog/scalar-paths.json.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "pillar", "title", "waf", "chain", "sources", "proves", "doesNotProve"],
+  "required": [
+    "id",
+    "pillar",
+    "title",
+    "waf",
+    "chain",
+    "sources",
+    "proves",
+    "doesNotProve"
+  ],
   "properties": {
-    "id": { "type": "string", "pattern": "^[A-Z]{2}-[A-Z]{1,5}-\\d{3}$", "description": "Prefix SE, RE, CO, OE or PE by pillar." },
-    "pillar": { "enum": ["security", "reliability", "cost", "operations", "performance"] },
-    "title": { "type": "string", "minLength": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}-[A-Z]{1,5}-\\d{3}$",
+      "description": "Prefix SE, RE, CO, OE or PE by pillar."
+    },
+    "pillar": {
+      "enum": [
+        "security",
+        "reliability",
+        "cost",
+        "operations",
+        "performance"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
     "waf": {
       "type": "array",
       "description": "Well-Architected recommendation ids with the checklist page date, or [] with wafReason.",
       "items": {
-        "type": "object", "additionalProperties": false,
-        "required": ["id", "framework", "docDate", "url", "relation", "why"],
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "framework",
+          "docDate",
+          "url",
+          "relation",
+          "why"
+        ],
         "properties": {
-          "id": { "type": "string", "description": "Must be in catalog/waf-ids.json." },
-          "framework": { "const": "azure-waf" },
-          "docDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-          "url": { "type": "string", "pattern": "^https://learn\\.microsoft\\.com/" },
-          "relation": { "enum": ["primary", "related"] },
-          "why": { "type": "string", "minLength": 1 }
+          "id": {
+            "type": "string",
+            "description": "Must be in catalog/waf-ids.json."
+          },
+          "framework": {
+            "const": "azure-waf"
+          },
+          "docDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://learn\\.microsoft\\.com/"
+          },
+          "relation": {
+            "enum": [
+              "primary",
+              "related"
+            ]
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
-    "wafReason": { "type": "string", "minLength": 1 },
-    "chain": { "type": "array", "uniqueItems": true, "items": { "enum": ["collector", "mcp", "questionnaire"] }, "description": "collector first; mcp only after collector. Empty only with noApi." },
-    "noApi": { "type": "string", "minLength": 1 },
+    "wafReason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "chain": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "collector",
+          "mcp",
+          "questionnaire"
+        ]
+      },
+      "description": "collector first; mcp only after collector. Empty only with noApi."
+    },
+    "noApi": {
+      "type": "string",
+      "minLength": 1
+    },
     "sources": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
         "collector": {
           "oneOf": [
-            { "type": "object", "required": ["kind", "scope", "evaluated", "violations"], "properties": { "kind": { "const": "arg" }, "scope": { "const": "tenant" }, "evaluated": { "type": "string" }, "violations": { "type": "string" } } },
-            { "type": "object", "required": ["kind", "scope", "url", "violationWhen"], "properties": { "kind": { "const": "rest-get" }, "scope": { "const": "subscription" }, "url": { "type": "string", "pattern": "^https://management\\.azure\\.com/" }, "violationWhen": { "const": "empty-value" } } },
-            { "type": "object", "required": ["kind", "vector"], "properties": { "kind": { "const": "az-read" }, "vector": { "type": "array", "items": { "type": "string" } } } }
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "scope",
+                "evaluated",
+                "violations"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "arg"
+                },
+                "scope": {
+                  "const": "tenant"
+                },
+                "evaluated": {
+                  "type": "string"
+                },
+                "violations": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "scope",
+                "url",
+                "violationWhen"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "rest-get"
+                },
+                "scope": {
+                  "const": "subscription"
+                },
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://management\\.azure\\.com/"
+                },
+                "violationWhen": {
+                  "const": "empty-value"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "kind",
+                "vector"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "az-read"
+                },
+                "vector": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           ]
         },
-        "mcp": { "type": "object", "required": ["namespace", "command", "equivalence"] },
-        "questionnaire": { "type": "object", "required": ["id", "text"], "properties": { "id": { "type": "string", "pattern": "^Q-" }, "text": { "type": "object", "required": ["en", "pt-BR"] } } }
-      }
-    },
-    "proves": { "type": "string", "minLength": 1 },
-    "doesNotProve": { "type": "string", "minLength": 1 },
-    "outputFields": {
-      "type": "array", "minItems": 1,
-      "description": "Closed list of typed scalars; the first is id. Anything else a query returns is dropped.",
-      "items": {
-        "type": "object", "additionalProperties": false, "required": ["name", "type"],
-        "properties": {
-          "name": { "type": "string", "pattern": "^[A-Za-z_]\\w*$" },
-          "type": { "enum": ["string", "bool", "number", "enum"] },
-          "values": { "type": "array", "items": { "type": "string" } },
-          "tagKey": { "type": "string", "description": "The value is a tag value: hashed unless the key is on the allowlist." },
-          "alias": { "enum": ["subscription", "resourceGroup", "resource"], "description": "Alias class in --redact strict." }
+        "mcp": {
+          "type": "object",
+          "required": [
+            "namespace",
+            "command",
+            "equivalence"
+          ]
+        },
+        "questionnaire": {
+          "type": "object",
+          "required": [
+            "id",
+            "text"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^Q-"
+            },
+            "text": {
+              "type": "object",
+              "required": [
+                "en",
+                "pt-BR"
+              ]
+            }
+          }
         }
       }
     },
-    "redact": { "type": "array", "items": { "type": "string" } },
-    "limits": {
-      "type": "object", "additionalProperties": false, "required": ["maxRows", "maxPages", "maxParts", "timeoutSec"],
-      "properties": { "maxRows": { "type": "integer", "minimum": 1 }, "maxPages": { "type": "integer", "minimum": 1 }, "maxParts": { "type": "integer", "minimum": 1 }, "timeoutSec": { "type": "integer", "minimum": 1 } }
+    "proves": {
+      "type": "string",
+      "minLength": 1
     },
-    "requires": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-    "severityHint": { "type": "object", "description": "Input to the model, never a severity." }
+    "doesNotProve": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outputFields": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Closed list of typed scalars; the first is id. Anything else a query returns is dropped.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_]\\w*$"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "bool",
+              "number",
+              "enum"
+            ]
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagKey": {
+            "type": "string",
+            "description": "The value is a tag value: hashed unless the key is on the allowlist."
+          },
+          "alias": {
+            "enum": [
+              "subscription",
+              "resourceGroup",
+              "resource"
+            ],
+            "description": "Alias class in --redact strict."
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the value comes from: a path of catalog/scalar-paths.json, a tags['key'] reference (with tagKey), a derived expression listed there, or const:<text>. Required for every field except the standard columns id, name, subscriptionId, resourceGroup and location. The query must project exactly tostring, tobool or tolong of the source; anything else is refused."
+          }
+        }
+      }
+    },
+    "redact": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxRows",
+        "maxPages",
+        "maxParts",
+        "timeoutSec"
+      ],
+      "properties": {
+        "maxRows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxPages": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxParts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSec": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "requires": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "severityHint": {
+      "type": "object",
+      "description": "Input to the model, never a severity."
+    }
   }
 }

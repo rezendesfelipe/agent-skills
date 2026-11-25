@@ -107,3 +107,22 @@ test("I-1: Resource Graph does not support join kind=leftanti (or other kinds); 
 test("summarize is for the evaluated query only; the violations query ends with a project", () => {
   assert.ok(refused(`${BASE} | summarize v = make_set(properties) by id | project ${P}`, []));
 });
+
+test("extend helpers: an extend that computes something outside the allowlist is refused even when nothing projects it", () => {
+  for (const e of ["p = tostring(properties)", "p = tostring(properties.upgradePolicy)", "p = tostring(tags)", "p = bag_pack('a', 1)", "p = tostring(properties.administratorLoginPassword)", "p = strcat(name, id)", "p = tostring(properties.a) , q = 1"])
+    assert.ok(kqlProblems(`resources | extend ${e} | project id`).length, e);
+  for (const e of ["k = tolower(id)", "k = tolower(tostring(properties.sourceResourceId))", "n = 1, m = 'Owner'", "z = coalesce(array_length(zones), 0)", "t = tostring(tags['owner'])"])
+    assert.deepEqual(kqlProblems(`resources | extend ${e} | project id`), [], e);
+});
+
+test("a summarize cannot be used to build the columns of the violations query", () => {
+  const q = `${BASE} | summarize id=any(id), name=any(name), subscriptionId=any(subscriptionId), resourceGroup=any(resourceGroup), location=any(location) | project ${P}`;
+  assert.ok(projectionProblems(q, STD).some((m) => /summarize/.test(m)), "refused for the summarize itself");
+});
+
+test("a bare projected name that is not a standard column needs an extend that computes it from its declared source", () => {
+  const f = [...STD, { name: "v", type: "string", source: "properties.publicNetworkAccess" }];
+  assert.ok(projectionProblems(`${BASE} | project ${P}, v`, f).some((m) => /bare|extend/.test(m)));
+  assert.deepEqual(projectionProblems(`${BASE} | extend v = tostring(properties.publicNetworkAccess) | project ${P}, v`, f), []);
+  assert.ok(projectionProblems(`${BASE} | extend v = tostring(properties.minimumTlsVersion) | project ${P}, v`, f).length, "an extend of another source");
+});

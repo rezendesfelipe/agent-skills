@@ -71,8 +71,9 @@ export function tenant() {
   add(SUB_PROD, "rg-app", "Microsoft.Compute/disks", "disk-orphan-02", { props: { diskSizeGB: 512, diskState: "Unattached" } });
   add(SUB_NONPROD, "rg-np", "Microsoft.Compute/disks", ESC_NAME, { props: { diskSizeGB: 32, diskState: "Unattached" }, tags: {} });
   // app service: a plan without autoscale (flaw), a plan with autoscale (decoy), a site whose settings must never be read
-  add(SUB_PROD, "rg-app", "Microsoft.Web/serverfarms", "asp-prod", { sku: { name: "P1v3" } });
-  add(SUB_NONPROD, "rg-np", "Microsoft.Web/serverfarms", "asp-np", { sku: { name: "B1" } });
+  add(SUB_PROD, "rg-app", "Microsoft.Web/serverfarms", "asp-prod", { sku: { name: "P1v3", tier: "PremiumV3" } });
+  add(SUB_NONPROD, "rg-np", "Microsoft.Web/serverfarms", "asp-np", { sku: { name: "S1", tier: "Standard" } });
+  add(SUB_NONPROD, "rg-np", "Microsoft.Web/serverfarms", "asp-free", { sku: { name: "F1", tier: "Free" } }); // cannot autoscale: out of both counts
   add(SUB_PROD, "rg-app", "Microsoft.Insights/autoscalesettings", "autoscale-asp-np", { props: { targetResourceUri: armId(SUB_NONPROD, "rg-np", "Microsoft.Web/serverfarms", "asp-np") } });
   add(SUB_PROD, "rg-app", "Microsoft.Web/sites", "app-contoso-web", { props: { siteConfig: { appSettings: [{ name: "FEATURE_FLAG", value: "placeholder-not-a-secret" }] } } });
   // recovery services vault + protected items for three VMs
@@ -145,7 +146,7 @@ export function answers() {
   set("CO-ADV-001", ADVISOR_COST.length, ADVISOR_COST);
   const all = R.filter((r) => visible.has(r.subscriptionId));
   set("CO-TAG-001", all.length, all.filter((r) => !r.tags || !r.tags.costcenter).map((r) => ({ ...common(r), owner: r.tags?.owner ?? "" })));
-  const plans = ofType(R, "Microsoft.Web/serverfarms");
+  const plans = ofType(R, "Microsoft.Web/serverfarms").filter((r) => !["Free", "Shared", "Basic"].includes(r.sku.tier));
   const scaled = new Set(ofType(R, "Microsoft.Insights/autoscalesettings").map((r) => lc(r.properties.targetResourceUri)));
   set("PE-ASP-001", plans.length, plans.filter((r) => !scaled.has(lc(r.id))).map((r) => ({ ...common(r), skuName: r.sku.name })));
   set("PE-ADV-001", 0, []);

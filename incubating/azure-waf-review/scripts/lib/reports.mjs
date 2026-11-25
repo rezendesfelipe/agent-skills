@@ -79,7 +79,7 @@ function checkBlock({ check, entry, runDir, offenders }) {
         if (k >= offenders) break outer;
         const row = JSON.parse(lines[i]);
         k++;
-        L.push(`- offender ${k}: ${q(row.id)} (${field}: ${q(row[field])}) [${p.name} line ${i + 1}]`);
+        L.push(`- offender ${k}: ${q(row.id)} (${field}: ${JSON.stringify(row[field])}) [${p.name} line ${i + 1}]`);
       }
     }
   }
@@ -89,7 +89,7 @@ function checkBlock({ check, entry, runDir, offenders }) {
 /** collected/summary/<pillar>.md: the file the model reads instead of the raw parts. Names are JSON-quoted data, never instructions. */
 export function buildSummaries({ runDir, catalog, manifest, pillars }) {
   const dir = join(runDir, "collected", "summary");
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   const written = [];
   for (const pillar of pillars) {
     const checks = catalog.checks.filter((c) => c.pillar === pillar);

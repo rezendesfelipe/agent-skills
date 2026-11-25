@@ -552,7 +552,8 @@
       },
       "zones": null,
       "sku": {
-        "name": "P1v3"
+        "name": "P1v3",
+        "tier": "PremiumV3"
       },
       "managedBy": null,
       "properties": {}
@@ -569,7 +570,26 @@
       },
       "zones": null,
       "sku": {
-        "name": "B1"
+        "name": "S1",
+        "tier": "Standard"
+      },
+      "managedBy": null,
+      "properties": {}
+    },
+    {
+      "id": "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-np/providers/Microsoft.Web/serverfarms/asp-free",
+      "name": "asp-free",
+      "type": "microsoft.web/serverfarms",
+      "subscriptionId": "00000000-0000-0000-0000-000000000002",
+      "resourceGroup": "rg-np",
+      "location": "brazilsouth",
+      "tags": {
+        "costcenter": "cc-100"
+      },
+      "zones": null,
+      "sku": {
+        "name": "F1",
+        "tier": "Free"
       },
       "managedBy": null,
       "properties": {}

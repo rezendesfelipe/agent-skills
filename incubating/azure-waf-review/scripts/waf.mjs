@@ -4,7 +4,7 @@
 // Reads Azure only through a transport (the production transport starts `az` with constant arguments; PR 1a runs only against
 // fixtures, because the consent file that production needs ships in PR 1b). Writes only inside waf-review/<run-id>/ of the
 // working directory, plus the alias file of --redact strict in the user's state directory.
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { PILLARS, loadCatalog } from "./lib/catalog.mjs";
@@ -14,7 +14,7 @@ import { makeAliaser, sanitizeString } from "./lib/redact.mjs";
 import { buildCoverage, buildMap, buildQuestionnaire, buildSummaries, coverageMarkdown, effectiveStates, readAnswers, readManifest } from "./lib/reports.mjs";
 import { sealCheck } from "./lib/seal.mjs";
 import { createFixtureTransport } from "./lib/transport.mjs";
-import { UsageError, writeFileAtomic, writeJsonFile } from "./lib/util.mjs";
+import { UsageError, runSha, writeFileAtomic, writeJsonFile } from "./lib/util.mjs";
 
 const HELP = `waf.mjs ${ENGINE_VERSION}: deterministic collector for the Azure Well-Architected review (read-only)
 
@@ -44,6 +44,13 @@ const FLAGS = {
 };
 const LATER = new Set(["consent", "cap-check", "render", "reverify", "purge", "topology"]);
 const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+/** A run id is a folder name on every platform: no reserved Windows device name, no trailing dot, letters digits dot dash underscore. */
+function checkRunId(id, what) {
+  if (typeof id !== "string" || !RUN_ID.test(id) || /[. ]$/.test(id) || RESERVED.test(id))
+    throw new UsageError(`${what} must be 1 to 64 characters of letters, digits, dot, dash or underscore, starting with a letter or digit, not ending in a dot, and not a reserved Windows name (CON, NUL, AUX, PRN, COM1 to COM9, LPT1 to LPT9)`);
+  return id;
+}
 
 function parse(argv) {
   const cmd = argv[0];
@@ -69,8 +76,10 @@ const aliasFile = (runId) => join(stateBase(), runId, "aliases.json");
 
 function runPaths(args, { create = false } = {}) {
   const id = create ? args["run-id"] ?? `run-${new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "Z").replace("T", "-")}` : args.run;
-  if (!id || !RUN_ID.test(id)) throw new UsageError(`${create ? "--run-id" : "--run"} must be 1 to 64 characters of letters, digits, dot, dash or underscore, not starting with one of the last three`);
+  checkRunId(id, create ? "--run-id" : "--run");
   const base = join(process.cwd(), "waf-review");
+  if (create && existsSync(base) && readdirSync(base).some((e) => e.toLowerCase() === id.toLowerCase() && e !== id))
+    throw new UsageError(`a run folder that differs from ${JSON.stringify(id)} only in letter case already exists; a case-insensitive disk would treat them as one`);
   return { id, base, runDir: join(base, id) };
 }
 
@@ -87,7 +96,11 @@ function requireFixtures(args, what) {
 const loadRun = (runDir) => {
   const f = join(runDir, "run.json");
   if (!existsSync(f)) throw new UsageError(`no run.json in ${runDir}; run plan first`);
-  return JSON.parse(readFileSync(f, "utf8"));
+  const run = JSON.parse(readFileSync(f, "utf8"));
+  // run.json is not trusted blindly: its run id forms a path (the alias file) and must be the folder's own name
+  checkRunId(run.runId, "run.json: runId");
+  if (run.runId !== runDir.split(/[\\/]/).pop()) throw new UsageError(`run.json: runId ${JSON.stringify(run.runId)} does not match the run folder`);
+  return run;
 };
 
 /** The subscriptions to query, and why the scope is or is not complete. The typed count is not the only protection. */
@@ -123,20 +136,27 @@ async function cmdPlan(args) {
   const accounts = (list.body ?? []).map((a) => ({ id: a.id, name: sanitizeString(a.name ?? ""), state: a.state }));
   const fx = transport.fixtureScope?.() ?? {};
   const scope = resolveScope({ accounts, containers: fx.containers, expected: fx.expected ?? accounts.length });
-  if (!existsSync(base)) { mkdirSync(base, { recursive: true }); }
-  if (!existsSync(join(base, ".gitignore"))) writeFileSync(join(base, ".gitignore"), "*\n");
+  if (!existsSync(base)) { mkdirSync(base, { recursive: true, mode: 0o700 }); try { chmodSync(base, 0o700); } catch { /* not supported on this platform */ } }
+  if (!existsSync(join(base, ".gitignore"))) writeFileSync(join(base, ".gitignore"), "*\n", { mode: 0o600 });
   const run = {
     schema: "waf-run/1", runId: id, createdAt: new Date().toISOString(), engineVersion: ENGINE_VERSION, fixtures: true,
     catalog: { version: catalog.version, sha256: catalog.sha256 }, pillars, redact, queryBudget: 6000,
     scope: { kind: "subscriptions", managementGroup: fx.managementGroup ?? null, ...scope },
   };
   writeJsonFile(join(runDir, "run.json"), run);
-  if (args.json) { out(JSON.stringify({ runId: id, pillars, scope: { visible: scope.visible, expected: scope.expected, complete: scope.complete, notCovered: scope.notCovered } }, null, 2)); return; }
+  // In strict mode this stdout reaches the model: only aliases and counts, never a real name or subscription id.
+  const strict = redact === "strict";
+  const al = strict ? makeAliaser() : null;
+  const show = (id) => (strict ? al.value("subscription", id) : id);
+  const shownAccounts = accounts.map((a) => ({ id: show(a.id), name: strict ? null : a.name, state: a.state }));
+  const shownNot = scope.notCovered.map((n) => ({ id: show(n.id), state: n.state, reason: n.reason }));
+  if (strict) saveAliases(run, al);
+  if (args.json) { out(JSON.stringify({ runId: id, pillars, redact, scope: { visible: scope.visible, expected: scope.expected, complete: scope.complete, notCovered: shownNot } }, null, 2)); return; }
   out(`Run ${id} planned in ${runDir} (fixtures, redaction ${redact}).`);
   out(`Pillars: ${pillars.join(", ")}. Catalog ${catalog.version} (${catalog.checks.length} checks, sha256 ${catalog.sha256.slice(0, 12)}).`);
   out(`Subscriptions readable: ${scope.visible}, expected: ${scope.expected}.`);
-  for (const a of accounts) out(`  - ${JSON.stringify(a.name)} state ${a.state}`);
-  if (scope.notCovered.length) { out("Not covered (checks that find nothing will be reported as scope-incomplete, never as pass):"); for (const n of scope.notCovered) out(`  - ${n.id}: ${n.state} (${n.reason})`); }
+  for (const a of shownAccounts) out(strict ? `  - ${a.id} state ${a.state}` : `  - ${JSON.stringify(a.name)} state ${a.state}`);
+  if (scope.notCovered.length) { out("Not covered (checks that find nothing will be reported as scope-incomplete, never as pass):"); for (const n of shownNot) out(`  - ${n.id}: ${n.state} (${n.reason})`); }
   else out("Scope: complete.");
 }
 
@@ -167,11 +187,16 @@ async function cmdCollect(args) {
     pillars = [args.pillar];
   }
   const aliaser = aliaserFor(run);
-  const r = await runCollect({
+  const lock = join(runDir, ".lock");
+  try { writeFileSync(lock, `${process.pid}\n`, { flag: "wx", mode: 0o600 }); } catch { console.error(`Refused: ${lock} exists, so another collect holds this run. Delete the file only if no collect is running.`); process.exitCode = 1; return; }
+  let r;
+  try {
+  r = await runCollect({
     runDir, catalog, transport, scope: { kind: "subscriptions", subscriptions: run.scope.subscriptions, visible: run.scope.visible, expected: run.scope.expected, complete: run.scope.complete },
-    pillars, only: args.check ? [args.check] : null, resume: Boolean(args.resume), redact: { mode: run.redact, runId: run.runId }, queryBudget: run.queryBudget,
+    pillars, only: args.check ? [args.check] : null, resume: Boolean(args.resume), redact: { mode: run.redact, runId: run.runId }, runSha256: runSha(run), queryBudget: run.queryBudget,
     sleep: (ms) => new Promise((res) => setTimeout(res, ms)), aliaser, azVersion: "fixture", fixtures: true,
   });
+  } finally { rmSync(lock, { force: true }); }
   saveAliases(run, aliaser);
   const summarized = [...new Set(catalog.checks.filter((c) => pillars.includes(c.pillar)).map((c) => c.pillar))];
   buildSummaries({ runDir, catalog, manifest: r.manifest, pillars: summarized });
@@ -187,7 +212,8 @@ function cmdSealCheck(args) {
   const { runDir } = runPaths(args);
   loadRun(runDir);
   const r = sealCheck({ runDir, catalog: loadCatalog() });
-  if (r.ok) { out("seal-check passed: every part matches the manifest, the catalog hash matches, and the assessed root is the sealed folder."); return; }
+  for (const n of r.notes) out(`note: ${n}`);
+  if (r.ok) { out("seal-check passed: every file in collected/ is sealed, every part matches the manifest, the catalog hash and run.json match, and nothing contradicts the sealed counts."); return; }
   out(`seal-check FAILED (${r.problems.length}):`);
   for (const p of r.problems) out(`  - ${p}`);
   process.exitCode = 1;

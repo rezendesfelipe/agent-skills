@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, w
 import { join } from "node:path";
 import { PILLARS, querySha } from "./catalog.mjs";
 import { projectRow } from "./redact.mjs";
-import { UsageError, sha256, writeJsonFile } from "./util.mjs";
+import { GUID_RE, UsageError, sha256, writeJsonFile } from "./util.mjs";
 
 export const ENGINE_VERSION = "0.1.0";
 export const MIB = 1024 * 1024;
@@ -114,10 +114,11 @@ async function roleQuery(check, role, scope, transport, st) {
 function writeParts(check, rows, collectedDir, redact, aliaser) {
   const tmpDir = join(collectedDir, `.tmp-${check.id}`);
   rmSync(tmpDir, { recursive: true, force: true });
-  mkdirSync(tmpDir, { recursive: true });
+  mkdirSync(tmpDir, { recursive: true, mode: 0o700 });
   const parts = [];
   let cur = null;
   let redactions = 0;
+  let pseudonymized = 0;
   const dropped = {};
   const open = () => {
     if (parts.length >= check.limits.maxParts) throw new Void("truncated");
@@ -128,6 +129,7 @@ function writeParts(check, rows, collectedDir, redact, aliaser) {
   for (const raw of rows) {
     const p = projectRow(raw, check.outputFields, { mode: redact.mode, runId: redact.runId, aliaser });
     redactions += p.redactions;
+    pseudonymized += p.pseudonymized;
     for (const d of p.dropped) dropped[d] = (dropped[d] ?? 0) + 1;
     const line = Buffer.from(`${JSON.stringify(p.row)}\n`, "utf8");
     if (cur.bytes + line.length > PART_MAX_BYTES && cur.lines > 0) open();
@@ -137,10 +139,10 @@ function writeParts(check, rows, collectedDir, redact, aliaser) {
   }
   const sealed = parts.map((p) => {
     const buf = Buffer.concat(p.chunks);
-    writeFileSync(join(tmpDir, p.name), buf);
+    writeFileSync(join(tmpDir, p.name), buf, { mode: 0o600 });
     return { name: p.name, lines: p.lines, sha256: createHash("sha256").update(buf).digest("hex") };
   });
-  return { tmpDir, parts: sealed, redactions, dropped };
+  return { tmpDir, parts: sealed, redactions, pseudonymized, dropped };
 }
 
 const num = (rows) => {
@@ -154,6 +156,7 @@ async function runRest(check, scope, transport, st) {
   let n = 0;
   let pages = 0;
   for (const sub of scope.subscriptions) {
+    if (!GUID_RE.test(sub)) throw new Void("error", { class: "invalid-subscription", status: null });
     const target = url.replace("{subscriptionId}", sub);
     const r = await call(() => transport.restGet(target, { checkId: check.id, role: "violations", subscription: sub }), st);
     if (r.timeout) throw new Void("timeout", { class: "timeout", status: null });
@@ -182,7 +185,7 @@ export async function collectCheck({ check, transport, scope, collectedDir, reda
     return { ...entry, state: "not-verified", reason, ...(error ? { error } : {}), finishedAt: now() };
   };
   try {
-    mkdirSync(collectedDir, { recursive: true });
+    mkdirSync(collectedDir, { recursive: true, mode: 0o700 });
     let evaluated;
     let rows;
     if (check.sources.collector.kind === "rest-get") {
@@ -192,7 +195,7 @@ export async function collectCheck({ check, transport, scope, collectedDir, reda
       const ev = await roleQuery(check, "evaluated", scope, transport, st);
       entry.pages.evaluated = ev.pages;
       // the evaluated query counts; after a per-subscription split the counts are summed
-      evaluated = ev.split ? ev.rows.reduce((a, r) => a + (num([r]) ?? 0), 0) : num(ev.rows);
+      evaluated = ev.split ? (ev.rows.every((r) => num([r]) !== null) && ev.rows.length ? ev.rows.reduce((a, r) => a + num([r]), 0) : null) : num(ev.rows);
       if (evaluated === null) throw new Void("error", { class: "format", status: 200 });
       const vi = await roleQuery(check, "violations", scope, transport, st);
       entry.pages.violations = vi.pages;
@@ -211,6 +214,7 @@ export async function collectCheck({ check, transport, scope, collectedDir, reda
     rmSync(w.tmpDir, { recursive: true, force: true });
     entry.parts = w.parts;
     entry.redactions = w.redactions;
+    if (w.pseudonymized) entry.tagsPseudonymized = w.pseudonymized;
     if (Object.keys(w.dropped).length) entry.dropped = w.dropped;
     entry.state = rows.length ? "fail" : evaluated > 0 ? "pass" : "not-applicable";
     entry.truncated = false;
@@ -242,9 +246,10 @@ export function partsValid(collectedDir, entry) {
  * Runs the checks of the chosen pillars. `only` limits it to ids; `resume` skips checks whose entry is still valid.
  * Writes collected/manifest.json after every check, so an interrupted run resumes.
  */
-export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
+export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, runSha256 = null, queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
   const collectedDir = join(runDir, "collected");
-  mkdirSync(collectedDir, { recursive: true });
+  for (const sub of scope.subscriptions ?? []) if (!GUID_RE.test(sub)) throw new UsageError(`subscription id ${JSON.stringify(String(sub).slice(0, 60))} is not a GUID`);
+  mkdirSync(collectedDir, { recursive: true, mode: 0o700 });
   if (only) {
     const unknown = only.filter((id) => !catalog.checks.some((c) => c.id === id));
     if (unknown.length) throw new UsageError(`unknown check id(s): ${unknown.join(", ")}. Valid ids: ${catalog.checks.map((c) => c.id).join(", ")}`);
@@ -255,7 +260,13 @@ export async function runCollect({ runDir, catalog, transport, scope, pillars = 
     try { manifest = JSON.parse(readFileSync(manifestPath, "utf8")); } catch { manifest = null; }
   }
   if (!manifest || manifest.catalog?.sha256 !== catalog.sha256) manifest = null;
-  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
+  if (manifest) {
+    // an existing manifest is reused only for the same run: the same run id, redaction mode and sealed run.json
+    if (manifest.runId !== redact.runId) throw new Error(`the manifest belongs to run id ${JSON.stringify(manifest.runId)}, not ${JSON.stringify(redact.runId)}; refusing to reuse it`);
+    if (manifest.redact !== redact.mode) throw new Error(`the manifest was written with redact=${manifest.redact} and this run says redact=${redact.mode}; refusing to reuse it`);
+    if (runSha256 && manifest.run?.sha256 !== runSha256) throw new Error("run.json changed since the manifest was written (the run hash differs); refusing to reuse the sealed checks. Plan a new run.");
+  }
+  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, run: { sha256: runSha256 }, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
   manifest.generatedAt = now();
   const budget = { remaining: queryBudget, used: 0 };
   const todo = catalog.checks.filter((c) => pillars.includes(c.pillar) && (!only || only.includes(c.id)));

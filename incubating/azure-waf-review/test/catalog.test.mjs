@@ -183,3 +183,15 @@ test("check.schema.json documents exactly the keys the validator accepts, and th
   for (const k of schema.required) assert.ok(TOP_KEYS.has(k));
   for (const c of loadCatalog().checks) for (const k of schema.required) assert.ok(k in c, `${c.id} lacks ${k}`);
 });
+
+test("WAF labels follow the official checklists (the review found OE:06 and OE:09 wrong; the labels are ours, the meaning is theirs)", () => {
+  const t = (id) => loadCatalog().wafIds.get(id).title;
+  assert.match(t("OE:06"), /supply chain|pipeline/i);
+  assert.match(t("OE:09"), /testing/i);
+  assert.match(t("OE:10"), /automation/i);
+  assert.match(t("OE:11"), /deployment/i);
+  assert.match(t("RE:09"), /disaster recovery/i);
+  assert.match(t("SE:07"), /encrypt/i);
+  assert.match(t("SE:10"), /monitor/i);
+  assert.match(t("CO:03"), /cost data/i);
+});

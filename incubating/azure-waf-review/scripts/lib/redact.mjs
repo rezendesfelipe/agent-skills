@@ -1,6 +1,6 @@
 // Redaction before anything is written: closed projection, typed scalars, control characters, the secret scanner on VALUES,
 // tag values hashed, and (strict mode) stable aliases. Design Decision 5 and spec "Redaction before write".
-import { scanString } from "./secrets.mjs";
+import { scanString } from "./scan.mjs";
 import { sha256 } from "./util.mjs";
 
 export const MAX_STRING = 256;
@@ -8,18 +8,21 @@ export const TAG_ALLOWLIST = new Set(["env", "environment", "tier", "criticality
 export const ALIAS_CLASSES = ["subscription", "resourceGroup", "resource"];
 
 /** Removes OSC and CSI sequences, then every remaining control, bidi, zero-width character; line breaks become one space; caps the length. */
-export function sanitizeString(s) {
+export function sanitizeString(s, { cap = true } = {}) {
   let t = String(s)
     .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)?/g, "")
     .replace(/(?:\u001b\[|\u009b)[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\u001b[@-Z\\-_]?/g, "")
     .replace(/\r\n|[\r\n\t]/g, " ")
     .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2028\u2029\u2066-\u2069\u061c\ufeff]/g, "");
-  if (t.length > MAX_STRING) t = t.slice(0, MAX_STRING);
-  return t;
+  return cap && t.length > MAX_STRING ? t.slice(0, MAX_STRING) : t;
 }
 
-/** A tag value is data a person typed (often a name or an e-mail address): hash it unless the key is on the allowlist. */
+/**
+ * A tag value is data a person typed (often a name or an e-mail address): it is PSEUDONYMIZED, not redacted, unless the key is on
+ * the allowlist. The hash is 32 bits salted with the run id, which is in run.json and in the manifest: a dictionary of likely values
+ * reverses it. It keeps the model from reading the text (an injection), it does not keep a person's name secret.
+ */
 export function tagValue(key, value, runId) {
   if (value === "" || value === null || value === undefined) return "";
   const raw = String(value);
@@ -70,12 +73,13 @@ export function makeAliaser(initial = {}) {
 /**
  * Projects one raw row to the declared output fields, in their order. A value that is not the declared scalar type (an object,
  * an array, a string where a bool was declared) becomes null and is reported in `dropped`: it is never stringified.
- * @returns {{row: object, dropped: string[], redactions: number}}
+ * @returns {{row: object, dropped: string[], redactions: number, pseudonymized: number}}
  */
 export function projectRow(raw, fields, { mode = "default", runId = "", aliaser = null } = {}) {
   const row = {};
   const dropped = [];
   let redactions = 0;
+  let pseudonymized = 0;
   for (const f of fields) {
     const v = raw?.[f.name];
     if (v === undefined || v === null) { row[f.name] = null; continue; }
@@ -85,11 +89,16 @@ export function projectRow(raw, fields, { mode = "default", runId = "", aliaser 
     if (typeof v !== "string") { bad(); continue; }
     if (f.type === "enum") { f.values?.includes(v) ? (row[f.name] = v) : bad(); continue; }
     let out;
-    if (f.tagKey) out = tagValue(f.tagKey, v, runId);
-    else {
-      out = sanitizeString(v);
+    if (f.tagKey) {
+      out = tagValue(f.tagKey, v, runId);
+      if (out.startsWith("tag:")) pseudonymized++;
+      else { const kinds = scanString(out); if (kinds.length) { out = `[redacted:${kinds[0]}]`; redactions++; } }
+    } else {
+      // scan the WHOLE cleaned value, then cut: a secret that straddles the cut would otherwise stay half written
+      out = sanitizeString(v, { cap: false });
       const kinds = scanString(out);
       if (kinds.length) { out = `[redacted:${kinds[0]}]`; redactions++; }
+      else if (out.length > MAX_STRING) out = out.slice(0, MAX_STRING);
     }
     if (mode === "strict" && aliaser) {
       if (out.startsWith("/subscriptions/")) out = aliaser.armId(out);
@@ -97,5 +106,5 @@ export function projectRow(raw, fields, { mode = "default", runId = "", aliaser 
     }
     row[f.name] = out;
   }
-  return { row, dropped, redactions };
+  return { row, dropped, redactions, pseudonymized };
 }

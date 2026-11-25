@@ -54,11 +54,13 @@
         },
         {
           "name": "diskSizeGb",
-          "type": "number"
+          "type": "number",
+          "source": "properties.diskSizeGB"
         },
         {
           "name": "diskState",
-          "type": "string"
+          "type": "string",
+          "source": "properties.diskState"
         }
       ],
       "redact": [],
@@ -125,7 +127,8 @@
         },
         {
           "name": "allocation",
-          "type": "string"
+          "type": "string",
+          "source": "properties.publicIPAllocationMethod"
         }
       ],
       "redact": [],
@@ -183,11 +186,13 @@
             "High",
             "Medium",
             "Low"
-          ]
+          ],
+          "source": "properties.impact"
         },
         {
           "name": "problem",
-          "type": "string"
+          "type": "string",
+          "source": "properties.shortDescription.problem"
         }
       ],
       "redact": [],
@@ -235,7 +240,7 @@
         }
       },
       "proves": "The resource has no non-empty tag named costcenter.",
-      "doesNotProve": "That cost is allocated correctly, or that the tag value is right. The owner tag is hashed, never shown.",
+      "doesNotProve": "That cost is allocated correctly, or that the tag value is right. The tag key is matched exactly as costcenter (Resource Graph compares tag names case-sensitively), so a tag named CostCenter is reported as missing; the evaluated count is every resource of the table, including types that cannot carry tags, so the failing count is an upper bound. The owner tag value is pseudonymized by a hash, never shown.",
       "outputFields": [
         {
           "name": "id",
@@ -263,7 +268,8 @@
         {
           "name": "owner",
           "type": "string",
-          "tagKey": "owner"
+          "tagKey": "owner",
+          "source": "tags['owner']"
         }
       ],
       "redact": [],
@@ -303,12 +309,20 @@
       "title": "Budgets and spending alerts",
       "waf": [
         {
-          "id": "CO:04",
+          "id": "CO:03",
           "framework": "azure-waf",
           "docDate": "2025-10-30",
           "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
           "relation": "primary",
-          "why": "Budgets and alerts are spending guardrails."
+          "why": "Alerts at budget thresholds are part of collecting and reviewing cost data."
+        },
+        {
+          "id": "CO:04",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "related",
+          "why": "A budget can act as a spending guardrail."
         }
       ],
       "chain": [

@@ -30,12 +30,12 @@
         "collector": {
           "kind": "arg",
           "scope": "tenant",
-          "evaluated": "resources | where type =~ 'microsoft.web/serverfarms' | summarize n=count()",
-          "violations": "resources | where type =~ 'microsoft.web/serverfarms' | extend planKey=tolower(id) | join kind=leftanti (resources | where type =~ 'microsoft.insights/autoscalesettings' | extend planKey=tolower(tostring(properties.targetResourceUri)) | project planKey) on planKey | project id, name, subscriptionId, resourceGroup, location, skuName=tostring(sku.name)"
+          "evaluated": "resources | where type =~ 'microsoft.web/serverfarms' | where tostring(sku.tier) !in~ ('Free','Shared','Basic') | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.web/serverfarms' | where tostring(sku.tier) !in~ ('Free','Shared','Basic') | extend planKey=tolower(id) | join kind=leftouter (resources | where type =~ 'microsoft.insights/autoscalesettings' | extend planKeyR=tolower(tostring(properties.targetResourceUri)) | project planKeyR) on $left.planKey == $right.planKeyR | where isnull(planKeyR) | project id, name, subscriptionId, resourceGroup, location, skuName=tostring(sku.name)"
         }
       },
       "proves": "No autoscale setting targets the App Service plan.",
-      "doesNotProve": "Whether the plan needs to scale, or whether scaling is done another way (manual, schedule in another resource).",
+      "doesNotProve": "Whether the plan needs to scale, or whether scaling is done another way (manual, schedule in another resource). Plans on the Free, Shared and Basic tiers, which cannot autoscale, are left out of both counts.",
       "outputFields": [
         {
           "name": "id",
@@ -62,7 +62,8 @@
         },
         {
           "name": "skuName",
-          "type": "string"
+          "type": "string",
+          "source": "sku.name"
         }
       ],
       "redact": [],
@@ -120,11 +121,13 @@
             "High",
             "Medium",
             "Low"
-          ]
+          ],
+          "source": "properties.impact"
         },
         {
           "name": "problem",
-          "type": "string"
+          "type": "string",
+          "source": "properties.shortDescription.problem"
         }
       ],
       "redact": [],

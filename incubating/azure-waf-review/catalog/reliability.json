@@ -54,7 +54,8 @@
         },
         {
           "name": "zoneCount",
-          "type": "number"
+          "type": "number",
+          "source": "coalesce(array_length(zones),0)"
         }
       ],
       "redact": [],
@@ -78,8 +79,8 @@
           "framework": "azure-waf",
           "docDate": "2026-05-29",
           "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
-          "relation": "primary",
-          "why": "A recovery plan needs backups of the data it recovers."
+          "relation": "related",
+          "why": "A backup item is one input of a recovery plan; it does not prove the plan, which is a practice."
         }
       ],
       "chain": [
@@ -90,7 +91,7 @@
           "kind": "arg",
           "scope": "tenant",
           "evaluated": "resources | where type =~ 'microsoft.compute/virtualmachines' | summarize n=count()",
-          "violations": "resources | where type =~ 'microsoft.compute/virtualmachines' | extend vmKey=tolower(id) | join kind=leftanti (recoveryservicesresources | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems' | extend vmKey=tolower(tostring(properties.sourceResourceId)) | project vmKey) on vmKey | project id, name, subscriptionId, resourceGroup, location"
+          "violations": "resources | where type =~ 'microsoft.compute/virtualmachines' | extend vmKey=tolower(id) | join kind=leftouter (recoveryservicesresources | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems' | extend vmKeyR=tolower(tostring(properties.sourceResourceId)) | project vmKeyR) on $left.vmKey == $right.vmKeyR | where isnull(vmKeyR) | project id, name, subscriptionId, resourceGroup, location"
         }
       },
       "proves": "No Azure Backup protected item names the VM as its source.",
@@ -170,7 +171,8 @@
         },
         {
           "name": "availabilityState",
-          "type": "string"
+          "type": "string",
+          "source": "properties.availabilityState"
         }
       ],
       "redact": [],
