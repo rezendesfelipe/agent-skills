@@ -9,6 +9,18 @@
 //   - every skill and agent also has a starter prompt in the README section, equal to the first example in its file.
 // What is checked is structure, secrets and safety words. That a prompt works well is NOT checked here (see the smoke
 // checklist of the change).
+//
+// WHAT THIS TEST DOES NOT PROVE (kept here and in CONTRIBUTING.md so nobody reads a green run as more than it is):
+//   - that the text of a `Real output` block is what the named command prints: changing a number (`54` to `9999`) passes.
+//     The test only requires one command per label and no `#` comment lines in the body; a reviewer re-runs the command
+//     (the commands and fixtures are in the change's evidence folder);
+//   - that a `Derived` or `Illustrative` block is true;
+//   - that the English and pt-BR texts mean the same: only the ids, the block counts and the tip counts are compared;
+//   - the README starter prompt is compared with the first example of each file only, not with the others;
+//   - the auditor lint is a word list (English and pt-BR): a request phrased with other words passes;
+//   - the status line is not checked against reality: a line that says "run against a model" passes;
+//   - secret detection is the project's scanner plus a GUID rule: an e-mail address that looks real, or a real client name,
+//     passes.
 import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,6 +34,7 @@ import { REPO_ROOT, runBin, sandbox } from "./helpers.mjs";
 const POINTER = "references/prompts.md";
 const MAX_OUTPUT_LINES = 30;
 const LEVELS = ["Beginner", "Advanced", "Consultancy"];
+const LABEL = /^(Real output \(command: `[^`]+`\):|Derived from the generated file \(not command output\):|Illustrative excerpt, not a captured run:)$/;
 const lf = (t) => t.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
 const read = (p) => lf(readFileSync(p, "utf8"));
 const subdirs = (d) => (existsSync(d) ? readdirSync(d).filter((n) => statSync(join(d, n)).isDirectory()).sort() : []);
@@ -109,12 +122,22 @@ function checkExample(where, ex, anti) {
     return e;
   }
   for (const m of ["What you get:", "O que você recebe:"]) if (!ex.lines.some((l) => l.startsWith(m))) e.push(`${at}: missing a line starting with "${m}"`);
-  const real = ex.lines.filter((l) => /^Real output \(command: `[^`]+`\):$/.test(l));
-  const ill = ex.lines.filter((l) => l === "Illustrative excerpt, not a captured run:");
-  if (real.length + ill.length !== 1) e.push(`${at}: needs exactly one output label: "Real output (command: \`...\`):" or "Illustrative excerpt, not a captured run:"`);
+  // One or more output units: a label line, then one `text output` block. The label says where the block comes from.
+  const labels = ex.lines.filter((l) => LABEL.test(l));
   const out = block(ex, "text output");
-  if (out.length !== 1) e.push(`${at}: needs exactly one \`text output\` block (found ${out.length})`);
-  else if (out[0].content.length > MAX_OUTPUT_LINES || !out[0].content.join("").trim()) e.push(`${at}: the output block must have 1 to ${MAX_OUTPUT_LINES} lines (point to the generated file for more)`);
+  if (!labels.length) e.push(`${at}: needs an output label before each output block: "Real output (command: \`...\`):", "Derived from the generated file (not command output):" or "Illustrative excerpt, not a captured run:"`);
+  if (labels.length !== out.length) e.push(`${at}: ${labels.length} output label(s) and ${out.length} \`text output\` block(s): each block needs its own label`);
+  labels.forEach((label, i) => {
+    const o = out[i];
+    if (!o) return;
+    if (o.content.length > MAX_OUTPUT_LINES || !o.content.join("").trim()) e.push(`${at}: an output block must have 1 to ${MAX_OUTPUT_LINES} lines (cut with a line "..." and name the generated file)`);
+    const m = label.match(/^Real output \(command: `([^`]+)`\):$/);
+    if (m) {
+      if (/&&|\|\||;|\||\bthen\b/.test(m[1])) e.push(`${at}: a "Real output" label names exactly one command (found "${m[1]}"); use one block per command`);
+      const comment = o.content.find((l) => /(^|\s)#(\s|$)/.test(l));
+      if (comment !== undefined) e.push(`${at}: a "Real output" block holds only what the command printed (and "..." for a cut): remove the comment line "${comment.trim().slice(0, 50)}"`);
+    }
+  });
   const tEn = bullets(ex.lines, "Tips (en):");
   const tPt = bullets(ex.lines, "Dicas (pt-BR):");
   if (!tEn || !tPt) e.push(`${at}: needs "Tips (en):" and "Dicas (pt-BR):" lists`);
@@ -173,6 +196,8 @@ function checkPromptsFile(where, text, { agentsOfThisSkill }) {
       e.push(`${where}: agent \`${a.name}\` preloads this skill, so its examples must be in a section "## Agent: ${a.name}"`);
       continue;
     }
+    if (!anti?.examples.some((x) => x.id.startsWith(`${a.name}-`)))
+      e.push(`${where}: "What not to ask" needs at least one anti-example for agent \`${a.name}\` (an id that starts with "${a.name}-")`);
     for (const ex of s.examples)
       for (const f of [...block(ex, "text en"), ...block(ex, "text pt-BR")]) {
         const body = f.content.join("\n");
@@ -246,7 +271,10 @@ export function checkRepo(root) {
     }
     const exs = parse(part.text).flatMap((s) => s.examples);
     if (!exs.length) e.push(`${where}: the README section has no example`);
-    for (const ex of exs) e.push(...checkExample(`README.md, ${a.name}`, ex, false));
+    const isAnti = (ex) => ex.lines.some((l) => l.startsWith("Reason:"));
+    for (const ex of exs) e.push(...checkExample(`README.md, ${a.name}`, ex, isAnti(ex)));
+    if (!exs.some(isAnti)) e.push(`${where}: the README examples need at least one anti-example (an example with "Reason:" and "Instead:" lines)`);
+    if (!exs.some((x) => !isAnti(x))) e.push(`${where}: the README examples need at least one positive example`);
     if (exs[0]) firstExample.set(`agent:${a.name}`, exs[0]);
   }
 
@@ -348,7 +376,23 @@ mutate("a missing pt-BR block fails", (d) => {
 
 mutate("a missing output label fails", (d) => {
   edit(prompts(d, "docs-generator"), (t) => t.replace(/^Illustrative excerpt, not a captured run:$/m, "Output:").replace(/^Real output \(command: `[^`]+`\):$/m, "Output:"));
-}, /needs exactly one output label/);
+}, /needs an output label/);
+
+mutate("a Real output block with a comment line fails", (d) => {
+  edit(prompts(d, "docs-generator"), (t) => t.replace("✓ source is valid", "✓ source is valid   # the check"));
+}, /holds only what the command printed/);
+
+mutate("a Real output label with two commands fails", (d) => {
+  edit(prompts(d, "azure-terraform-stacks"), (t) => t.replace("(command: `node scripts/stacks.mjs scaffold`)", "(command: `node scripts/stacks.mjs scaffold && node scripts/stacks.mjs check`)"));
+}, /names exactly one command/);
+
+mutate("one output block with two labels fails", (d) => {
+  edit(prompts(d, "docs-generator"), (t) => t.replace("What you get: a Markdown source", "Illustrative excerpt, not a captured run:\n\nWhat you get: a Markdown source"));
+}, /output label\(s\) and/);
+
+mutate("an agent without an anti-example in its skill fails", (d) => {
+  edit(prompts(d, "azure-terraform-stacks"), (t) => t.replace("### `stacks-auditor-fix-it`:", "### `renamed-fix-it`:"));
+}, /needs at least one anti-example for agent `stacks-auditor`/);
 
 mutate("a secret-shaped line fails", (d) => {
   const key = ["-----BEGIN ", "PRIVATE ", "KEY-----"].join("");
