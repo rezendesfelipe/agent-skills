@@ -1,0 +1,40 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 3
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-02/providers/Microsoft.Advisor/recommendations/00000000-0000-0000-0000-000000000601",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "impact": "High",
+            "problem": "Right-size or shutdown underutilized virtual machines"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Web/serverfarms/asp-prod/providers/Microsoft.Advisor/recommendations/00000000-0000-0000-0000-000000000602",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "impact": "Medium",
+            "problem": "Consider App Service reserved instances"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-np/providers/Microsoft.Compute/disks/vm-test-01-osdisk/providers/Microsoft.Advisor/recommendations/00000000-0000-0000-0000-000000000603",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "impact": "Low",
+            "problem": "Use Standard HDD for non-production disks"
+          }
+        ]
+      }
+    ]
+  }
+}

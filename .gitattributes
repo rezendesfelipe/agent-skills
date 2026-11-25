@@ -34,3 +34,6 @@ plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md text eol=l
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/references/** text eol=lf
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/*.mjs text eol=lf
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/lib/** text eol=lf
+
+# azure-waf-review (incubating, PR 1a): text, fixtures and golden data are LF on every OS, so hashes and byte comparisons agree on Windows.
+incubating/azure-waf-review/** text eol=lf

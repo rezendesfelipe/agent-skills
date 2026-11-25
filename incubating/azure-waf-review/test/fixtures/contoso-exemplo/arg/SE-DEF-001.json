@@ -1,0 +1,46 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 7
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/StorageAccounts",
+            "name": "StorageAccounts",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "tier": "Free"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/pricings/Containers",
+            "name": "Containers",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "tier": "Free"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/providers/Microsoft.Security/pricings/VirtualMachines",
+            "name": "VirtualMachines",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "tier": "Free"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/providers/Microsoft.Security/pricings/StorageAccounts",
+            "name": "StorageAccounts",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "tier": "Free"
+          }
+        ]
+      }
+    ]
+  }
+}
