@@ -49,6 +49,15 @@ let workersStarted = 0;
 /** How many Workers `measure()` has started in this process (the property test sizes its total ceiling with it). */
 export const workersStartedCount = () => workersStarted;
 
+/**
+ * Ceiling of the whole property test: relative to the runner (workers x the smallest Worker round trip), never below
+ * DEADLINE_MS. With no usable reference (0 measurements leaves Infinity, or NaN) it falls back to DEADLINE_MS, so the
+ * total-time assertion still has a finite limit instead of passing against Infinity or NaN.
+ */
+export function totalCeiling(workers, reference, factor) {
+  return Number.isFinite(reference) ? Math.max(DEADLINE_MS, factor * workers * reference) : DEADLINE_MS;
+}
+
 export const DEADLINE_MS = 10000; // initial value: a measurement that takes longer is a hang, and fails the test
 
 /**
