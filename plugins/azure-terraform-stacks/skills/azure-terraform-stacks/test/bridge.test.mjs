@@ -19,8 +19,8 @@ const writeOutputs = (o) => { const f = join(mkdtempSync(join(tmpdir(), "ats-out
 const git = (cwd, ...a) => spawnSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=test", ...a], { cwd, encoding: "utf8" });
 
 // The stubs are bash scripts named `gh` and `az` put first on PATH. A program started without a shell is found on Windows only as
-// `name.exe`, so a bash stub cannot stand in for the CLI there: the four tests that need one are skipped on win32 (the engine's own
-// call is the same on every platform, and `gh.exe` / `az.cmd` are what a Windows user has).
+// `name.exe`, so a bash stub cannot stand in for the CLI there: the four tests that need one are skipped on win32. Not verified: whether
+// the real `az` (a `.cmd` file on Windows) can be started by the engine's `spawnSync` without a shell (see traps.md and the CHANGELOG).
 const NO_STUB = process.platform === "win32" && "stubs the gh/az CLI with a bash script on PATH, which Windows cannot start without a shell";
 
 function stubBin(log, kind) {

@@ -14,6 +14,7 @@ import { HERE } from "./helpers.mjs";
 // forward slashes, which Windows accepts everywhere. `join` here returns that form, and the temporary folders are the long form of the path
 // (a Windows runner's temp folder is `C:\Users\RUNNER~1\...`, and a tilde in the middle of a word is denied by the guard).
 const sh = (p) => p.replaceAll("\\", "/");
+// `join` returns forward slashes on every OS: the guard denies a backslash (a shell escape), so a command with a native Windows path would be denied.
 const join = (...parts) => sh(pjoin(...parts));
 const SKILL_DIR = join(HERE, "..");
 const PLUGIN = join(SKILL_DIR, "..", "..");

@@ -29,6 +29,10 @@ Changes `vendor-stacks-engine-yaml` (OpenSpec; pull request #28) and `fix-engine
 - **The engine's commands that generate files (`scaffold`, `add-stack` and what builds on them) work on Windows** (change `fix-engine-windows-paths`). `scripts/lib/gen-terraform.mjs` built the templates folder from `new URL("../../templates/", import.meta.url).pathname`, which is `/D:/a/...` on Windows and became `D:\D:\a\...` (`ENOENT`); it now uses `fileURLToPath` (also fixes a folder name with a space on any platform, which `.pathname` left as `%20`). No change in what is generated: the golden trees are unchanged. Proved in CI on Windows with Node 24 only: the engine's full suite runs there (203 tests: 188 pass, 0 fail, 15 skipped for stated reasons; before, 68 of 188 failed). Windows with Node 20 or 22 and macOS were not run for the engine. The fix reaches users only in a release that bumps the plugin version (not decided here).
 - `.gitattributes` now anchors `eol=lf` for the skill's own `templates/`, `test/fixtures/` and `test/golden/` (the earlier rules were anchored at the repository root and did not reach them, so a Windows checkout had CRLF golden files).
 
+### Known limitations
+
+- **`bridge --open-pr` with Azure Repos on Windows may not work (not verified).** `scripts/lib/bridge.mjs` runs `az` (and `gh`) with `spawnSync` and no shell; on Windows `az` is a `.cmd` file, which `spawnSync` without a shell does not start, while `gh.exe` should work. Not tried on a real Windows machine and not fixed here; the four `--open-pr` tests are skipped on Windows (they stub the CLI with bash scripts).
+
 ### Added
 
 - `scripts/vendor-yaml.mjs` (`verify`, `verify --registry`, `update <version>`), tests for the integrity check with mutations, a golden corpus of hostile and awkward YAML (alias bomb, tags, merge key, duplicate keys, several documents, CRLF, BOM, tabs, deep nesting, a 1 MiB scalar, a round trip with comments) run in child processes where memory is at risk, and a differential test against the npm package.

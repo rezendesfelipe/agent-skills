@@ -29,3 +29,8 @@ plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/yaml-corpus/go
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/fixtures/** text eol=lf
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/golden/** text eol=lf
 plugins/azure-terraform-stacks/skills/azure-terraform-stacks/templates/** text eol=lf
+# The skill's own text and code: LF everywhere. Listed so that scripts/vendor/** (-text, above) is not matched.
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/SKILL.md text eol=lf
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/references/** text eol=lf
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/*.mjs text eol=lf
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/lib/** text eol=lf

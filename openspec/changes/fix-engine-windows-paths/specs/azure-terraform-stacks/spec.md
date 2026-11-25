@@ -12,8 +12,10 @@ The engine's commands that generate files (`scaffold`, `add-stack`, `plan`, `dia
 - **THEN** the resolved folder contains the space, not `%20`
 
 #### Scenario: Scaffold on Windows
-- **WHEN** `node scripts/stacks.mjs scaffold --root <repo>` runs on Windows with Node 20 or later
+- **WHEN** `node scripts/stacks.mjs scaffold --root <repo>` runs on Windows with a supported Node
 - **THEN** it exits 0 and writes the same files, byte for byte, as on Linux (the golden trees)
+
+This scenario is proved in CI on Windows with Node 24 only (the full engine suite, including the golden trees). Node 20 and 22 on Windows, and macOS, are not verified; the behavior does not depend on the Node version, because the path comes from `fileURLToPath`.
 
 ### Requirement: Engine suite runs on Windows
 The continuous integration SHALL run the engine's full test suite on Windows (Node 24) in a job that is not a required check of `main`, and any test that cannot run there SHALL be skipped with a message that names the reason; no test is skipped only to make the job pass.
