@@ -6,10 +6,16 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, rmdirSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join as pjoin, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { HERE } from "./helpers.mjs";
 
+// The commands go to a POSIX-shell guard (a backslash is an escape, so it is denied): every path that is pasted into a command is written with
+// forward slashes, which Windows accepts everywhere. `join` here returns that form, and the temporary folders are the long form of the path
+// (a Windows runner's temp folder is `C:\Users\RUNNER~1\...`, and a tilde in the middle of a word is denied by the guard).
+const sh = (p) => p.replaceAll("\\", "/");
+// `join` returns forward slashes on every OS: the guard denies a backslash (a shell escape), so a command with a native Windows path would be denied.
+const join = (...parts) => sh(pjoin(...parts));
 const SKILL_DIR = join(HERE, "..");
 const PLUGIN = join(SKILL_DIR, "..", "..");
 const GUARD = join(PLUGIN, "hooks", "stacks-auditor-guard.mjs");
@@ -17,7 +23,7 @@ const { SHAPES, USER_SKILL_FOLDERS, decide, pathsOf, guard, PLUGIN: GUARD_PLUGIN
 
 // The plugin's own engine: trusted. A fake home with one user-installed engine (.gemini) and stubs for the other cases.
 const ENGINE = join(SKILL_DIR, "scripts", "stacks.mjs");
-const tmp = (p) => mkdtempSync(join(tmpdir(), p));
+const tmp = (p) => sh(realpathSync.native(mkdtempSync(pjoin(tmpdir(), p))));
 const stubSkill = (dir, name = "azure-terraform-stacks-engine") => {
   mkdirSync(join(dir, "scripts"), { recursive: true });
   writeFileSync(join(dir, "scripts", "stacks.mjs"), "// stub engine for the guard tests\n");
@@ -28,7 +34,6 @@ const HOME = tmp("ats-guard-home-");
 const USER_SKILL = stubSkill(join(HOME, ".gemini", "skills", "azure-terraform-stacks"));
 const USER_ENGINE = join(USER_SKILL, "scripts", "stacks.mjs");
 const AUDITED = tmp("ats-guard-repo-"); // an audited repository with nothing in it
-const sh = (p) => p.replaceAll("\\", "/");
 
 // Runs the script as the hook does: JSON on stdin, exit code and stderr out. HOME is the fake home.
 const hook = (command, { agent_type = "stacks-auditor", cwd = AUDITED, tool_name = "Bash", home = HOME } = {}) => {

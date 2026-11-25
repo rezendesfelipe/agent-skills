@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, delimiter } from "node:path";
 import { spawnSync } from "node:child_process";
 import { bridge, applyOutputs } from "../scripts/lib/bridge.mjs";
 import { manifestOf, tempRepo } from "./helpers.mjs";
@@ -17,6 +17,11 @@ const OUT = {
 const overlay = (root) => readFileSync(join(root, "infra/argocd/manifests/orders/overlays/prod-brs-01/kustomization.yaml"), "utf8");
 const writeOutputs = (o) => { const f = join(mkdtempSync(join(tmpdir(), "ats-out-")), "outputs.json"); writeFileSync(f, JSON.stringify(o)); return f; };
 const git = (cwd, ...a) => spawnSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=test", ...a], { cwd, encoding: "utf8" });
+
+// The stubs are bash scripts named `gh` and `az` put first on PATH. A program started without a shell is found on Windows only as
+// `name.exe`, so a bash stub cannot stand in for the CLI there: the four tests that need one are skipped on win32. Not verified: whether
+// the real `az` (a `.cmd` file on Windows) can be started by the engine's `spawnSync` without a shell (see traps.md and the CHANGELOG).
+const NO_STUB = process.platform === "win32" && "stubs the gh/az CLI with a bash script on PATH, which Windows cannot start without a shell";
 
 function stubBin(log, kind) {
   const dir = mkdtempSync(join(tmpdir(), "ats-bin-"));
@@ -71,11 +76,11 @@ test("applyOutputs leaves unmapped lines alone", () => {
   assert.deepEqual([...used], ["x"]);
 });
 
-test("--open-pr on GitHub commits only the overlay, pushes a bridge branch and does not merge", () => {
+test("--open-pr on GitHub commits only the overlay, pushes a bridge branch and does not merge", { skip: NO_STUB }, () => {
   const root = repoWithRemote("https://github.com/example/platform.git");
   const log = join(mkdtempSync(join(tmpdir(), "ats-log-")), "log");
   const bin = stubBin(log, "gh");
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}` };
   const save = process.env.PATH; process.env.PATH = env.PATH;
   try {
     const r = bridge(root, manifestOf("full"), { stack: "app-orders", env: "prod", instance: "brs-01", outputsFile: writeOutputs(OUT), openPr: true, base: "main" });
@@ -90,10 +95,10 @@ test("--open-pr on GitHub commits only the overlay, pushes a bridge branch and d
   } finally { process.env.PATH = save; }
 });
 
-test("--open-pr on Azure Repos uses az repos pr create", () => {
+test("--open-pr on Azure Repos uses az repos pr create", { skip: NO_STUB }, () => {
   const root = repoWithRemote("https://dev.azure.com/example/platform/_git/platform");
   const log = join(mkdtempSync(join(tmpdir(), "ats-log-")), "log");
-  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "az")}:${save}`;
+  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "az")}${delimiter}${save}`;
   try {
     const r = bridge(root, manifestOf("full"), { stack: "app-orders", env: "prod", instance: "brs-01", outputsFile: writeOutputs(OUT), openPr: true, base: "main" });
     assert.ok(r.ok, r.message);
@@ -101,10 +106,10 @@ test("--open-pr on Azure Repos uses az repos pr create", () => {
   } finally { process.env.PATH = save; }
 });
 
-test("--open-pr with nothing to change or a PR already open opens no new PR", () => {
+test("--open-pr with nothing to change or a PR already open opens no new PR", { skip: NO_STUB }, () => {
   const root = repoWithRemote("https://github.com/example/platform.git");
   const log = join(mkdtempSync(join(tmpdir(), "ats-log-")), "log");
-  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "gh")}:${save}`;
+  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "gh")}${delimiter}${save}`;
   try {
     // nothing pending: outputs already committed
     bridge(root, manifestOf("full"), { stack: "app-orders", env: "prod", instance: "brs-01", outputsFile: writeOutputs(OUT) });
@@ -119,10 +124,10 @@ test("--open-pr with nothing to change or a PR already open opens no new PR", ()
   } finally { process.env.PATH = save; delete process.env.GH_EXISTING; }
 });
 
-test("--open-pr when the CLI is not logged in keeps the change and stores no token", () => {
+test("--open-pr when the CLI is not logged in keeps the change and stores no token", { skip: NO_STUB }, () => {
   const root = repoWithRemote("https://github.com/example/platform.git");
   const log = join(mkdtempSync(join(tmpdir(), "ats-log-")), "log");
-  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "gh")}:${save}`; process.env.GH_AUTH_FAIL = "1";
+  const save = process.env.PATH; process.env.PATH = `${stubBin(log, "gh")}${delimiter}${save}`; process.env.GH_AUTH_FAIL = "1";
   try {
     const r = bridge(root, manifestOf("full"), { stack: "app-orders", env: "prod", instance: "brs-01", outputsFile: writeOutputs(OUT), openPr: true });
     assert.equal(r.ok, false);
