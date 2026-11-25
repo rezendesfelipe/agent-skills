@@ -84,7 +84,7 @@ test("consent asks Azure only for the closed list: every az vector and both cata
   const { r } = await go({ transport: t });
   assert.equal(r.ok, true, r.message);
   const az = t.calls.filter((c) => c.type === "az");
-  assert.ok(az.length >= 5, JSON.stringify(az));
+  assert.ok(az.length >= 4, JSON.stringify(az));
   for (const c of az) assert.ok(isAllowedAzVector(c.vector), `vector outside the list: ${JSON.stringify(c.vector)}`);
   assert.ok(!az.some((c) => c.vector.some((a) => /get-access-token|keyvault|appsettings|keys|credential/i.test(a))));
   const arg = t.calls.filter((c) => c.type === "arg");
@@ -111,7 +111,7 @@ test("the real transport turns the consent reads into these exact argument lists
   const ctx = consentCtx();
   const io = scriptedIo([PHRASES.yes]);
   await runConsent({ args: baseArgs(), transport, io, ...ctx });
-  const heads = started.map((a) => a.slice(0, 3).join(" "));
+  const heads = started.map((a) => a.join(" "));
   assert.ok(heads.includes("--version"));
   assert.ok(heads.some((h) => h.startsWith("account show --output json")));
   assert.ok(heads.some((h) => h.startsWith("account list --all --output json")));

@@ -28,6 +28,7 @@ export function runSha(run) {
   const s = run.scope ?? {};
   return sha256(stableStringify({
     runId: run.runId, redact: run.redact, fixtures: run.fixtures, pillars: run.pillars, queryBudget: run.queryBudget, catalog: run.catalog?.sha256,
+    stage: run.stage ?? null, consent: run.consent?.sha256 ?? null,
     scope: { kind: s.kind, managementGroup: s.managementGroup, subscriptions: s.subscriptions, visible: s.visible, expected: s.expected, containers: s.containers, notCovered: s.notCovered, complete: s.complete },
   }));
 }
@@ -35,3 +36,14 @@ export const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 export const writeJsonFile = (file, value, mode) => writeFileAtomic(file, `${JSON.stringify(value, null, 2)}\n`, mode);
 
 export const lf = (t) => t.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
+/** A run id is a folder name on every platform: no reserved Windows device name, no trailing dot, letters digits dot dash underscore. */
+export function checkRunId(id, what) {
+  if (typeof id !== "string" || !RUN_ID.test(id) || /[. ]$/.test(id) || id.includes("..") || RESERVED.test(id))
+    throw new UsageError(`${what} must be 1 to 64 characters of letters, digits, dot, dash or underscore, starting with a letter or digit, not ending in a dot, and not a reserved Windows name (CON, NUL, AUX, PRN, COM1 to COM9, LPT1 to LPT9)`);
+  return id;
+}
+/** Hash of a JSON file's parsed content in canonical form (key order and line endings do not matter). */
+export const canonicalSha = (value) => sha256(stableStringify(value));

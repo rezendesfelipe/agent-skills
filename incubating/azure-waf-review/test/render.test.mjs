@@ -28,7 +28,7 @@ test("render: seal-check, cap-check, assess.mjs render --unreviewed, seal-check 
   assert.equal(spawned.length, 5, "nothing else is passed: no --lang, no --approve, no user input");
   assert.ok(existsSync(join(reportDir(runDir), "report.md")));
   assert.ok(existsSync(join(reportDir(runDir), "report.json")));
-  assert.match(readFileSync(join(reportDir(runDir), "report.md"), "utf8"), /n[aã]o revisad|not human|NOT human/i);
+  assert.match(readFileSync(join(reportDir(runDir), "report.md"), "utf8"), /n[aã]o foi revisado|not human|NOT human/i);
 });
 
 test("render through the command line writes the pt-BR report and leaves the assess flow at the delegate node", { skip }, () => {

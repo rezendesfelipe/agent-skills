@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PILLARS, querySha } from "./catalog.mjs";
+import { lex } from "./kql.mjs";
 import { projectRow } from "./redact.mjs";
 import { GUID_RE, UsageError, sha256, writeJsonFile } from "./util.mjs";
 
@@ -169,6 +170,21 @@ async function runRest(check, scope, transport, st) {
   return { evaluated: n, rows, pages: { evaluated: pages, violations: pages } };
 }
 
+/** Only the violations of one check, for reverify: the same paging, limits and retries as collect. @returns {Promise<{rows: object[]}|{error: object, reason: string}>} */
+export async function fetchViolations({ check, transport, scope, sleep, budget }) {
+  const st = { budget, sleep, retries: [], waited: 0 };
+  try {
+    if (check.sources.collector.kind === "rest-get") return { rows: (await runRest(check, scope, transport, st)).rows };
+    return { rows: (await roleQuery(check, "violations", scope, transport, st)).rows };
+  } catch (e) {
+    if (!(e instanceof Void)) throw e;
+    return { error: e.error ?? { class: e.reason, status: null }, reason: e.reason };
+  }
+}
+
+/** True when the violations query joins another table: the size of the right side is not documented (risk R, manual test M-3). */
+export const usesJoin = (check) => check.sources.collector?.kind === "arg" && /\bjoin\b/i.test(lex(check.sources.collector.violations).blank);
+
 /**
  * Runs one collector check and returns its manifest entry. Parts are written under `collectedDir`; a voided check leaves none.
  * @returns {Promise<object>}
@@ -179,6 +195,7 @@ export async function collectCheck({ check, transport, scope, collectedDir, reda
     checkId: check.id, pillar: check.pillar, source: "collector", startedAt: now(), querySha256: querySha(check),
     scope: scopeInfo(scope), visibleSubscriptions: scope.visible, expectedSubscriptions: scope.expected, scopeComplete: scope.complete,
     pages: { evaluated: 0, violations: 0 }, retries: st.retries, redactions: 0,
+    ...(usesJoin(check) ? { joinRisk: true } : {}),
   };
   const voided = (reason, error) => {
     removeParts(collectedDir, check.id);
@@ -246,7 +263,7 @@ export function partsValid(collectedDir, entry) {
  * Runs the checks of the chosen pillars. `only` limits it to ids; `resume` skips checks whose entry is still valid.
  * Writes collected/manifest.json after every check, so an interrupted run resumes.
  */
-export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, runSha256 = null, queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
+export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, runSha256 = null, consentSha256 = null, queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
   const collectedDir = join(runDir, "collected");
   for (const sub of scope.subscriptions ?? []) if (!GUID_RE.test(sub)) throw new UsageError(`subscription id ${JSON.stringify(String(sub).slice(0, 60))} is not a GUID`);
   mkdirSync(collectedDir, { recursive: true, mode: 0o700 });
@@ -266,7 +283,7 @@ export async function runCollect({ runDir, catalog, transport, scope, pillars = 
     if (manifest.redact !== redact.mode) throw new Error(`the manifest was written with redact=${manifest.redact} and this run says redact=${redact.mode}; refusing to reuse it`);
     if (runSha256 && manifest.run?.sha256 !== runSha256) throw new Error("run.json changed since the manifest was written (the run hash differs); refusing to reuse the sealed checks. Plan a new run.");
   }
-  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, run: { sha256: runSha256 }, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
+  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, run: { sha256: runSha256 }, consent: consentSha256 ? { sha256: consentSha256 } : null, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
   manifest.generatedAt = now();
   const budget = { remaining: queryBudget, used: 0 };
   const todo = catalog.checks.filter((c) => pillars.includes(c.pillar) && (!only || only.includes(c.id)));

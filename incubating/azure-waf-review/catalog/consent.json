@@ -1,0 +1,29 @@
+{
+  "note": "What `waf.mjs consent` asks Azure besides the closed az vectors of az-read.json: two Resource Graph reads through the fixed template (a POST of a query in a request body, never an argument), and the role table used to judge the identity. The principal id is a validated GUID inserted into the query text of CONSENT-ROLES only; the management group or subscription list goes in the request body. Output of these reads goes to the user's screen (sanitized) and to consent.json as counts, GUIDs and role names; it is never evidence. Not verified: the shape of these answers in a real tenant, and whether authorizationresources lists role assignments inherited from a management group or granted through a group the principal belongs to (it filters by the principal id only, so a group-based assignment is NOT seen: that case is reported as unverifiable, never as read-only). Manual tests M-0 and M-3.",
+  "checks": [
+    {
+      "id": "CONSENT-SUBS",
+      "purpose": "The subscriptions under the chosen scope as resourcecontainers lists them, to compare with az account list.",
+      "query": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | project id, subscriptionId, displayName=tostring(properties.displayName)"
+    },
+    {
+      "id": "CONSENT-ROLES",
+      "purpose": "The role assignments whose principal is the signed-in identity.",
+      "placeholder": "{principalId}",
+      "query": "authorizationresources | where type =~ 'microsoft.authorization/roleassignments' | where tostring(properties.principalId) =~ '{principalId}' | project id, roleDefinitionId=tostring(properties.roleDefinitionId), scope=tostring(properties.scope)"
+    }
+  ],
+  "rolesSource": "https://learn.microsoft.com/azure/role-based-access-control/built-in-roles (ids read on 2026-11-25)",
+  "roles": {
+    "read": {
+      "acdd72a7-3385-48ef-bd42-f606fba81ae7": "Reader",
+      "39bc4728-0917-49c7-9d2c-d95423bc2eb4": "Security Reader"
+    },
+    "write": {
+      "8e3af657-a8ff-443c-a75c-2fe8c4bcb635": "Owner",
+      "b24988ac-6180-42a0-ab88-20f7382dd24c": "Contributor",
+      "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9": "User Access Administrator",
+      "f58310d9-a9f6-439a-9e8d-f62e7b41a168": "Role Based Access Control Administrator"
+    }
+  }
+}

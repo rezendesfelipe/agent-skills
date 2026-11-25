@@ -62,7 +62,7 @@ export function scriptedIo(answers = []) {
   const shown = [];
   const asked = [];
   const queue = [...answers];
-  return { shown, asked, text: () => shown.join("\n"), print: (s = "") => shown.push(String(s)), ask: async (q) => { asked.push(q); shown.push(q); if (!queue.length) throw new Error(`unexpected prompt: ${q}`); return queue.shift(); } };
+  return { shown, asked, get shownScreen() { return shown.find((x) => x.startsWith("WAF REVIEW CONSENT")); }, text: () => shown.join("\n"), print: (s = "") => shown.push(String(s)), ask: async (q) => { asked.push(q); shown.push(q); if (!queue.length) throw new Error(`unexpected prompt: ${q}`); return queue.shift(); } };
 }
 
 export const PHRASES = { yes: "yes", retention: "RETENTION CHECKED", acceptance: "ACCEPTANCE RECORDED", previous: "PREVIOUS STAGE REVIEWED", skip: "SKIP PREVIOUS STAGES", unverifiable: "I ACCEPT AN UNVERIFIED IDENTITY", unclassified: "I ACCEPT UNCLASSIFIED ROLES", folder: "I ACCEPT THIS OUTPUT FOLDER" };
@@ -172,7 +172,7 @@ export async function doReverify({ runDir, fx, check, resource = null, sleep = a
   const { reverifyCheck } = await import("../scripts/lib/reverify.mjs");
   const { createFixtureTransport } = await import("../scripts/lib/transport.mjs");
   const { loadCatalog } = await import("../scripts/lib/catalog.mjs");
-  return reverifyCheck({ runDir, catalog: loadCatalog(), transport: createFixtureTransport(fx), checkId: check, resources: resource ? [].concat(resource) : [], sleep, now: () => "2026-11-25T13:00:00.000Z" });
+  return reverifyCheck({ runDir, catalog: loadCatalog(), transport: createFixtureTransport(fx), checkId: check, resources: resource !== null ? [].concat(resource) : [], sleep, now: () => "2026-11-25T13:00:00.000Z" });
 }
 export { FIX, readJson, run, tmp, writeJson, cpSync };
 
