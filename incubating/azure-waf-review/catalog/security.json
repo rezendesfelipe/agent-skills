@@ -621,7 +621,7 @@
         }
       },
       "proves": "No Azure Policy assignment is recorded for the subscription.",
-      "doesNotProve": "Assignments at management group scope that apply to it (the check looks at subscription-level records only), or the quality of the policies.",
+      "doesNotProve": "Policy that reaches the subscription some other way: an assignment at a management group (or inherited from one) has no subscriptionId and is not counted, so a subscription covered only by a management-group assignment is reported here as a FALSE POSITIVE. It also does not show the quality of the policies. If the right side of the join were cut by a limit that is not documented, subscriptions would be reported without a match for the wrong reason (not verified; manual test M-3).",
       "outputFields": [
         {
           "name": "id",

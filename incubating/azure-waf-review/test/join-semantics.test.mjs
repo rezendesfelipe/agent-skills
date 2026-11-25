@@ -2,7 +2,9 @@
 // the right side of a leftouter join is EMPTY, not null, when nothing matches, and isnull() of a string is always false
 // (https://learn.microsoft.com/azure/data-explorer/kusto/query/isnull-function), so `where isnull(<string>)` would drop every row
 // and the check would pass silently. A toy executor of the exact shape of these queries (not a KQL engine) proves it on the
-// synthetic tenant, and the validator must refuse the isnull form. The queries are NOT run against Azure Resource Graph.
+// synthetic tenant, and the validator must refuse the isnull form. The toy executor proves ONLY the documented semantics of
+// isnull, isempty and leftouter: it does NOT cover any row limit of the right side of a join (none is documented, and no guarantee
+// that the right side is not truncated was found; a cut would give mass false positives, see tasks.md and manual test M-3). The queries are NOT run against Azure Resource Graph.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadCatalog } from "../scripts/lib/catalog.mjs";

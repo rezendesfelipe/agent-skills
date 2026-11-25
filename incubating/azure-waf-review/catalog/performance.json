@@ -35,7 +35,7 @@
         }
       },
       "proves": "No autoscale setting targets the App Service plan.",
-      "doesNotProve": "Whether the plan needs to scale, or whether scaling is done another way (manual, schedule in another resource). Plans on the Free, Shared and Basic tiers, which cannot autoscale, are left out of both counts.",
+      "doesNotProve": "Whether the plan needs to scale, or whether scaling is done another way (manual, schedule in another resource). Only the Free, Shared and Basic tiers are left out of both counts: other plans that cannot autoscale (for example Consumption, 'Dynamic') are not excluded and show up as plans without an autoscale setting. If the right side of the join were cut by a limit that is not documented, plans would be reported for the wrong reason (not verified; manual test M-3).",
       "outputFields": [
         {
           "name": "id",

@@ -95,7 +95,7 @@
         }
       },
       "proves": "No Azure Backup protected item names the VM as its source.",
-      "doesNotProve": "That a restore works, or that another backup product protects it.",
+      "doesNotProve": "That a restore works, or that another backup product protects it. A protected item of another workload whose sourceResourceId is the VM counts as a backup of the VM (a false negative). If the right side of the join were cut by a limit that is not documented, VMs would be reported as unprotected for the wrong reason (not verified; manual test M-3).",
       "outputFields": [
         {
           "name": "id",
