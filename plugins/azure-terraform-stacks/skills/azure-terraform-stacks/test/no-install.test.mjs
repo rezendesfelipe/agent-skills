@@ -71,7 +71,7 @@ test("the guard allows five shapes and denies every npm and npx command, even fo
   assert.equal(SHAPES.length, 5);
   assert.ok(!SHAPES.some((s) => /npm/.test(s)));
   const home = tmp("ats-noinstall-home-");
-  for (const cmd of [`npm ci --prefix ${SKILL_DIR} --omit=dev --ignore-scripts`, "npm ci", "npm install", "npx yaml"]) {
+  for (const cmd of ["npm ci --prefix /opt/skill --omit=dev --ignore-scripts", "npm ci", "npm install", "npx yaml"]) { // fixed POSIX-looking paths: a Windows path would be denied for its backslash first
     const r = decide(cmd, { cwd: tmp("ats-noinstall-cwd-"), home });
     assert.equal(r.allow, false, cmd);
     assert.match(r.reason, /not on the allowlist/, cmd);
