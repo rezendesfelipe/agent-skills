@@ -9,7 +9,7 @@ import { kqlProblems, projectionProblems } from "../scripts/lib/kql.mjs";
 import { tmp } from "./helpers.mjs";
 
 const WAF_IDS = new Set(["SE:06", "SE:09", "RE:05", "CO:07"]);
-const FIELDS = ["id", "name", "subscriptionId", "resourceGroup", "location", "publicAccess"].map((name) => ({ name, type: "string" }));
+const FIELDS = ["id", "name", "subscriptionId", "resourceGroup", "location", "publicAccess"].map((name) => ({ name, type: "string", ...(name === "publicAccess" ? { source: "properties.allowBlobPublicAccess" } : {}) }));
 const goodCheck = () => ({
   id: "SE-TST-001", pillar: "security", title: "Test check",
   waf: [{ id: "SE:06", framework: "azure-waf", docDate: "2026-06-26", url: "https://learn.microsoft.com/azure/well-architected/security/networking", relation: "primary", why: "A short reason." }],
@@ -68,7 +68,7 @@ test("KQL allowlist: read operators pass, the rest is refused", () => {
   assert.deepEqual(kqlProblems("resources | where type =~ 'a' | project id, name | order by name asc"), []);
   assert.deepEqual(kqlProblems("resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | summarize n=count()"), []);
   assert.deepEqual(kqlProblems("resources | extend k=tolower(id) | mv-expand z=zones | project id"), []);
-  assert.deepEqual(kqlProblems("resources | join kind=leftanti (recoveryservicesresources | project vmId=id) on $left.id == $right.vmId"), []);
+  assert.deepEqual(kqlProblems("resources | extend vmKey=tolower(id) | join kind=leftouter (recoveryservicesresources | extend vmKeyR=tolower(id) | project vmKeyR) on $left.vmKey == $right.vmKeyR | where isnull(vmKeyR)"), []);
   for (const q of [
     "resources | take 5", "resources | limit 5", "resources | sample 5", "resources | top 5 by name", "resources | where id == 'a' | take 1",
     "resources | evaluate bag_unpack(tags)", "externaldata(a:string)['https://example.invalid/x']", "resources | project id; resources",
@@ -88,22 +88,20 @@ test("KQL allowlist: words inside string literals and longer identifiers are not
   assert.deepEqual(kqlProblems("resources | where name == 'take a sample' | extend limits = 1, taken = 2 | project id"), []);
 });
 
-test("projection: only typed scalars, never properties, tags or an object", () => {
-  const f = (names) => names.map((name) => ({ name, type: "string" }));
+test("projection: each projected column must come from a declared source on the reviewed allowlist", () => {
+  const f = (...names) => names.map((name) => ({ name, type: "string", ...(["id", "name", "subscriptionId", "resourceGroup", "location"].includes(name) ? {} : { source: `properties.${name}` }) }));
   const q = (proj) => `resources | where type =~ 'x' | project ${proj}`;
-  assert.deepEqual(projectionProblems(q("id, name"), f(["id", "name"])), []);
-  assert.deepEqual(projectionProblems(q("id, a=tostring(properties.publicNetworkAccess)"), f(["id", "a"])), []);
-  // each case declares exactly the columns it projects, so only the projection rule itself can reject it
-  for (const [bad, names] of [["id, properties", ["id", "properties"]], ["id, tags", ["id", "tags"]], ["id, sku", ["id", "sku"]], ["id, identity", ["id", "identity"]], ["id, zones", ["id", "zones"]],
-    ["id, t=tostring(tags)", ["id", "t"]], ["id, x=tostring(properties.networkAcls)", ["id", "x"]], ["id, x=tostring(properties.siteConfig)", ["id", "x"]], ["id, x=tostring(properties.siteConfig.appSettings)", ["id", "x"]],
-    ["id, x=todynamic(properties.a)", ["id", "x"]], ["id, x=pack_all()", ["id", "x"]], ["id, x=tostring(tags)", ["id", "x"]], ["id, x=tostring(properties.primaryKey)", ["id", "x"]], ["id, x=tostring(properties.administratorLoginPassword)", ["id", "x"]]])
-    assert.ok(projectionProblems(q(bad), f(names)).length, `accepted: ${bad}`);
-  assert.ok(projectionProblems(q("id, tostring(properties)"), f(["id"])).length, "an unnamed expression");
-  assert.deepEqual(projectionProblems(q("id, o=tostring(tags['owner'])"), [{ name: "id", type: "string" }, { name: "o", type: "string", tagKey: "owner" }]), []);
-  assert.ok(projectionProblems(q("id, o=tostring(tags['owner'])"), f(["id", "o"])).length, "a tag value needs a tagKey field so the engine can hash it");
-  // a projected column that is not a declared output field, and a declared field that the query does not project
-  assert.ok(projectionProblems(q("id, name"), f(["id"])).length);
-  assert.ok(projectionProblems(q("id"), f(["id", "name"])).length);
+  assert.deepEqual(projectionProblems(q("id, name"), f("id", "name")), []);
+  assert.deepEqual(projectionProblems(q("id, publicNetworkAccess=tostring(properties.publicNetworkAccess)"), f("id", "publicNetworkAccess")), []);
+  // a bare object column, whatever the declaration says
+  for (const name of ["properties", "tags", "sku", "identity", "zones", "plan"]) assert.ok(projectionProblems(q(`id, ${name}`), [{ name: "id", type: "string" }, { name, type: "string", source: name }]).length, name);
+  assert.ok(projectionProblems(q("id, name"), f("id")).length, "a projected column that is not declared");
+  assert.ok(projectionProblems(q("id"), f("id", "name")).length, "a declared field that is not projected");
+  assert.ok(projectionProblems(q("id, tostring(properties.publicNetworkAccess)"), f("id")).length, "an unnamed expression");
+  // a tag value needs a tagKey field so the engine can hash it
+  const tag = [{ name: "id", type: "string" }, { name: "o", type: "string", tagKey: "owner", source: "tags['owner']" }];
+  assert.deepEqual(projectionProblems(q("id, o=tostring(tags['owner'])"), tag), []);
+  assert.ok(projectionProblems(q("id, o=tostring(tags['owner'])"), [{ name: "id", type: "string" }, { name: "o", type: "string", source: "tags['owner']" }]).length);
 });
 
 test("never-project types and names are refused even when the projection looks scalar", () => {
