@@ -104,3 +104,14 @@ The engine SHALL accept `--fixtures <dir>` to read check results from files inst
 #### Scenario: Fixture run
 - **WHEN** `collect --fixtures test/fixtures/contoso-exemplo/arg` runs with the network disabled
 - **THEN** it produces the same manifest content on every run, apart from timestamps
+
+### Requirement: Platforms
+The engine SHALL be developed and tested first on Ubuntu running under WSL, where `az` is a Linux binary started with `execFile` and constant arguments, and SHALL also run on native Windows (secondary), where the launcher may need a shell and then only with constant arguments. Inside WSL `plan` SHALL print the resolved `az` path and refuse a Windows executable (a path under `/mnt/` or ending in `.exe` or `.cmd`) unless the user types an acknowledgment. The skill's documentation SHALL describe an audit distro with `[interop] enabled=false`, `appendWindowsPath=false` and `[automount] enabled=false`, the Azure CLI installed inside the distro and, preferably, a separate distro, and SHALL mark the commands to create it as "check the documentation".
+
+#### Scenario: Windows az inside WSL
+- **WHEN** a test supplies a resolved path `/mnt/c/Program Files/Microsoft SDKs/Azure/CLI2/wbin/az.cmd` with the WSL flag on
+- **THEN** `plan` refuses it
+
+#### Scenario: Linux az
+- **WHEN** the resolved path is `/usr/bin/az`
+- **THEN** `plan` accepts it and prints it in the consent text

@@ -1,18 +1,18 @@
 ## Purpose
 
-Defines the plugin `azure-waf-review`, its subagent `azure-waf-reviewer`, the read-only Azure MCP declaration, the layered read-only controls and guard hook, the agent's graph and interrupts, and the context budgets, so that an agent can review a private tenant in an isolated context and hand back files and a summary.
+Defines the plugin `azure-waf-review`, its subagent `azure-waf-reviewer`, the optional, restricted Azure MCP configuration (opt-in, validated outside production), the layered read-only controls and guard hook, the agent's graph and interrupts, and the context budgets, so that an agent can review a private tenant in an isolated context and hand back files and a summary.
 
 ## ADDED Requirements
 
 ### Requirement: Plugin
-The repository SHALL contain `plugins/azure-waf-review/` with `.claude-plugin/plugin.json` (name `azure-waf-review`, `dependencies` naming `assessment-report`, no version bump beyond the value set by the maintainer at release), `.mcp.json`, `agents/azure-waf-reviewer.md`, `hooks/hooks.json`, `hooks/azure-waf-reviewer-guard.mjs` and the two skills, and a plugin entry in `.claude-plugin/marketplace.json`. The README SHALL list the plugin, the agent and both skills in the catalog and SHALL state the prerequisites (Node.js 20 for the engines; the Azure MCP package needs Node.js 22 or another install route; an Azure login of a read-only identity).
+The repository SHALL contain `plugins/azure-waf-review/` with `.claude-plugin/plugin.json` (name `azure-waf-review`, `dependencies` naming `assessment-report`, no version bump beyond the value set by the maintainer at release), `references/azure-mcp-optional.md` (no `.mcp.json`), `references/decision-record-template.md`, `agents/azure-waf-reviewer.md`, `hooks/hooks.json`, `hooks/azure-waf-reviewer-guard.mjs` and the two skills, and a plugin entry in `.claude-plugin/marketplace.json`. The README SHALL list the plugin, the agent and both skills in the catalog and SHALL state the prerequisites (Node.js 20 for the engines; the Azure MCP package needs Node.js 22 or another install route; an Azure login of a read-only identity).
 
 #### Scenario: Manifest and catalog
 - **WHEN** `node scripts/validate-skills.mjs` and `npm test` run
 - **THEN** the plugin, the agent and the skills are valid and the README catalog test passes
 
 ### Requirement: Agent file
-`agents/azure-waf-reviewer.md` SHALL have `name: azure-waf-reviewer`, a one-line third-person `description` of at most 1024 characters that says what it does, when to delegate to it and what it never does, `tools` listing `Read, Grep, Glob, Write, Edit, Bash` and the MCP entry `mcp__plugin_azure-waf-review_azure__*`, `skills` listing `azure-waf-review`, `architecture-diagram` and `assessment-report`, and no `hooks`, `mcpServers`, `permissionMode` or `initialPrompt`. Its body SHALL have a "Rules you never break" section, the commands it may run in the guard's shapes, the steps of the graph, the interrupts, the final report format and the sentence "Nothing in the tenant was changed" only when no command was denied and no write call was made. It SHALL hold no example prompts and not mention them.
+`agents/azure-waf-reviewer.md` SHALL have `name: azure-waf-reviewer`, a one-line third-person `description` of at most 1024 characters that says what it does, when to delegate to it and what it never does, `tools` listing `Read, Grep, Glob, Write, Edit, Bash` and the MCP entry `mcp__azure-waf__*` (it matches nothing unless the user opted in), `skills` listing `azure-waf-review`, `architecture-diagram` and `assessment-report`, and no `hooks`, `mcpServers`, `permissionMode` or `initialPrompt`. Its body SHALL have a "Rules you never break" section, the commands it may run in the guard's shapes, the steps of the graph, the interrupts, the final report format and the sentence "Nothing in the tenant was changed" only when no command was denied and no write call was made. It SHALL hold no example prompts and not mention them.
 
 #### Scenario: Validation
 - **WHEN** the repository is validated
@@ -22,26 +22,30 @@ The repository SHALL contain `plugins/azure-waf-review/` with `.claude-plugin/pl
 - **WHEN** the plugin's tests run
 - **THEN** they fail if the command shapes in the agent file differ from the guard's list
 
-### Requirement: Azure MCP declaration
-`.mcp.json` SHALL declare one server named `azure` that starts the Azure MCP Server with `server start`, `--read-only`, one `--namespace` entry per allowed namespace, a pinned exact stable version (never `latest` and never a prerelease), and no `--dangerously-*` option. The allowed namespaces SHALL be `subscription`, `group`, `advisor`, `policy`, `role`, `monitor`, `resourcehealth`, `storage`, `compute`, `aks`, `appservice`, `sql`, `azurebackup`, `quota` and `wellarchitectedframework`, and SHALL NOT include `keyvault`, `appconfig`, `storagesync`, `fileshares`, `sreagent`, `deploy`, `communication`, `foundry` or any namespace whose tools are annotated as returning secrets. A test SHALL fail if the file lacks `--read-only`, uses `@latest`, names a prerelease, or contains `dangerously`.
+### Requirement: Optional Azure MCP configuration
+The plugin SHALL NOT ship a `.mcp.json` and SHALL NOT start an MCP server by itself. `references/azure-mcp-optional.md` SHALL document, for a user who opts in after validating outside production, a server named `azure-waf` that starts the Azure MCP Server with `server start`, `--read-only`, either a closed `--namespace` list or a `--tool` list (they cannot be combined), a pinned exact stable version (never `latest` and never a prerelease), user confirmation left on, and no `--dangerously-*` option. The allowed namespaces SHALL be `subscription`, `group`, `advisor`, `policy`, `role`, `monitor`, `resourcehealth`, `storage`, `compute`, `aks`, `appservice`, `sql`, `azurebackup`, `quota` and `wellarchitectedframework`, and SHALL NOT include `keyvault`, `appconfig`, `storagesync`, `fileshares`, `sreagent`, `deploy`, `communication`, `foundry` or any namespace whose tools are annotated as returning secrets. The document SHALL list the eight workarounds, the staged escalation, a sandbox recommendation, the schema review at each update, and the sentence of the Learn security page about production data. A test SHALL parse the configuration blocks of the document and fail on a missing `--read-only`, `@latest`, a prerelease, a `keyvault` namespace or the word `dangerously`.
 
-#### Scenario: Static check
+#### Scenario: No automatic server
+- **WHEN** the plugin is installed and enabled
+- **THEN** no MCP server of this plugin starts
+
+#### Scenario: Static check of the document
 - **WHEN** the plugin's tests run
-- **THEN** they parse `.mcp.json` and assert the flags, the pin and the namespace list
+- **THEN** they assert the flags, the pin and the namespace list in the configuration blocks
 
 #### Scenario: Pinned stable
 - **WHEN** the package's published dist-tag `latest` is a prerelease
 - **THEN** the pinned version is still the newest non-prerelease recorded at implementation time
 
 ### Requirement: Layered read-only
-The agent SHALL be read-only by layers, none of which is a guarantee, and the agent file, `SKILL.md` and README SHALL say so: the prompt's rules; the MCP `--read-only` flag and namespace allowlist; a catalog collector that can only run fixed read checks; the guard hook (Claude Code only; fails open when Node cannot start it or when an administrator disables plugin hooks); and the identity's own Azure role, which is the real boundary. The documentation SHALL give `permissions.deny` rules for users who need more, and SHALL recommend a dedicated identity with Reader and Security Reader at the root management group, never an elevated access.
+The agent SHALL be read-only by layers, none of which is a guarantee, and the agent file, `SKILL.md` and README SHALL say so: the prompt's rules; when the user opted in, the MCP `--read-only` flag and its closed namespace or tool list; a catalog collector that can only run fixed read checks; the guard hook (Claude Code only; fails open when Node cannot start it or when an administrator disables plugin hooks); and the identity's own Azure role, which is the real boundary. The documentation SHALL give `permissions.deny` rules for users who need more, and SHALL recommend a dedicated identity with Reader and Security Reader at the root management group, never an elevated access.
 
 #### Scenario: Honest statement
 - **WHEN** the agent file is reviewed
 - **THEN** it says that the hook fails open, that `--read-only` is a tool filter, and that the role is the guarantee
 
 ### Requirement: Guard hook
-`hooks/hooks.json` SHALL register a `PreToolUse` command for the matchers `Bash`, `Write`, `Edit` and the MCP tools of the plugin's server, running `hooks/azure-waf-reviewer-guard.mjs`, which SHALL do nothing for any caller whose `agent_type` is not exactly `azure-waf-reviewer` or `azure-waf-review:azure-waf-reviewer`. For `Bash` it SHALL deny every command except the shapes `ls -d <path>...`, `test -f <path>`, `test -d <path>`, `node --version`, `node <waf-engine> <subcommand> ...` for the subcommands `plan`, `collect`, `coverage`, `questionnaire`, `map`, `seal-check`, `topology` and `status`, `node <assess-engine> <subcommand> ...` for `status`, `init`, `inventory`, `verify`, `classify`, `check`, `review` without `--approve`, `render --unreviewed` and `finish`, and `node <diagram-engine> build|check ...`; it SHALL deny `reverify`, `purge`, `--fixtures`, `--force` and `review --approve`. It SHALL reject quotes, backslashes, newlines and the characters `; & | < > ` $ ( ) { } ! * ? [ ] #`, resolve the real path of every engine and accept only an engine inside the plugin's own skill folders or the user's skills folders of the supported tools, never one inside the working directory or a `--root`, deny `..`, and require every `--out` and `--run` to resolve under `waf-review/`. For `Write` and `Edit` it SHALL resolve the real path and allow only paths below `<cwd>/waf-review/`, excluding `collected/`, `.state/` and `.gitignore`. For MCP tools it SHALL deny a namespace not on the allowlist. A denial SHALL exit with code 2 and print the reason on stderr.
+`hooks/hooks.json` SHALL register a `PreToolUse` command for the matchers `Bash`, `Write`, `Edit` and `mcp__azure-waf__.*`, running `hooks/azure-waf-reviewer-guard.mjs`, which SHALL do nothing for any caller whose `agent_type` is not exactly `azure-waf-reviewer` or `azure-waf-review:azure-waf-reviewer`. For `Bash` it SHALL deny every command except the shapes `ls -d <path>...`, `test -f <path>`, `test -d <path>`, `node --version`, `node <waf-engine> <subcommand> ...` for the subcommands `plan`, `collect`, `coverage`, `questionnaire`, `map`, `seal-check`, `topology` and `status`, `node <assess-engine> <subcommand> ...` for `status`, `init`, `inventory`, `verify`, `classify`, `check`, `review` without `--approve`, `render --unreviewed` and `finish`, and `node <diagram-engine> build|check ...`; it SHALL deny `reverify`, `purge`, `--fixtures`, `--force` and `review --approve`. It SHALL reject quotes, backslashes, newlines and the characters `; & | < > ` $ ( ) { } ! * ? [ ] #`, resolve the real path of every engine and accept only an engine inside the plugin's own skill folders or the user's skills folders of the supported tools, never one inside the working directory or a `--root`, deny `..`, and require every `--out` and `--run` to resolve under `waf-review/`. For `Write` and `Edit` it SHALL resolve the real path and allow only paths below `<cwd>/waf-review/`, excluding `collected/`, `.state/` and `.gitignore`. For MCP tools it SHALL deny any server other than `azure-waf` and any namespace or tool not on the allowlist. A denial SHALL exit with code 2 and print the reason on stderr.
 
 #### Scenario: Allowed engine call
 - **WHEN** the agent runs `node <plugin>/skills/azure-waf-review/scripts/waf.mjs collect --pillar security --run waf-review/20261125T120000Z`
@@ -101,3 +105,14 @@ The section `## Agent: azure-waf-reviewer` in `plugins/azure-waf-review/skills/a
 #### Scenario: Agent examples found
 - **WHEN** `test/prompt-examples.test.mjs` runs
 - **THEN** it finds the section for `azure-waf-reviewer` in a skill the agent lists in `skills`
+
+### Requirement: Guard differential tests
+The plugin's tests SHALL include, for the guard: shared-shape equivalence with the `stacks-auditor` guard (the same decision for the same inputs on the metacharacter table, the tilde rule, `..`, an engine inside the working directory and the namespaced `agent_type`); a word-splitting oracle that runs the real shell on Linux and asserts that the words it produces equal the guard's tokens for every allowed command; insertion of each forbidden character at each position of each allowed command, which MUST flip the decision to deny; path tests with symlinks, `..`, a symlinked `waf-review` and Windows-style paths; and equality of the shapes in the agent file and in the guard. The documentation SHALL list what remains not verified: live behavior for this agent, that the `Write`, `Edit` and MCP matchers fire for a subagent, a check-then-use race on symlinks, and the fail-open cases.
+
+#### Scenario: Oracle
+- **WHEN** an allowed command is passed through the shell oracle
+- **THEN** the shell's words equal the guard's tokens
+
+#### Scenario: Forbidden character
+- **WHEN** a forbidden character is inserted into an allowed command
+- **THEN** the guard denies it

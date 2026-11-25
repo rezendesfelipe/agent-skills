@@ -33,7 +33,7 @@ The layout SHALL be computed by the generator (tree rows for management groups, 
 - **THEN** the two files are byte-identical
 
 ### Requirement: Design system
-The diagram SHALL use the project's design system: background `#0b1326` with `adaptiveColors="none"`, surfaces `#171f33` and `#222a3d`, borders `#45464d`, text `#dae2fd`, secondary text `#c6c6cd`, accents `#2fd9f4`, `#7bd0ff`, `#5bbfae` and `#8dc63f`, titles in Space Grotesk and text in Manrope with Geist Sans as the documented fallback, rounded panels. Text MUST have a contrast ratio of at least 4.5:1 against its surface, computed by the generator. Severity SHALL be shown by a letter badge and never by color alone. A color outside the palette MAY be used only for status badges if the maintainer approves it (open question), with its contrast checked and a legend.
+The diagram SHALL use the project's design system: background `#0b1326` with `adaptiveColors="none"`, surfaces `#171f33` and `#222a3d`, borders `#45464d`, text `#dae2fd`, secondary text `#c6c6cd`, accents `#2fd9f4`, `#7bd0ff`, `#5bbfae` and `#8dc63f`, titles in Space Grotesk and text in Manrope with Geist Sans as the documented fallback, rounded panels. Text MUST have a contrast ratio of at least 4.5:1 against its surface, computed by the generator. Severity SHALL be shown by a letter badge and never by color alone. A color outside the palette MAY be used only in severity badges (approved by the user, decision Q6), never in panels, with its contrast checked and a legend.
 
 #### Scenario: Palette
 - **WHEN** `check` reads a generated file
