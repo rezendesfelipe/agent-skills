@@ -121,6 +121,64 @@ For the other tools use the CLI, which converts the file.
 | [`docs-generator`](plugins/docs-generator/skills/docs-generator/SKILL.md) | `docs-generator` | none yet | Writes design documents and reports as structured Markdown and renders them to designed PDF and DOCX (cover, contents, executive summary, sources, annexes, change log), plus a matching Excel template and Office theme. Uses your Claude Design System or brand, or a research-based default theme. Needs Node.js 20+; PDF output also needs Chrome, Edge or Chromium. |
 | [`assessment-report`](plugins/assessment-report/skills/assessment-report/SKILL.md) | `assessment-report` | none yet | Produces a technical assessment report for a client in which every finding cites evidence that a script has verified (path, line range and quoted text, or a checked absence search), unverified claims are labelled and demoted by code, severity, effort and the 30/60/90-day roadmap follow fixed rules, and the result is an executive document with a technical annex in English, Portuguese or Spanish, rendered to PDF and DOCX by `docs-generator`. Read-only; no runtime dependencies. The workflow gates guard against shortcuts and accidents, not against an agent that edits the state files; `output` and snapshot evidence prove only consistency with a file the agent saved. Needs Node.js 20+; PDF and DOCX need the `docs-generator` plugin. |
 
+## Example prompts
+
+Starting examples, not recipes: each skill has a file of prompts with what each one produces and how to get a good result (`references/prompts.md` in the installed skill folder), in English with a Brazilian Portuguese twin. A block marked "Real output" is what one command printed on fictitious data; "Derived" is read from a generated file; "Illustrative excerpt" was not captured from a run. The prompts themselves were not run against a model yet. Never paste secrets, keys or personal data into a prompt.
+
+Exemplos de partida, não receitas: cada skill tem um arquivo de prompts com o que cada um produz e como obter um bom resultado (`references/prompts.md` na pasta da skill instalada), em inglês com gêmeo em português do Brasil. Um bloco "Real output" é o que um comando imprimiu com dados fictícios; "Derived" foi lido de um arquivo gerado; "Illustrative excerpt" não foi capturado de uma execução. Os prompts em si ainda não foram rodados contra um modelo. Nunca cole segredos, chaves ou dados pessoais em um prompt.
+
+### docs-generator
+
+Full list: [`references/prompts.md`](plugins/docs-generator/skills/docs-generator/references/prompts.md)
+
+```text en
+Use the docs-generator skill to write a design document for our new order-scheduling feature, as PDF and Word, in English. Author: <my name>, version 0.1. Ask me which theme to use before you build. The notes are below; do not add facts that are not in them.
+
+<paste notes here: problem, options considered, decision, risks>
+```
+
+```text pt-BR
+Use a skill docs-generator para escrever um documento de design da nova funcionalidade de agendamento de pedidos, em PDF e Word, em português do Brasil. Autor: <meu nome>, versão 0.1. Pergunte qual tema usar antes de gerar. As notas estão abaixo; não acrescente fatos que não estejam nelas.
+
+<cole as notas aqui: problema, alternativas, decisão, riscos>
+```
+
+### azure-terraform-stacks
+
+Full list: [`references/prompts.md`](plugins/azure-terraform-stacks/skills/azure-terraform-stacks/references/prompts.md)
+
+```text en
+Use the azure-terraform-stacks skill. I have no infrastructure repository yet. I want independent stacks for network, cluster and orders, an Azure DevOps pipeline where I choose what to run, the private AKS and PostgreSQL profile, standalone landing zone, region brazilsouth. Ask me what is missing. Where I do not have an ID yet, write an obviously fake placeholder and list it at the end. Show me the plan before writing any file.
+```
+
+```text pt-BR
+Use a skill azure-terraform-stacks. Ainda não tenho repositório de infraestrutura. Quero stacks independentes de rede, cluster e orders, um pipeline do Azure DevOps em que eu escolho o que rodar, o perfil de AKS privado com PostgreSQL, landing zone standalone, região brazilsouth. Pergunte o que faltar. Onde eu ainda não tiver um ID, escreva um placeholder claramente falso e liste no fim. Mostre o plano antes de escrever qualquer arquivo.
+```
+
+### assessment-report
+
+Full list: [`references/prompts.md`](plugins/assessment-report/skills/assessment-report/references/prompts.md)
+
+```text en
+Use the assessment-report skill to assess the repository in ./client-infra for Example Client Ltd. Questions to answer: can the team recover from losing the primary database, and how is access to production controlled? In scope: infra/ and the pipelines; out of scope: application code. Language: English. Author: <my name>, version 0.1, date <today>. Write only to ./assessment-report/. Stop at the review step and show me the packet; do not approve it.
+```
+
+```text pt-BR
+Use a skill assessment-report para avaliar o repositório em ./client-infra para a Cliente Exemplo S.A. Perguntas a responder: a equipe consegue se recuperar da perda do banco de dados principal, e como é controlado o acesso à produção? Em escopo: infra/ e os pipelines; fora de escopo: código da aplicação. Idioma: português do Brasil. Autor: <meu nome>, versão 0.1, data <hoje>. Escreva só em ./assessment-report/. Pare na etapa de revisão e mostre o pacote; não aprove.
+```
+
+### stacks-auditor
+
+The agent has no folder of its own; its examples are in the section "Agent: stacks-auditor" of [`references/prompts.md`](plugins/azure-terraform-stacks/skills/azure-terraform-stacks/references/prompts.md) of the skill it loads.
+
+```text en
+Use the stacks-auditor subagent to audit the repository in the current folder. Report in English. Change nothing.
+```
+
+```text pt-BR
+Use o subagente stacks-auditor para auditar o repositório da pasta atual. Responda em português do Brasil. Não altere nada.
+```
+
 ## Layout
 
 ```text

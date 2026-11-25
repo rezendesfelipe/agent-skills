@@ -37,6 +37,7 @@ Rules for every change: work on a branch `claude/<change-name>`, open the pull r
    - Set `name` to the folder name and write a `description` that says what the skill does **and when to use it**.
    - If the plugin is new, add `plugins/<plugin>/.claude-plugin/plugin.json` and an entry in `.claude-plugin/marketplace.json`.
    - Add the skill to the catalog table in `README.md`.
+   - Write the example prompts (see [Example prompts](#example-prompts)): copy `templates/prompts/prompts.md` to `references/prompts.md`, link it once from `SKILL.md`, and add the starter prompt to the README section "Example prompts".
 4. **Check locally.**
    ```bash
    node scripts/validate-skills.mjs
@@ -65,7 +66,8 @@ An agent (a Claude Code subagent) is one Markdown file, `plugins/<plugin>/agents
 2. Write a `description` (one line, at most 1024 characters, no control characters) that says what the agent does, when to delegate to it and what it never does.
 3. Write the prompt as the body. It must not be empty or longer than 30,000 characters.
 4. Add the plugin's entry to `.claude-plugin/marketplace.json` if the plugin is new, and the agent to the catalog table in `README.md`.
-5. Run `node scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict`.
+5. Write the example prompts (see [Example prompts](#example-prompts)). The agent file is its system prompt, so it holds no examples and does not mention them: they go in the skill the agent lists in `skills`, or, if it lists none, in the README.
+6. Run `node scripts/validate-skills.mjs`, `npm test` and `openspec validate --all --strict`.
 
 Rules `validate-skills` enforces:
 - `name` is kebab-case, at most 64 characters, equal to the file name, not a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1` to `com9`, `lpt1` to `lpt9`), and not used by any other agent or skill.
@@ -86,7 +88,8 @@ Do not hard-code Claude Code paths such as `.claude/skills` or `${CLAUDE_PLUGIN_
 - [ ] The prompt makes the agent report each finding with `file:line` evidence and list what it could not verify separately
 - [ ] The prompt has a "Rules you never break" section
 - [ ] No Claude-specific paths in the prompt; the skills it needs are listed in `skills`
-- [ ] No secrets, personal data or machine-specific paths; content in English
+- [ ] No secrets, personal data or machine-specific paths; content in English (the agent file itself stays English: its examples are in the skill's `prompts.md` or the README, see the exception in "Example prompts")
+- [ ] Example prompts exist (prompt, what it produces, how to get good results) in the skill the agent lists in `skills`, or in the README if it lists none; the agent file itself holds none
 
 ### Agent graph
 
@@ -107,9 +110,23 @@ The convention is the "level 2" graph in [`docs/aep/delivery-graph.md`](docs/aep
 - [ ] Instructions are concrete steps, with examples
 - [ ] Supporting files (scripts, references) live inside the skill folder and are referenced by relative path
 - [ ] No secrets, personal data or machine-specific paths
-- [ ] Content is in English
+- [ ] Content is in English, except the pt-BR twin of each example prompt (see [Example prompts](#example-prompts))
+- [ ] `references/prompts.md` exists with example prompts (prompt, what it produces, how to get good results), linked once from `SKILL.md`, with a README starter prompt; `npm test` passes `test/prompt-examples.test.mjs`
 - [ ] If the skill has agent behavior, the change's `design.md` has the graph section (node types, edges, state, cycles, human interruptions, and a verifier node when it produces findings; see [Agent graph](#agent-graph))
 - [ ] The loaded-context cost is within its declared budget (`node scripts/context-budget.mjs`; add the skill to `docs/aep/context-budgets.json`)
+
+## Example prompts
+
+Every skill and every agent ships example prompts: the prompt, what it produces, and how to get a good result. A new skill or agent without them fails `npm test` (`test/prompt-examples.test.mjs` finds the catalog by looking at `plugins/*/skills/*` and `plugins/*/agents/*`; there is no list to update).
+
+- **Where.** A skill: `references/prompts.md` in its folder, linked once from `SKILL.md` (progressive disclosure: the file costs no context until it is read; do not list it under `loadedWith` in `docs/aep/context-budgets.json`). An agent that lists `skills`: a section `## Agent: <name>` in the `prompts.md` of one of those skills (the CLI installs the skill with the agent). An agent that lists none: `### <name>` in the README section "Example prompts", with the full examples. The agent file itself is the system prompt: it holds no examples and does not point to them. Every skill and agent also has a starter prompt in the README, equal to the first example of its file.
+- **Start from** `templates/prompts/prompts.md`. Each example has an id, an English prompt and a pt-BR twin with the same id, "What you get", an output excerpt with its label, and 2 to 4 tips in both languages. A "What not to ask" section holds at least one prompt the tool declines, with the reason and the alternative.
+- **Language.** English is canonical; the pt-BR twin is written in the same pull request. Names of skills, agents, files, commands and flags stay in English in both. This is the only exception to "content in English": it covers the pt-BR blocks, labels and tips of `prompts.md`, and the bilingual introduction and starter prompts of the README section "Example prompts".
+- **Honesty about outputs.** One block, one label. `Real output (command: \`...\`):` is exactly what one command printed on fictitious data: one command per block, cuts as a line `...`, a path shortened to `...`, no comment lines (two commands are two blocks). `Derived from the generated file (not command output):` is for what a command did not print (for example headings read from a DOCX), and says how it was read. `Illustrative excerpt, not a captured run:` is for model-written text or anything the named command cannot reproduce. Blocks are at most 30 lines. Never invent a metric, and never promise a result: the file says "starting examples" and what was and was not run.
+- **Safe by construction.** No credential or literal in the shape of one (the test uses the scanner of `assessment-report`), no GUID except all zeros, no personal or temporary path, a "Where not to paste" paragraph in both languages, fictitious names such as "Cliente Exemplo S.A.". Examples for a read-only agent never ask it to change anything.
+- **Budget.** Examples do not go in `SKILL.md`, an agent file or a `description`; one pointer line in `SKILL.md` is enough. Do not raise a context budget to fit examples. If a skill has tests on `references/` (for example `assessment-report`'s), the file must pass them.
+- **What the test does not prove.** It checks structure, labels, secret-shaped text and a word list; it does not check that a `Real output` body is what the command prints (a changed number passes), that a derived or illustrative block is true, that the English and pt-BR texts mean the same, that every example (not only the first) matches the README, that a request phrased with other words is safe for the auditor, that the status line is honest, or that a real-looking e-mail address or client name is absent. A reviewer re-runs one `Real output` command per skill and reads the pt-BR text. The list is also in the header of `test/prompt-examples.test.mjs`.
+- **Keep them current.** A change to a skill's behavior updates its `prompts.md` in the same pull request.
 
 ## Adding or fixing a tool in the CLI
 
