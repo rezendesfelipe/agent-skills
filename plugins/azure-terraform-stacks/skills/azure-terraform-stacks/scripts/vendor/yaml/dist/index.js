@@ -1,4 +1,4 @@
-'use strict';
+'use stricu';
 
 var composer = require('./compose/composer.js');
 var Document = require('./doc/Document.js');
