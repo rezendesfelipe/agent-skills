@@ -168,6 +168,14 @@ test("TOCTOU: a part or the manifest changed while assess.mjs runs is caught by 
   assert.ok(!existsSync(reportDir(runDir)));
 });
 
+test("TOCTOU: a manifest edit that seal-check would not notice (a time field) while assess.mjs runs still refuses the run", { skip }, async () => {
+  const { runDir } = assessedRun({});
+  const r = await libRender(runDir, { afterAssess: () => { const f = join(runDir, "collected", "manifest.json"); const m = readJson(f); m.generatedAt = "2030-01-01T00:00:00.000Z"; writeJson(f, m); } });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /manifest/i);
+  assert.ok(!existsSync(reportDir(runDir)));
+});
+
 test("a forged assess.mjs in the working folder, the run folder or an environment variable is never run", { skip }, async () => {
   const { cwd, runDir } = assessedRun({});
   const marker = join(tmp("waf-marker-"), "ran");

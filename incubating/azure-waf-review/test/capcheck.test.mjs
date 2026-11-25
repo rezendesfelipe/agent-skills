@@ -197,6 +197,18 @@ test("a resource-scope reverify whose covered list was edited to look complete i
   assert.equal(cap(cwd).code, 1, "covered no longer includes every cited id");
 });
 
+test("a resource-scope reverify whose state is changed, gone or error is refused even when every covered resource looks fine", { skip }, async () => {
+  const { fx, ids } = manyOffenders();
+  const { cwd, runDir } = assessedRun({ fixtures: fx, critical: ["SE-DEF-002"] });
+  await doReverify({ runDir, fx, check: "SE-DEF-002", resource: ids.slice(0, 5) });
+  assert.equal(cap(cwd).code, 0, "the untouched file releases the finding");
+  for (const state of ["changed", "gone", "error", "match-ish", ""]) {
+    editRev(runDir, "SE-DEF-002", (j) => { j.state = state; });
+    const r = cap(cwd);
+    assert.equal(r.code, 1, JSON.stringify(state));
+  }
+});
+
 // ------------------------------------------------------------------------------------------------ the severity string and the map
 test("the Critical string is compared without case, spaces or invisible characters (fail closed)", { skip }, async () => {
   const { runDir } = assessedRun({ critical: ["SE-STG-001"] });

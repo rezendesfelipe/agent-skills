@@ -115,6 +115,16 @@ test("fixtures and production never mix: --fixtures on a consented run, and a pr
   assert.match(prodCollect.out, /fixtures/i);
 });
 
+test("a production run whose consent.json was deleted cannot be collected with --fixtures", { skip }, async () => {
+  const p = await prod();
+  assert.equal(plan(p).code, 0);
+  rmSync(join(runDirOf(p), "consent.json"));
+  const r = collect(p, ["--fixtures", p.fx]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /production|consent/i);
+  assert.throws(() => readFileSync(join(runDirOf(p), "collected", "manifest.json")), "nothing was collected");
+});
+
 test("collect through the production transport (a stub az) gives the states of the fixture run, seals the consent and runs only constant argument lists", { skip }, async () => {
   const p = await prod();
   assert.equal(plan(p).code, 0);

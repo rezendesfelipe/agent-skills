@@ -59,6 +59,7 @@ export function capCheck({ runDir, catalog, assessmentText }) {
       for (const [cid, c] of Object.entries(map.checks)) {
         const e = manifest.checks?.[cid];
         for (const p of c?.parts ?? []) {
+          if (typeof p?.name !== "string" || !PART_FILE.test(p.name)) { problems.push(`map.json names ${JSON.stringify(p?.name)}, which is not a collected part name`); continue; }
           const sealed = e?.parts?.find((x) => x.name === p?.name);
           if (!sealed || sealed.sha256 !== p.sha256) problems.push(`map.json lists ${p?.name} for ${cid} with a hash the manifest does not have: map.json is stale or edited`);
         }

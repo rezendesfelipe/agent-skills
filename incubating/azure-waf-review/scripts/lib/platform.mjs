@@ -34,8 +34,11 @@ export function runBaseProblem(p, { platform = process.platform } = {}) {
 }
 
 /** Finds `az` on a PATH value without a shell. Only absolute directories count (a relative entry such as "." would run a file of the working folder). */
+/** The path syntax of the machine the code runs on: a test that simulates Linux on a Windows runner still holds Windows paths. */
+const libOf = (platform) => (platform === "win32" || process.platform === "win32" ? path.win32 : path.posix);
+
 export function resolveAz({ pathEnv = process.env.PATH ?? "", platform = process.platform, isFile = (p) => { try { return statSync(p).isFile(); } catch { return false; } }, isExec = (p) => { try { accessSync(p, fsConstants.X_OK); return true; } catch { return false; } } } = {}) {
-  const lib = platform === "win32" ? path.win32 : path.posix;
+  const lib = libOf(platform);
   const names = platform === "win32" ? ["az.cmd", "az.exe", "az.bat"] : ["az"];
   for (const dir of String(pathEnv).split(platform === "win32" ? ";" : ":")) {
     if (!dir || !lib.isAbsolute(dir)) continue;
@@ -49,7 +52,7 @@ export function resolveAz({ pathEnv = process.env.PATH ?? "", platform = process
 
 /** Why the Azure CLI profile is not isolated, or null. An isolated profile is an existing folder named by AZURE_CONFIG_DIR that is neither the default ~/.azure nor the home folder (or a parent of it). */
 export function isolatedProfileProblem({ env = process.env, home = env.HOME ?? "", platform = process.platform } = {}) {
-  const lib = platform === "win32" ? path.win32 : path.posix;
+  const lib = libOf(platform);
   const dir = env.AZURE_CONFIG_DIR;
   if (!dir) return "AZURE_CONFIG_DIR is not set, so az would use the default profile (~/.azure) of your daily account";
   if (!lib.isAbsolute(dir)) return "AZURE_CONFIG_DIR must be an absolute path";

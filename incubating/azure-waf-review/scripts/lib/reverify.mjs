@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fetchViolations } from "./collect.mjs";
 import { projectRow } from "./redact.mjs";
+import { PART_FILE } from "./seal.mjs";
 import { UsageError, sha256, stableStringify, writeJsonFile } from "./util.mjs";
 
 const ARM_ID = /^\/[\x21-\x7e]{1,498}$/;
@@ -25,6 +26,7 @@ export async function reverifyCheck({ runDir, catalog, transport, checkId, resou
   // the sealed lines, after checking them against the manifest (a changed part is seal-check's finding, not a comparison)
   const sealed = [];
   for (const p of entry.parts) {
+    if (typeof p?.name !== "string" || !PART_FILE.test(p.name) || !p.name.startsWith(`${checkId}.`)) throw new Error(`the manifest names ${JSON.stringify(p?.name)}, which is not a part of ${checkId}: run seal-check first`);
     let buf;
     try { buf = readFileSync(join(runDir, "collected", p.name)); } catch { throw new Error(`${p.name} is missing: run seal-check first`); }
     if (sha256(buf) !== p.sha256) throw new Error(`${p.name} differs from the manifest hash: run seal-check first; nothing was compared`);

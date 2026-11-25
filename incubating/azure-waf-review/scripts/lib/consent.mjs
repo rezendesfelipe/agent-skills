@@ -298,10 +298,12 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
 
   // the platform, before any read
   if (platform === "win32") return refuse(1, "platform-windows", "native Windows is not supported by the production transport in this build (it fails closed); run the audit inside WSL Ubuntu with the Azure CLI installed there (manual test M-10 covers native Windows)");
-  const az = classifyAzPath(azPath ?? "", { wsl, platform });
+  if (typeof azPath !== "string" || !azPath) return refuse(2, "no-az", "az was not found on PATH (an absolute PATH entry is needed); install the Azure CLI inside this Linux distro");
+  const az = classifyAzPath(azPath, { wsl, platform });
   if (!az.ok || /\.(exe|cmd|bat)$/i.test(String(azPath))) return refuse(1, "az-windows-launcher", `the az launcher is refused: ${az.reason ?? `${azPath} is a Windows launcher`}. Install the Azure CLI inside the Linux distro.`);
   const profile = isolatedProfileProblem({ env, home: env.HOME ?? "", platform });
   if (profile) return refuse(1, "profile-not-isolated", `the Azure CLI profile is not isolated: ${profile}. Create an audit-only folder, set AZURE_CONFIG_DIR to it, and sign in to it yourself with the dedicated identity.`);
+  if (!transport) return refuse(2, "no-az", `az at ${azPath} cannot be started by the production transport`);
   const folderProblem = runBaseProblem(cwdReal ?? safeReal(cwd), { platform });
 
   // reads: only the closed list
