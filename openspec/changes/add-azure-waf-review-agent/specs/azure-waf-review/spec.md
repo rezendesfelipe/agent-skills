@@ -95,7 +95,7 @@ The skill SHALL apply this rule: collector-sealed lines are `file` evidence; an 
 - **THEN** it lists the three controls above as instruction only and promises no enforcement for them
 
 ### Requirement: Re-verification by the user
-The collector SHALL provide `reverify --check <id> [--resource <ARM ID>]`, which re-runs one catalog query with the user's login, compares the result by ARM ID with the sealed lines and writes `reverify/<id>.json` with `state` `match`, `changed`, `gone` or `error`, the UTC time and the hash of the part compared. The note SHALL live in that file and not in the `assessment.json` schema fields. The verifier of `assessment-report` and the CI SHALL NOT call the network. The guard SHALL deny `reverify` to the agent.
+The collector SHALL provide `reverify --check <id> [--resource <ARM ID>]`, which re-runs one catalog query with the user's login, compares the result by ARM ID with the sealed lines and writes `reverify/<id>.json` with `state` `match`, `partial`, `changed`, `gone` or `error`, the scope (`check` or `resource`), the ARM IDs covered, the UTC time and the hash of the part compared (the definition of `match` and the check against the cited part are in `azure-waf-collector`, "Cap gate and render wrapper"). The note SHALL live in that file and not in the `assessment.json` schema fields. The verifier of `assessment-report` and the CI SHALL NOT call the network. The guard SHALL deny `reverify` to the agent.
 
 #### Scenario: Reverify match
 - **WHEN** the user runs `reverify` and the resource still violates
