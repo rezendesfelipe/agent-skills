@@ -137,3 +137,13 @@ test("transport: a failing az becomes a status and a class, with no output kept"
   assert.ok(bad instanceof Error && /closed list/.test(bad.message));
   await assert.rejects(() => t.restGet("https://example.invalid/x?api-version=1", {}), /allowlist|host/i);
 });
+
+test("N-5: only the canonical form of https://management.azure.com/ is accepted (no dot segments, no empty segments, no explicit port, no mixed case)", () => {
+  const ok = "https://management.azure.com/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/locks?api-version=2016-09-01";
+  assert.equal(isAllowedUrl(ok, "GET"), true);
+  for (const u of [
+    "https://management.azure.com/subscriptions/../x?api-version=1", "https://management.azure.com/subscriptions/./x?api-version=1", "https://management.azure.com//subscriptions/x?api-version=1", "https://management.azure.com/subscriptions//x?api-version=1",
+    "https://management.azure.com:443/subscriptions/x?api-version=1", "https://management.azure.com:8443/subscriptions/x?api-version=1", "HTTPS://management.azure.com/subscriptions/x?api-version=1", "https://Management.Azure.Com/subscriptions/x?api-version=1", "https://MANAGEMENT.AZURE.COM/subscriptions/x?api-version=1",
+    "https://management.azure.com./subscriptions/x?api-version=1", "https://management.azure.com", "https://management.azure.com/subscriptions/x/..?api-version=1", "https://management.azure.com/subscriptions/x?api-version=1&&",
+  ]) assert.equal(isAllowedUrl(u, "GET"), false, u);
+});

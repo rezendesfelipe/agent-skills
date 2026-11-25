@@ -85,6 +85,17 @@ const locks = { [SUB_PROD]: [{ name: "lock-hub-delete" }], [SUB_NONPROD]: [] };
 const REST_CHECKS = new Set(["OE-LOCK-001"]);
 const protectedVms = ["vm-web-01", "vm-app-01", "vm-app-02"].map((v) => armId(SUB_PROD, "rg-app", "Microsoft.Compute/virtualMachines", v));
 
+/** The other Resource Graph tables the join checks read (for the toy executor of the tests; synthetic). */
+export function joinTables() {
+  const R = tenant().filter((r) => [SUB_PROD, SUB_NONPROD].includes(r.subscriptionId));
+  return {
+    resources: R,
+    resourcecontainers: [SUB_PROD, SUB_NONPROD].map((s) => ({ id: sub(s), name: s === SUB_PROD ? "sub-prod" : "sub-nonprod", type: "microsoft.resources/subscriptions", subscriptionId: s, properties: {} })),
+    policyresources: [{ id: `${sub(SUB_PROD)}/providers/Microsoft.Authorization/policyAssignments/baseline`, name: "baseline", type: "microsoft.authorization/policyassignments", subscriptionId: SUB_PROD, properties: {} }],
+    recoveryservicesresources: protectedVms.map((id, i) => ({ id: `/subscriptions/${SUB_PROD}/resourceGroups/rg-sec/providers/Microsoft.RecoveryServices/vaults/rsv-contoso/backupFabrics/Azure/protectionContainers/c${i}/protectedItems/i${i}`, name: `i${i}`, type: "microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems", subscriptionId: SUB_PROD, properties: { sourceResourceId: id } })),
+  };
+}
+
 const lc = (s) => String(s).toLowerCase();
 const common = (r) => ({ id: r.id, name: r.name, subscriptionId: r.subscriptionId, resourceGroup: r.resourceGroup, location: r.location });
 /** Extra noise a careless query would let through. The engine must drop it (it is not in `outputFields`). */

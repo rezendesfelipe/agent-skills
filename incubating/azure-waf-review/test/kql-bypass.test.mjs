@@ -27,7 +27,7 @@ test("B-1 (a): an extend alias cannot carry a forbidden or object path into the 
     `${BASE} | extend p = tostring(properties) | project ${P}, v = p`,
     `${BASE} | project ${P}, v = tostring(bag_pack('a', properties))`,
     `${BASE} | mv-expand p = properties.x | project ${P}, v = tostring(p)`,
-    `${BASE} | join kind=leftouter (resources | project properties1 = properties) on $left.id == $right.properties1 | project ${P}, v = tostring(properties1)`,
+    `${BASE} | join kind=leftouter (resources | project id) on id | project ${P}, v = tostring(properties1)`,
     `${BASE} | extend p = tostring(properties.administratorLoginPassword) | project ${P}, p`,
     `${BASE} | extend v = pack_all() | project ${P}, v`,
   ]) {
@@ -99,9 +99,9 @@ test("the header of kql.mjs is true: a query it cannot classify is refused (unkn
 
 test("I-1: Resource Graph does not support join kind=leftanti (or other kinds); the allowed kinds are the documented ones", () => {
   for (const kind of ["leftanti", "leftsemi", "rightanti", "rightouter", "rightsemi", "anti", "LEFTANTI"])
-    assert.ok(kqlProblems(`resources | extend k = tolower(id) | join kind=${kind} (resources | extend kr = tolower(id) | project kr) on $left.k == $right.kr`).length, kind);
+    assert.ok(kqlProblems(`resources | extend k = tolower(id) | join kind=${kind} (resources | extend k = tolower(id) | project k) on k`).length, kind);
   for (const kind of ["leftouter", "inner", "innerunique", "fullouter"])
-    assert.deepEqual(kqlProblems(`resources | extend k = tolower(id) | join kind=${kind} (resources | extend kr = tolower(id) | project kr) on $left.k == $right.kr`), [], kind);
+    assert.deepEqual(kqlProblems(`resources | extend k = tolower(id) | join kind=${kind} (resources | extend k = tolower(id) | project k) on k`), [], kind);
 });
 
 test("summarize is for the evaluated query only; the violations query ends with a project", () => {
@@ -125,4 +125,31 @@ test("a bare projected name that is not a standard column needs an extend that c
   assert.ok(projectionProblems(`${BASE} | project ${P}, v`, f).some((m) => /bare|extend/.test(m)));
   assert.deepEqual(projectionProblems(`${BASE} | extend v = tostring(properties.publicNetworkAccess) | project ${P}, v`, f), []);
   assert.ok(projectionProblems(`${BASE} | extend v = tostring(properties.minimumTlsVersion) | project ${P}, v`, f).length, "an extend of another source");
+});
+
+// ---- N-2: a `rule.*` path is only valid when `rule` is bound to properties.securityRules
+test("N-2: rule.* paths are bound to mv-expand rule = properties.securityRules; any other binding is refused", () => {
+  const f = [{ name: "id", type: "string" }, { name: "v", type: "string", source: "rule.name" }];
+  const q = (mv) => `resources | where type =~ 'microsoft.network/networksecuritygroups' | ${mv} | extend v = tostring(rule.name) | project id, v`;
+  for (const mv of ["mv-expand rule = properties.siteConfig.appSettings", "mv-expand rule = tags", "mv-expand rule = properties", "mv-expand rule = properties.securityRules.x", "mv-expand rule = properties.defaultSecurityRules", "mv-expand RULE = properties.securityRules", "mv-expand rule = tags.name"]) {
+    assert.ok(kqlProblems(q(mv)).length || projectionProblems(q(mv), f).length, mv);
+  }
+  assert.ok(kqlProblems("resources | extend v = tostring(rule.name) | project id, v").length || projectionProblems("resources | extend v = tostring(rule.name) | project id, v", f).length, "no mv-expand at all");
+  assert.deepEqual(kqlProblems(q("mv-expand rule = properties.securityRules")), []);
+  assert.deepEqual(projectionProblems(q("mv-expand rule = properties.securityRules"), f), []);
+  assert.deepEqual(projectionProblems(q("mv-expand   rule  =  properties.securityRules"), f), []);
+});
+
+// ---- N-4: the allowlist file itself
+test("N-4: scalar-paths.json is checked as a file: no secret-like name, no object leaf, and adding one fails", async () => {
+  const { SCALAR, scalarPathsProblems } = await import("../scripts/lib/kql.mjs");
+  assert.deepEqual(scalarPathsProblems(SCALAR), []);
+  const withPath = (path, type = "string") => ({ ...SCALAR, paths: { ...SCALAR.paths, [path]: type } });
+  for (const bad of ["properties.administratorLoginPassword", "properties.primaryKey", "properties.secondaryKey", "properties.accessKey", "properties.connectionString", "properties.sasToken", "properties.sig", "properties.token", "properties.clientSecret", "properties.credential", "properties.credentials.value", "properties.sharedAccessKey", "properties.apiKey", "properties.privateKey", "properties.certificate", "properties.thumbprint", "properties.pwd",
+    "properties", "tags", "sku", "identity", "zones", "properties.networkAcls", "properties.siteConfig", "properties.siteConfig.appSettings", "properties.securityRules", "properties.ipRules", "properties.upgradePolicy.x.env", "properties.settings", "properties.protectedSettings", "properties.parameters", "properties.outputs", "properties.definition"])
+    assert.ok(scalarPathsProblems(withPath(bad)).length, bad);
+  assert.ok(scalarPathsProblems({ ...SCALAR, derived: { ...SCALAR.derived, "tostring(properties.administratorLoginPassword)": "string" } }).length, "a derived expression is checked too");
+  assert.ok(scalarPathsProblems(withPath("properties.fine", "object")).length, "only bool, string and number");
+  // the list of today, spelled out, so a change shows in review
+  assert.deepEqual(Object.keys(SCALAR.paths).sort(), ["properties.allowBlobPublicAccess", "properties.availabilityState", "properties.diskSizeGB", "properties.diskState", "properties.displayName", "properties.enablePurgeProtection", "properties.enableSoftDelete", "properties.impact", "properties.metadata.severity", "properties.minimumTlsVersion", "properties.pricingTier", "properties.principalId", "properties.principalType", "properties.publicIPAllocationMethod", "properties.publicNetworkAccess", "properties.scope", "properties.shortDescription.problem", "properties.sourceResourceId", "properties.supportsHttpsTrafficOnly", "properties.targetResourceUri", "rule.name", "rule.properties.destinationPortRange", "sku.name"].sort());
 });

@@ -290,3 +290,19 @@ test("nit: the query budget is enforced in the MIDDLE of a check (the one surviv
   assert.ok(!("SE-STG-001" in r.manifest.checks));
   assert.deepEqual(readdirSync(join(dir, "collected")).filter((f) => f.startsWith("SE-STG-001")), []);
 });
+
+test("N-6: a bare storage key is found after a slash (a URL path) and not mistaken for a digest, a GUID or a key line", () => {
+  const key = `${"QUJD".repeat(22).slice(0, 86)}==`;
+  for (const around of [`https://x.example/${key}`, `/${key}`, ` ${key} `, `"${key}"`, `key=${key}`, `a/b/${key}?x=1`]) assert.ok(scanString(around).includes("azure-storage-key-bare"), around);
+  const hex = "0123456789abcdef".repeat(4);
+  const blob = "QUJD".repeat(120) + "=="; // a long base64 blob that ends in ==: another kind of data, not this pattern
+  for (const fine of [hex, hex.toUpperCase(), "00000000-0000-0000-0000-000000000001", `"${hex}"`, `W/"0x8DB${"A1".repeat(8)}"`, ["ssh", "-ed25519 ", "AAAAC3NzaC1lZDI1NTE5AAAAI", "x".repeat(40)].join(""), "x".repeat(88), `${key.slice(0, 80)}==`, `${key}=`.slice(0, 87), `${"A".repeat(85)}==`])
+    assert.ok(!scanString(fine).includes("azure-storage-key-bare"), fine.slice(0, 40));
+  assert.ok(!scanString(`${"Z9".repeat(5)}${blob}`.slice(0, 40)).includes("azure-storage-key-bare"));
+});
+
+test("N-7: a run id with two dots anywhere is refused", () => {
+  const cwd = tmp();
+  for (const id of ["a..b", "..a", "a..", "a...b", "x..y.z"]) assert.equal(run(["plan", "--run-id", id, "--fixtures", FIX], { cwd }).code, 2, id);
+  assert.equal(run(["plan", "--run-id", "a.b", "--fixtures", FIX], { cwd }).code, 0);
+});

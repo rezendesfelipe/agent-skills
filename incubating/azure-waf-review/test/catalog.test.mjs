@@ -68,7 +68,7 @@ test("KQL allowlist: read operators pass, the rest is refused", () => {
   assert.deepEqual(kqlProblems("resources | where type =~ 'a' | project id, name | order by name asc"), []);
   assert.deepEqual(kqlProblems("resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | summarize n=count()"), []);
   assert.deepEqual(kqlProblems("resources | extend k=tolower(id) | mv-expand z=zones | project id"), []);
-  assert.deepEqual(kqlProblems("resources | extend vmKey=tolower(id) | join kind=leftouter (recoveryservicesresources | extend vmKeyR=tolower(id) | project vmKeyR) on $left.vmKey == $right.vmKeyR | where isnull(vmKeyR)"), []);
+  assert.deepEqual(kqlProblems("resources | extend vmKey=tolower(id) | join kind=leftouter (recoveryservicesresources | extend vmKey=tolower(id), hitR='y' | project vmKey, hitR) on vmKey | where isempty(hitR)"), []);
   for (const q of [
     "resources | take 5", "resources | limit 5", "resources | sample 5", "resources | top 5 by name", "resources | where id == 'a' | take 1",
     "resources | evaluate bag_unpack(tags)", "externaldata(a:string)['https://example.invalid/x']", "resources | project id; resources",
