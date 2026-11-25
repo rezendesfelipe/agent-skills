@@ -4,8 +4,9 @@
 import { scanString as base } from "./secrets.mjs";
 
 const EXTRA = [
-  // a storage account key with no name around it: 64 bytes in base64, 88 characters ending in ==
-  { kind: "azure-storage-key-bare", re: /(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{86}==(?![A-Za-z0-9+/=])/ },
+  // a storage account key with no name around it: 64 bytes in base64, 88 characters ending in ==. A "/" before it is allowed (a URL path);
+  // a longer base64 blob (a letter, digit or + before it) is another kind of data
+  { kind: "azure-storage-key-bare", re: /(?<![A-Za-z0-9+])[A-Za-z0-9+/]{86}==(?![A-Za-z0-9+/=])/ },
   // a Microsoft Entra client secret value: three characters, a digit, Q~, then 31 to 34 characters
   { kind: "aad-client-secret", re: /(?<![A-Za-z0-9_.~-])[A-Za-z0-9_.-]{3}\dQ~[A-Za-z0-9_.~-]{31,34}(?![A-Za-z0-9_.~-])/ },
 ];

@@ -617,7 +617,7 @@
           "kind": "arg",
           "scope": "tenant",
           "evaluated": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | summarize n=count()",
-          "violations": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | join kind=leftouter (policyresources | where type =~ 'microsoft.authorization/policyassignments' | extend subIdR=subscriptionId | project subIdR) on $left.subscriptionId == $right.subIdR | where isnull(subIdR) | project id, name, subscriptionId"
+          "violations": "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | join kind=leftouter (policyresources | where type =~ 'microsoft.authorization/policyassignments' | extend hitR='y' | project subscriptionId, hitR) on subscriptionId | where isempty(hitR) | project id, name, subscriptionId"
         }
       },
       "proves": "No Azure Policy assignment is recorded for the subscription.",

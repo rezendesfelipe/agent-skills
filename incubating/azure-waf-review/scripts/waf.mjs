@@ -47,7 +47,7 @@ const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 /** A run id is a folder name on every platform: no reserved Windows device name, no trailing dot, letters digits dot dash underscore. */
 function checkRunId(id, what) {
-  if (typeof id !== "string" || !RUN_ID.test(id) || /[. ]$/.test(id) || RESERVED.test(id))
+  if (typeof id !== "string" || !RUN_ID.test(id) || /[. ]$/.test(id) || id.includes("..") || RESERVED.test(id))
     throw new UsageError(`${what} must be 1 to 64 characters of letters, digits, dot, dash or underscore, starting with a letter or digit, not ending in a dot, and not a reserved Windows name (CON, NUL, AUX, PRN, COM1 to COM9, LPT1 to LPT9)`);
   return id;
 }

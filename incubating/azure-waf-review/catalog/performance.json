@@ -31,7 +31,7 @@
           "kind": "arg",
           "scope": "tenant",
           "evaluated": "resources | where type =~ 'microsoft.web/serverfarms' | where tostring(sku.tier) !in~ ('Free','Shared','Basic') | summarize n=count()",
-          "violations": "resources | where type =~ 'microsoft.web/serverfarms' | where tostring(sku.tier) !in~ ('Free','Shared','Basic') | extend planKey=tolower(id) | join kind=leftouter (resources | where type =~ 'microsoft.insights/autoscalesettings' | extend planKeyR=tolower(tostring(properties.targetResourceUri)) | project planKeyR) on $left.planKey == $right.planKeyR | where isnull(planKeyR) | project id, name, subscriptionId, resourceGroup, location, skuName=tostring(sku.name)"
+          "violations": "resources | where type =~ 'microsoft.web/serverfarms' | where tostring(sku.tier) !in~ ('Free','Shared','Basic') | extend planKey=tolower(id) | join kind=leftouter (resources | where type =~ 'microsoft.insights/autoscalesettings' | extend planKey=tolower(tostring(properties.targetResourceUri)), hitR='y' | project planKey, hitR) on planKey | where isempty(hitR) | project id, name, subscriptionId, resourceGroup, location, skuName=tostring(sku.name)"
         }
       },
       "proves": "No autoscale setting targets the App Service plan.",

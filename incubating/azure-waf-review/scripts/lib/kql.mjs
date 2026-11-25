@@ -11,6 +11,33 @@ import { fileURLToPath } from "node:url";
 
 export const SCALAR = JSON.parse(readFileSync(fileURLToPath(new URL("../../catalog/scalar-paths.json", import.meta.url)), "utf8"));
 export const STD_COLUMNS = SCALAR.standardColumns;
+const SECRET_SUBSTRINGS = ["password", "passwd", "pwd", "secret", "token", "credential", "connectionstring", "primarykey", "secondarykey", "accesskey", "sharedaccess", "apikey", "privatekey", "certificate", "thumbprint", "sastoken"];
+const SECRET_SEGMENTS = new Set(["sig", "sas", "key", "keys", "value", "values", "env", "settings", "protectedsettings", "parameters", "outputs", "definition", "appsettings", "namedvalues", "connectionstrings", "properties1"]);
+const OBJECT_LEAVES = new Set(["properties", "tags", "sku", "identity", "plan", "extended", "zones", "networkacls", "siteconfig", "securityrules", "defaultsecurityrules", "ipconfigurations", "subnets", "encryption", "privateendpointconnections", "virtualnetworkrules", "iprules", "virtualnetworkpeerings", "storageprofile", "osprofile", "networkprofile", "hardwareprofile", "diagnosticsprofile", "agentpoolprofiles", "addonprofiles", "firewallrules", "accesspolicies", "metadata", "resourcemetadata", "upgradepolicy", "template", "extensions", "tolist"]);
+/** The allowlist FILE is checked on its own: no secret-like name at any depth, no object leaf, only bool, string and number. */
+export function scalarPathsProblems(scalar) {
+  const p = [];
+  const bad = (what, text) => {
+    const low = text.toLowerCase();
+    for (const w of SECRET_SUBSTRINGS) if (low.includes(w)) p.push(`${what} "${text}" contains "${w}": never projected`);
+    for (const seg of low.replace(/\[[^\]]*\]/g, "").split(/[.()',\s]+/).filter(Boolean)) if (SECRET_SEGMENTS.has(seg)) p.push(`${what} "${text}" has the segment "${seg}": never projected`);
+  };
+  for (const [path, type] of Object.entries(scalar.paths ?? {})) {
+    if (!["bool", "string", "number"].includes(type)) p.push(`path "${path}" has type "${type}": only bool, string and number`);
+    bad("path", path);
+    const segs = path.toLowerCase().split(".");
+    if (OBJECT_LEAVES.has(segs[segs.length - 1])) p.push(`path "${path}" ends in "${segs[segs.length - 1]}", an object or array: only scalar leaves`);
+  }
+  for (const [expr, type] of Object.entries(scalar.derived ?? {})) {
+    if (!["bool", "string", "number"].includes(type)) p.push(`derived "${expr}" has type "${type}"`);
+    bad("derived", expr);
+  }
+  return p;
+}
+{
+  const problems = scalarPathsProblems(SCALAR);
+  if (problems.length) throw new Error(`catalog/scalar-paths.json is not acceptable:\n  - ${problems.join("\n  - ")}`);
+}
 export const TABLES = new Set([
   "resources", "resourcecontainers", "advisorresources", "securityresources", "policyresources", "authorizationresources",
   "healthresources", "servicehealthresources", "networkresources", "recoveryservicesresources",
@@ -148,6 +175,7 @@ export function kqlProblems(query, depth = 0) {
   const table = first[0].toLowerCase();
   if (!TABLES.has(table)) problems.push(`the query must start with a documented table, not "${table}"`);
   else if (first.length > 1) problems.push("the first segment must be the table name only");
+  const boundSeen = new Set();
   for (const r of ranges.slice(1)) {
     const { op, opEnd, b } = opInfo(blank, r);
     if (!OPERATORS.has(op)) { problems.push(`operator "${op || blank.slice(...r).trim().slice(0, 12)}" is not on the allowlist`); continue; }
@@ -160,7 +188,18 @@ export function kqlProblems(query, depth = 0) {
         if (!safeExpr(norm(query.slice(x + m[0].length, y), mask.slice(x + m[0].length, y)))) problems.push(`extend "${m[1]}" computes an expression that is not on the allowlist (a conversion of a standard column, a path of catalog/scalar-paths.json, a tag value, a constant or a listed derived expression)`);
       }
     }
-    if (op === "mv-expand" && !/^\s*(?:[A-Za-z_]\w*\s*=\s*)?[A-Za-z_][\w.]*\s*$/.test(body)) problems.push("mv-expand takes [alias =] a plain property path");
+    if (op === "mv-expand") {
+      const mm = body.match(/^\s*(?:([A-Za-z_]\w*)\s*=\s*)?([A-Za-z_][\w.]*)\s*$/);
+      if (!mm) problems.push("mv-expand takes [alias =] a plain property path");
+      else {
+        for (const [alias, path] of Object.entries(SCALAR.bindings ?? {})) {
+          if (mm[1] && mm[1].toLowerCase() === alias) {
+            if (mm[1] === alias && mm[2] === path) boundSeen.add(alias);
+            else problems.push(`mv-expand ${mm[1]} must be exactly "mv-expand ${alias} = ${path}": the ${alias}.* paths of the allowlist are valid only for that binding`);
+          }
+        }
+      }
+    }
     if (op === "join") {
       const bb = blank.slice(opEnd, b);
       const open = bb.indexOf("(");
@@ -175,7 +214,7 @@ export function kqlProblems(query, depth = 0) {
       const km = head.match(/^kind\s*=\s*([A-Za-z]+)$/i);
       if (head && !km) problems.push("join takes only kind=<kind> before the subquery");
       if (km && !JOIN_KINDS.has(km[1].toLowerCase())) problems.push(`join kind=${km[1]} is not supported by Azure Resource Graph (innerunique, inner, leftouter and fullouter are)`);
-      if (!/^\s*on\s+(?:[A-Za-z_]\w*|\$left\.[A-Za-z_]\w*\s*==\s*\$right\.[A-Za-z_]\w*)\s*$/.test(bb.slice(close + 1))) problems.push("join must end with on <column> or on $left.<a> == $right.<b>");
+      if (!/^\s*on\s+[A-Za-z_]\w*\s*$/.test(bb.slice(close + 1))) problems.push("join must end with on <column>, the same column name on both sides (the $left.a == $right.b form is not confirmed for Azure Resource Graph)");
       const sub = query.slice(opEnd + open + 1, opEnd + close);
       problems.push(...kqlProblems(sub, depth + 1).map((p) => `in the join subquery: ${p}`));
       // a join subquery may project plain column names only
@@ -187,7 +226,26 @@ export function kqlProblems(query, depth = 0) {
       }
     }
   }
+  for (const alias of Object.keys(SCALAR.bindings ?? {})) if (new RegExp(`(?<![\\w.])${alias}\\.`, "i").test(blank) && !boundSeen.has(alias)) problems.push(`${alias}.* is used but "mv-expand ${alias} = ${SCALAR.bindings[alias]}" is not in the query`);
+  if (depth === 0) problems.push(...isnullProblems(query, blank));
   return [...new Set(problems)];
+}
+
+/**
+ * isnull() of a STRING is always false in Kusto: a string is never null, and a string column that comes from the right side of a
+ * leftouter join is EMPTY when nothing matches. `where isnull(<string>)` would drop every row and a check would pass silently,
+ * so isnull is refused over standard columns, over aliases computed by tostring, tolower or a constant, and over conversions;
+ * isempty() is the test. isnull over a dynamic value (a property, zones) stays valid: a missing one is null.
+ */
+function isnullProblems(query, blank) {
+  const stringy = new Set(STD_COLUMNS.map((c) => c.toLowerCase()));
+  for (const m of blank.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:(?:tolower|tostring)\s*\(|'|(?:id|name|subscriptionId|resourceGroup|location)\b(?!\s*\())/g)) stringy.add(m[1].toLowerCase());
+  const p = [];
+  const why = "isnull() of a string is always false in Kusto (an empty or unmatched string is empty, not null): use isempty()";
+  for (const m of blank.matchAll(/\bisnull\s*\(\s*([A-Za-z_]\w*)\s*\)/gi)) if (stringy.has(m[1].toLowerCase())) p.push(`${why}: isnull(${m[1]})`);
+  if (/\bisnull\s*\(\s*(?:tostring|tolower)\s*\(/i.test(blank)) p.push(`${why}: isnull over a conversion`);
+  void query;
+  return p;
 }
 
 /**

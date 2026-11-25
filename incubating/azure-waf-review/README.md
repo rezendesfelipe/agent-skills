@@ -14,4 +14,6 @@ What is not here (PR 1b): `consent`, the stage and identity checks, `cap-check`,
 - Tag values are **pseudonymized**, not redacted: a 32-bit hash salted with the run id, which is in `run.json`. It keeps the model from reading the text; it does not keep a name secret.
 - `seal-check` is tamper-evident (hash checks), not tamper-proof against someone who can rewrite the manifest and `run.json` together.
 - The run folder is created `0700`/`0600` on POSIX. On Windows the ACL is not verified and nothing is promised. The production transport does not run on native Windows in this build (fails closed); WSL Ubuntu is the main platform, native Windows is manual test M-10.
-- The `leftouter` rewrites of the three joins are reasoned from the KQL documentation and have not been run against Resource Graph (manual test M-3).
+- The 18 `arg` queries, and above all the three `leftouter` joins (string marker plus `isempty`, `on` with the same column name), are valid **by documentation only** and were never run against Resource Graph (manual test M-3). `isnull()` of a string is always false in Kusto; the validator refuses it.
+- A `where` may read any column, so a count can still act as an oracle; the allowlist limits only what is written.
+- `summary/*.md` are not sealed (only their names are checked) and there is no write guard in this build.

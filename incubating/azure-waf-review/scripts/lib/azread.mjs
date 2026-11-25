@@ -43,12 +43,18 @@ export const ARG_PATH = "/providers/Microsoft.ResourceGraph/resources";
 export function isAllowedUrl(url, method) {
   // characters we never need: other parsers (the az rest library) read them differently from WHATWG, so refuse before parsing
   if (typeof url !== "string" || /[\\@%#\s\u0000-\u001f\u007f-\uffff]/.test(url)) return false;
+  // only the canonical text: lower-case scheme and host, no port, no dot segments, no empty segments, a plain query
+  if (!url.startsWith(`https://${MGMT_HOST}/`)) return false;
   let u;
   try {
     u = new URL(url);
   } catch {
     return false;
   }
+  if (u.href !== url) return false;
+  const segs = u.pathname.split("/").slice(1);
+  if (!segs.length || segs.some((x) => x === "" || x === "." || x === "..")) return false;
+  if (!/^\?[A-Za-z0-9._-]+=[A-Za-z0-9._-]*(&[A-Za-z0-9._-]+=[A-Za-z0-9._-]*)*$/.test(u.search)) return false;
   if (u.protocol !== "https:" || u.hostname !== MGMT_HOST || u.username || u.password || u.port) return false;
   if (!u.searchParams.get("api-version")) return false;
   const m = String(method).toUpperCase();

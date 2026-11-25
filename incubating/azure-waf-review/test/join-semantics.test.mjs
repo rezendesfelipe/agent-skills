@@ -25,12 +25,18 @@ function value(expr, row) {
   if (m) return m[1];
   return get(row, e);
 }
+const splitDepth0 = (text, sep) => { const out = []; let d = 0; let cur = ""; for (const c of text) { if (c === "(") d++; if (c === ")") d--; if (c === sep && d === 0) { out.push(cur.trim()); cur = ""; } else cur += c; } out.push(cur.trim()); return out; };
 const typeFilter = (rows, seg) => { const m = seg.match(/type\s*=~\s*'([^']+)'/); return m ? rows.filter((r) => r.type === m[1].toLowerCase()) : rows; };
-const tierFilter = (rows, seg) => (/sku\.tier\)\s*!in~\s*\(([^)]*)\)/.test(seg) ? rows.filter((r) => !seg.match(/\(([^)]*)\)/)[1].split(",").map((x) => x.trim().replace(/'/g, "").toLowerCase()).includes(String(r.sku?.tier).toLowerCase())) : rows);
+const tierFilter = (rows, seg) => {
+  const m = seg.match(/sku\.tier\)\s*!in~\s*\(([^)]*)\)/);
+  if (!m) return rows;
+  const out = m[1].split(",").map((x) => x.trim().replace(/'/g, "").toLowerCase());
+  return rows.filter((r) => !out.includes(String(r.sku?.tier).toLowerCase()));
+};
 
 /** Runs `T | where type | [where tier] | extend k | join kind=leftouter (S | where type | extend k, hit | project ...) on k | where isempty|isnull(c)`. */
 function run(query) {
-  const top = query.split(/\|(?![^(]*\))/).map((s) => s.trim());
+  const top = splitDepth0(query, "|");
   let rows = T[top[0]].map((r) => ({ ...r }));
   let joined = false;
   let onKey = null;
@@ -43,12 +49,12 @@ function run(query) {
       const sub = seg.match(/\((.*)\)\s*on\s+(\w+)\s*$/s);
       assert.ok(sub, `join shape: ${seg}`);
       onKey = sub[2];
-      const parts = sub[1].split("|").map((s) => s.trim());
+      const parts = splitDepth0(sub[1], "|");
       let rrows = T[parts[0]].map((r) => ({ ...r }));
       for (const p of parts.slice(1)) {
         if (/^where\b/.test(p)) { rrows = typeFilter(rrows, p); continue; }
         const ex = p.match(/^extend\s+(.+)$/);
-        if (ex) for (const item of ex[1].split(/,(?![^(]*\))/)) { const [k, ...v] = item.split("="); for (const r of rrows) r[k.trim()] = value(v.join("=").trim(), r); }
+        if (ex) for (const item of splitDepth0(ex[1], ",")) { const [k, ...v] = item.split("="); for (const r of rrows) r[k.trim()] = value(v.join("=").trim(), r); }
       }
       const hit = parts.find((p) => /^extend/.test(p)).match(/(\w+)\s*=\s*'[^']*'/)?.[1];
       assert.ok(hit, "the right side carries a string marker column");
