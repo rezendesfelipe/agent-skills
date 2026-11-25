@@ -22,3 +22,5 @@ One or two sentences on what this skill does and the outcome it produces.
 
 **Input:** "<example user request>"
 **Output:** <what the agent produces>
+
+More prompts, with what each produces and what not to ask: `references/prompts.md` (start from `templates/prompts/prompts.md`; required, see CONTRIBUTING.md).

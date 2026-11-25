@@ -16,6 +16,7 @@
 - [ ] Rebased on the current `main`
 - [ ] **No version bump**, no tag and no change to `publish.yml`, unless this is a release change with the maintainer's explicit OK for the version (gate 2): <link>
 - [ ] Conventional Commits; no client data, secrets or personal data
+- [ ] New or changed skill or agent: its example prompts (prompt, what it produces, how to get good results) are added or updated, in English and pt-BR (`test/prompt-examples.test.mjs` passes; see CONTRIBUTING.md, "Example prompts"): <link, or `not applicable`>
 
 ## Summary
 

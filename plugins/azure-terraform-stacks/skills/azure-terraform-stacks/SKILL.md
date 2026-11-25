@@ -126,5 +126,4 @@ Every command accepts `--root <repo>` and `--json`. Exit codes: 0 success, 1 val
 **Input:** "Split our Terraform into network, cluster and orders stacks, with a pipeline in Azure DevOps where I choose what to run."
 **Output:** after the interview, `infra/stacks.yaml` with three stacks and `ci: [azure-devops]`, the plan shown and confirmed, about 50 files scaffolded, `check --deep` results, and the prerequisites list.
 
-**Input:** "Check our infra repo against the stacks pattern."
-**Output:** `check` findings, each with rule, file, line and the reference to read, plus suggested manifest changes.
+More prompts, with what each produces and what not to ask, also for `stacks-auditor`: `references/prompts.md`.

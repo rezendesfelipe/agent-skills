@@ -13,12 +13,22 @@ Versions before 0.6.0 were not recorded in this file; see the git tags and `open
 
 Change `vendor-stacks-engine-yaml` (OpenSpec; pull request #28). No version, tag or date: the release is a separate decision (gate 2).
 
+Change `add-prompt-examples` (OpenSpec; pull request #29) is also in this section. Plugins touched by it, each needing a version bump at release (set by the maintainer at gate 2): `docs-generator`, `azure-terraform-stacks`, `assessment-report`. No version, tag or date here.
+
+### Added
+
+- `scripts/vendor-yaml.mjs` (`verify`, `verify --registry`, `update <version>`), tests for the integrity check with mutations, a golden corpus of hostile and awkward YAML (alias bomb, tags, merge key, duplicate keys, several documents, CRLF, BOM, tabs, deep nesting, a 1 MiB scalar, a round trip with comments) run in child processes where memory is at risk, and a differential test against the npm package.
+- **Example prompts** for every skill and for the `stacks-auditor` agent (OpenSpec change `add-prompt-examples`): `references/prompts.md` in `docs-generator`, `azure-terraform-stacks` (with a section for the auditor) and `assessment-report`, each with beginner, advanced and consultancy examples, what each produces (one block per command with exactly what that command printed on fictitious data, a "Derived" block for what is read from a generated file, or one labeled "Illustrative excerpt, not a captured run"), tips, and a "What not to ask" list. English is canonical with a pt-BR twin. They are loaded on demand and do not grow the context of a skill or agent; the agent file is unchanged. A short "Example prompts" section in `README.md` has a starter prompt for each capability.
+- **A permanent rule**: every new skill or agent must ship such examples. `test/prompt-examples.test.mjs` (in `npm test`) discovers `plugins/*/skills/*` and `plugins/*/agents/*` and fails for one without the file, the single pointer, matching English and pt-BR blocks, labeled outputs, or a README starter prompt; it also scans for secret-shaped text (with the scanner of `assessment-report`), non-zero GUIDs and personal paths, and checks that the auditor's examples ask for nothing it cannot do. Mutation tests plant a fictitious skill and agent without examples. `templates/prompts/prompts.md` is the starting point; `CONTRIBUTING.md` and `.github/pull_request_template.md` carry the rule.
+
 ### Changed
 
 - **The `azure-terraform-stacks` engine needs no installation.** Its one dependency, `yaml` 2.9.1, is vendored as a byte-for-byte copy of the published package (`dist/**/*.js`, `package.json`, the ISC `LICENSE`; 76 files) in `plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/vendor/yaml/`, and the engine reaches it through `scripts/lib/yaml.mjs`. No `npm ci`, no `node_modules/`, no network on first run. The engine's output and golden files are unchanged.
 - **The `stacks-auditor` agent installs nothing and the command guard no longer allows `npm`.** The one write of the auditor, `npm ci --prefix <skill folder> --omit=dev --ignore-scripts`, is gone from the agent's instructions and from the guard's allowlist (now five command shapes; `npm` and `npx` fall to the default denial). A copy of the skill from before this change fails with `Cannot find package 'yaml'`; the auditor then tells the user to update the skill.
 - `SKILL.md` step 1 now reads "No install step" (43 bytes shorter); the explanation is in `references/traps.md`.
 - CI: the `azure-terraform-stacks` jobs (`(20)`, `(24)` and `-deep`, names unchanged) no longer run `npm ci`. A new job `azure-terraform-stacks-windows` (Node 24) runs **only three test files** (`vendor`, `yaml-corpus`, `no-install`) plus `vendor-yaml.mjs verify`, not the engine's suite: the suite fails on Windows for reasons that predate this change (see Known limitations). A new `azure-terraform-stacks-parity (20)` / `(24)` job compares the vendored copy with the npm package. No new job is a required check, and no required check was renamed.
+- `azure-terraform-stacks` `SKILL.md`: the `## Examples` block keeps one example and points to `references/prompts.md` (13,904 to 13,836 bytes, below the 13,947 ceiling of `no-install.test.mjs` and the 14,000 of `budget.test.mjs`; no budget was raised). The other two `SKILL.md` files gain one pointer line.
+- `CONTRIBUTING.md`: "Content is in English" now excepts the pt-BR twin of example prompts; new section "Example prompts".
 
 ### Security
 
@@ -27,10 +37,8 @@ Change `vendor-stacks-engine-yaml` (OpenSpec; pull request #28). No version, tag
 ### Known limitations
 
 - **The engine's commands that generate files do not work on Windows** (not caused by this change, found while adding the Windows leg; not fixed here): `scripts/lib/gen-terraform.mjs:7` builds `TEMPLATES` from `new URL("../../templates/", import.meta.url).pathname`, which is `/D:/a/...` on Windows and gives paths such as `D:\D:\a\...` (`ENOENT`), so `scaffold`, `add-stack` and what builds on them fail there; 68 of the engine's 188 tests fail on a Windows runner, and the guard tests assume POSIX paths. `check-manifest` and `audit` ran correctly on Windows in CI (the hostile-repository audit test passed), and the vendored copy loads and verifies there. Suggested fix, outside this change: `fileURLToPath(new URL("../../templates/", import.meta.url))`.
-
-### Added
-
-- `scripts/vendor-yaml.mjs` (`verify`, `verify --registry`, `update <version>`), tests for the integrity check with mutations, a golden corpus of hostile and awkward YAML (alias bomb, tags, merge key, duplicate keys, several documents, CRLF, BOM, tabs, deep nesting, a 1 MiB scalar, a round trip with comments) run in child processes where memory is at risk, and a differential test against the npm package.
+- The prompts were **not run against a model**. Only the "Real output" excerpts come from running an engine command. The manual smoke checklist S1 to S7 of `openspec/changes/add-prompt-examples/design.md` is for the maintainer to run before the release.
+- The auditor's example lint (words for changes and commands) is a heuristic; review decides. The prompts test does not prove that a `Real output` block equals what its command prints; a reviewer re-runs the command (the list of what the test does not prove is in `CONTRIBUTING.md`).
 
 ## [0.6.0] - 2026-11-24
 
