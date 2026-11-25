@@ -1,0 +1,30 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 2
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Web/serverfarms/asp-prod",
+            "name": "asp-prod",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "resourceGroup": "rg-app",
+            "location": "brazilsouth",
+            "skuName": "P1v3"
+          }
+        ]
+      }
+    ]
+  }
+}

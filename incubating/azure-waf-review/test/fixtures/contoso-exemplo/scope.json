@@ -1,0 +1,14 @@
+{
+  "note": "visible = what the identity can read; containers = subscriptions under the management group (resourcecontainers); expected = the count the user typed.",
+  "expected": 3,
+  "visible": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002"
+  ],
+  "containers": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002",
+    "00000000-0000-0000-0000-000000000003"
+  ],
+  "managementGroup": "mg-contoso-exemplo"
+}

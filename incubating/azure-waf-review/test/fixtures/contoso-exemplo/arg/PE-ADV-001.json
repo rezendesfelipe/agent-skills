@@ -1,0 +1,21 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 0
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": []
+      }
+    ]
+  }
+}

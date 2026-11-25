@@ -1,0 +1,40 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 7
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Compute/disks/disk-orphan-02",
+            "name": "disk-orphan-02",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "resourceGroup": "rg-app",
+            "location": "brazilsouth",
+            "diskSizeGb": 512,
+            "diskState": "Unattached"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-np/providers/Microsoft.Compute/disks/disk-orphan-\u001b[2J\u001b[31m01",
+            "name": "disk-orphan-\u001b[2J\u001b[31m01",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "resourceGroup": "rg-np",
+            "location": "brazilsouth",
+            "diskSizeGb": 32,
+            "diskState": "Unattached"
+          }
+        ]
+      }
+    ]
+  }
+}

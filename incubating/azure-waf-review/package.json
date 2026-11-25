@@ -1,0 +1,14 @@
+{
+  "name": "azure-waf-review-engine",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Catalog and deterministic collector of the future azure-waf-review skill (OpenSpec change add-azure-waf-review-agent, PR 1a). No runtime dependencies.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/run-all.mjs"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+{
+  "note": "The closed list of `az` argument vectors the engine may start. It is a list of exact vectors, never a rule such as 'a read verb': get-access-token, keyvault secret show, config appsettings list, storage account keys list and acr credential show are get, show or list and all return secrets. {guid} is the only placeholder and is validated as a GUID. Vectors marked consent are used by `waf.mjs consent` (PR 1b); they are shipped now so the list is reviewed once.",
+  "vectors": [
+    { "argv": ["az", "--version"], "use": "plan" },
+    { "argv": ["az", "account", "show"], "use": "plan" },
+    { "argv": ["az", "account", "list", "--all"], "use": "plan" },
+    { "argv": ["az", "account", "show", "--output", "json"], "use": "consent" },
+    { "argv": ["az", "account", "list", "--all", "--output", "json"], "use": "consent" },
+    { "argv": ["az", "ad", "signed-in-user", "show", "--query", "id", "--output", "tsv"], "use": "consent" },
+    { "argv": ["az", "ad", "sp", "show", "--id", "{guid}", "--query", "id", "--output", "tsv"], "use": "consent" }
+  ]
+}

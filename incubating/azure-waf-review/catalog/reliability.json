@@ -1,0 +1,219 @@
+{
+  "pillar": "reliability",
+  "checks": [
+    {
+      "id": "RE-VM-001",
+      "pillar": "reliability",
+      "title": "Virtual machines without zone or availability set",
+      "waf": [
+        {
+          "id": "RE:05",
+          "framework": "azure-waf",
+          "docDate": "2026-05-29",
+          "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
+          "relation": "primary",
+          "why": "Redundancy across zones or sets limits the effect of one failure."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.compute/virtualmachines' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.compute/virtualmachines' | where isnull(zones) or array_length(zones) == 0 | where isnull(properties.availabilitySet) | extend zoneCount = coalesce(array_length(zones), 0) | project id, name, subscriptionId, resourceGroup, location, zoneCount"
+        }
+      },
+      "proves": "The VM has no availability zone and is not in an availability set.",
+      "doesNotProve": "Whether the workload tolerates the loss of a zone, or whether more than one instance exists.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "zoneCount",
+          "type": "number",
+          "source": "coalesce(array_length(zones),0)"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "RE-BKP-001",
+      "pillar": "reliability",
+      "title": "Virtual machines without a backup item",
+      "waf": [
+        {
+          "id": "RE:09",
+          "framework": "azure-waf",
+          "docDate": "2026-05-29",
+          "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
+          "relation": "related",
+          "why": "A backup item is one input of a recovery plan; it does not prove the plan, which is a practice."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.compute/virtualmachines' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.compute/virtualmachines' | extend vmKey=tolower(id) | join kind=leftouter (recoveryservicesresources | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems' | extend vmKey=tolower(tostring(properties.sourceResourceId)), hitR='y' | project vmKey, hitR) on vmKey | where isempty(hitR) | project id, name, subscriptionId, resourceGroup, location"
+        }
+      },
+      "proves": "No Azure Backup protected item names the VM as its source.",
+      "doesNotProve": "That a restore works, or that another backup product protects it. A protected item of another workload whose sourceResourceId is the VM counts as a backup of the VM (a false negative). If the right side of the join were cut by a limit that is not documented, VMs would be reported as unprotected for the wrong reason (not verified; manual test M-3).",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "RE-HLT-001",
+      "pillar": "reliability",
+      "title": "Resources reported as not available by Resource Health",
+      "waf": [
+        {
+          "id": "RE:10",
+          "framework": "azure-waf",
+          "docDate": "2026-05-29",
+          "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
+          "relation": "primary",
+          "why": "Health signals are part of measuring the solution's health."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "healthresources | where type =~ 'microsoft.resourcehealth/availabilitystatuses' | summarize n=count()",
+          "violations": "healthresources | where type =~ 'microsoft.resourcehealth/availabilitystatuses' | where tostring(properties.availabilityState) !~ 'Available' | project id, subscriptionId, availabilityState=tostring(properties.availabilityState)"
+        }
+      },
+      "proves": "Resource Health reports an availability state other than Available.",
+      "doesNotProve": "The cause, the duration, or the application's own health.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "availabilityState",
+          "type": "string",
+          "source": "properties.availabilityState"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "RE-Q-001",
+      "pillar": "reliability",
+      "title": "Recovery targets are defined",
+      "waf": [
+        {
+          "id": "RE:04",
+          "framework": "azure-waf",
+          "docDate": "2026-05-29",
+          "url": "https://learn.microsoft.com/azure/well-architected/reliability/checklist",
+          "relation": "primary",
+          "why": "Recovery and reliability targets are a design practice."
+        }
+      ],
+      "chain": [
+        "questionnaire"
+      ],
+      "sources": {
+        "questionnaire": {
+          "id": "Q-RE-Q-001",
+          "text": {
+            "en": "Are recovery time and recovery point targets defined for each workload, and approved by its owner?",
+            "pt-BR": "Os objetivos de tempo e ponto de recuperação estão definidos para cada carga de trabalho e aprovados pelo responsável?"
+          }
+        }
+      },
+      "proves": "The answer of the person who knows the practice.",
+      "doesNotProve": "Whether the targets are met; no API shows it."
+    }
+  ]
+}

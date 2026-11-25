@@ -1,0 +1,15 @@
+{
+  "note": "Synthetic REST GET answers, one per subscription.",
+  "bySubscription": {
+    "00000000-0000-0000-0000-000000000001": {
+      "value": [
+        {
+          "name": "lock-hub-delete"
+        }
+      ]
+    },
+    "00000000-0000-0000-0000-000000000002": {
+      "value": []
+    }
+  }
+}

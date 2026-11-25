@@ -1,0 +1,38 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 5
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-web-02",
+            "name": "vm-web-02",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "resourceGroup": "rg-app",
+            "location": "brazilsouth",
+            "zoneCount": 0
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/resourceGroups/rg-np/providers/Microsoft.Compute/virtualMachines/vm-test-01",
+            "name": "vm-test-01",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "resourceGroup": "rg-np",
+            "location": "brazilsouth",
+            "zoneCount": 0
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 16
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000500",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "displayName": "Storage accounts should restrict network access",
+            "severity": "High"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000501",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "displayName": "Management ports should be closed",
+            "severity": "Medium"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000502",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "displayName": "Key vaults should have purge protection",
+            "severity": "Low"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000503",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "displayName": "Machines should have a vulnerability assessment solution",
+            "severity": "High"
+          }
+        ],
+        "$skipToken": "SE-DEF-002-p2"
+      },
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000504",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "displayName": "Subscriptions should have a contact email",
+            "severity": "Medium"
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000002/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-000000000505",
+            "subscriptionId": "00000000-0000-0000-0000-000000000002",
+            "displayName": "Secure transfer to storage accounts should be enabled",
+            "severity": "Low"
+          }
+        ]
+      }
+    ]
+  }
+}

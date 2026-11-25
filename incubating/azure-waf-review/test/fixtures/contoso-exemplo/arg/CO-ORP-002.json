@@ -1,0 +1,30 @@
+{
+  "note": "Synthetic Resource Graph answer. Rows of the violations query may carry extra fields; the engine must drop them.",
+  "evaluated": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "n": 2
+          }
+        ]
+      }
+    ]
+  },
+  "violations": {
+    "pages": [
+      {
+        "rows": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-hub/providers/Microsoft.Network/publicIPAddresses/pip-orphan",
+            "name": "pip-orphan",
+            "subscriptionId": "00000000-0000-0000-0000-000000000001",
+            "resourceGroup": "rg-hub",
+            "location": "brazilsouth",
+            "allocation": "Static"
+          }
+        ]
+      }
+    ]
+  }
+}

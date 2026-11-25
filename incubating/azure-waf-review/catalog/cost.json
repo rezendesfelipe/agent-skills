@@ -1,0 +1,344 @@
+{
+  "pillar": "cost",
+  "checks": [
+    {
+      "id": "CO-ORP-001",
+      "pillar": "cost",
+      "title": "Unattached managed disks",
+      "waf": [
+        {
+          "id": "CO:07",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "primary",
+          "why": "An unattached disk is a component that costs without serving."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.compute/disks' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.compute/disks' | where isempty(managedBy) and tostring(properties.diskState) =~ 'Unattached' | project id, name, subscriptionId, resourceGroup, location, diskSizeGb=tolong(properties.diskSizeGB), diskState=tostring(properties.diskState)"
+        }
+      },
+      "proves": "The managed disk has no owner VM and its state is Unattached.",
+      "doesNotProve": "How much it costs, or whether someone keeps it on purpose (for example a snapshot source).",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "diskSizeGb",
+          "type": "number",
+          "source": "properties.diskSizeGB"
+        },
+        {
+          "name": "diskState",
+          "type": "string",
+          "source": "properties.diskState"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "CO-ORP-002",
+      "pillar": "cost",
+      "title": "Public IP addresses not associated",
+      "waf": [
+        {
+          "id": "CO:07",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "primary",
+          "why": "An unassociated address is a component that costs without serving."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | where type =~ 'microsoft.network/publicipaddresses' | summarize n=count()",
+          "violations": "resources | where type =~ 'microsoft.network/publicipaddresses' | where isnull(properties.ipConfiguration) | project id, name, subscriptionId, resourceGroup, location, allocation=tostring(properties.publicIPAllocationMethod)"
+        }
+      },
+      "proves": "The public IP address has no IP configuration.",
+      "doesNotProve": "How much it costs, or whether a DNS record points at it.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "allocation",
+          "type": "string",
+          "source": "properties.publicIPAllocationMethod"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "CO-ADV-001",
+      "pillar": "cost",
+      "title": "Advisor cost recommendations",
+      "waf": [
+        {
+          "id": "CO:07",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "related",
+          "why": "Advisor cost recommendations point at components to optimize."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "advisorresources | where type =~ 'microsoft.advisor/recommendations' | where tostring(properties.category) =~ 'Cost' | summarize n=count()",
+          "violations": "advisorresources | where type =~ 'microsoft.advisor/recommendations' | where tostring(properties.category) =~ 'Cost' | project id, subscriptionId, impact=tostring(properties.impact), problem=tostring(properties.shortDescription.problem)"
+        }
+      },
+      "proves": "Azure Advisor lists a recommendation in the Cost category for the resource.",
+      "doesNotProve": "Savings in money (no Cost Management data in v1), or that the recommendation is right for the workload.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "impact",
+          "type": "enum",
+          "values": [
+            "High",
+            "Medium",
+            "Low"
+          ],
+          "source": "properties.impact"
+        },
+        {
+          "name": "problem",
+          "type": "string",
+          "source": "properties.shortDescription.problem"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "CO-TAG-001",
+      "pillar": "cost",
+      "title": "Resources without a cost center tag",
+      "waf": [
+        {
+          "id": "CO:02",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "related",
+          "why": "Tags are one input of a cost allocation model; this is a supporting measure, not a mapping to CO:04."
+        },
+        {
+          "id": "CO:03",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "related",
+          "why": "They feed the cost data that is reviewed."
+        }
+      ],
+      "chain": [
+        "collector"
+      ],
+      "sources": {
+        "collector": {
+          "kind": "arg",
+          "scope": "tenant",
+          "evaluated": "resources | summarize n=count()",
+          "violations": "resources | where isempty(tostring(tags['costcenter'])) | project id, name, subscriptionId, resourceGroup, location, owner=tostring(tags['owner'])"
+        }
+      },
+      "proves": "The resource has no non-empty tag named costcenter.",
+      "doesNotProve": "That cost is allocated correctly, or that the tag value is right. The tag key is matched exactly as costcenter (Resource Graph compares tag names case-sensitively), so a tag named CostCenter is reported as missing; the evaluated count is every resource of the table, including types that cannot carry tags, so the failing count is an upper bound. The owner tag value is pseudonymized by a hash, never shown.",
+      "outputFields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "alias": "resource"
+        },
+        {
+          "name": "subscriptionId",
+          "type": "string",
+          "alias": "subscription"
+        },
+        {
+          "name": "resourceGroup",
+          "type": "string",
+          "alias": "resourceGroup"
+        },
+        {
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "name": "owner",
+          "type": "string",
+          "tagKey": "owner",
+          "source": "tags['owner']"
+        }
+      ],
+      "redact": [],
+      "limits": {
+        "maxRows": 20000,
+        "maxPages": 20,
+        "maxParts": 40,
+        "timeoutSec": 30
+      },
+      "requires": [
+        "Reader"
+      ]
+    },
+    {
+      "id": "CO-RSV-001",
+      "pillar": "cost",
+      "title": "Reservations and savings plans",
+      "waf": [
+        {
+          "id": "CO:05",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "primary",
+          "why": "Committed-use rates are a way to get better prices."
+        }
+      ],
+      "chain": [],
+      "noApi": "Reservations are a billing API (Microsoft.Capacity, Cost Management) that v1 does not call.",
+      "sources": {},
+      "proves": "Nothing: v1 has no source for it.",
+      "doesNotProve": "Everything; reservations and savings plans are not in Resource Graph and Cost Management is out of scope in v1."
+    },
+    {
+      "id": "CO-Q-001",
+      "pillar": "cost",
+      "title": "Budgets and spending alerts",
+      "waf": [
+        {
+          "id": "CO:03",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "primary",
+          "why": "Alerts at budget thresholds are part of collecting and reviewing cost data."
+        },
+        {
+          "id": "CO:04",
+          "framework": "azure-waf",
+          "docDate": "2025-10-30",
+          "url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+          "relation": "related",
+          "why": "A budget can act as a spending guardrail."
+        }
+      ],
+      "chain": [
+        "questionnaire"
+      ],
+      "sources": {
+        "questionnaire": {
+          "id": "Q-CO-Q-001",
+          "text": {
+            "en": "Are budgets with alerts defined for each subscription or workload, and who receives the alerts?",
+            "pt-BR": "Existem orçamentos com alertas definidos para cada assinatura ou carga de trabalho, e quem recebe os alertas?"
+          }
+        }
+      },
+      "proves": "The answer of the person who knows the practice.",
+      "doesNotProve": "The amounts or the alert routing; Cost Management is not read in v1."
+    }
+  ]
+}

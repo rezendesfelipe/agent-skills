@@ -1,0 +1,41 @@
+{
+  "note": "The reviewed, closed list of the scalar leaves a check may PROJECT into the collected evidence. A query may read any column in a `where`; it may only write a path of this list (converted by the type below), a derived expression of this list, a tag value of a declared tagKey, or a constant. Nothing else becomes a field: not properties, not tags, not an object, not a path that is not listed. Adding a path is a reviewed change of this file: read what the property holds in the resource provider's schema first. `rule.*` paths are read from an `mv-expand rule = properties.securityRules` element. `bindings` ties an alias to the ONLY mv-expand that may define it: `rule.*` paths are valid only after `mv-expand rule = properties.securityRules`.",
+  "paths": {
+    "properties.allowBlobPublicAccess": "bool",
+    "properties.minimumTlsVersion": "string",
+    "properties.supportsHttpsTrafficOnly": "bool",
+    "rule.name": "string",
+    "rule.properties.destinationPortRange": "string",
+    "properties.publicNetworkAccess": "string",
+    "properties.enablePurgeProtection": "bool",
+    "properties.enableSoftDelete": "bool",
+    "properties.principalId": "string",
+    "properties.principalType": "string",
+    "properties.scope": "string",
+    "properties.pricingTier": "string",
+    "properties.displayName": "string",
+    "properties.metadata.severity": "string",
+    "properties.availabilityState": "string",
+    "properties.diskSizeGB": "number",
+    "properties.diskState": "string",
+    "properties.publicIPAllocationMethod": "string",
+    "properties.impact": "string",
+    "properties.shortDescription.problem": "string",
+    "sku.name": "string",
+    "properties.sourceResourceId": "string",
+    "properties.targetResourceUri": "string"
+  },
+  "derived": {
+    "coalesce(array_length(zones),0)": "number"
+  },
+  "standardColumns": [
+    "id",
+    "name",
+    "subscriptionId",
+    "resourceGroup",
+    "location"
+  ],
+  "bindings": {
+    "rule": "properties.securityRules"
+  }
+}

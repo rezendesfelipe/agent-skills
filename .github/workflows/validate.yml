@@ -119,6 +119,28 @@ jobs:
           echo "Skipped tests: ${skipped:-unknown}"
           test "${skipped:-unknown}" = "0"
 
+  # Engine tests of the future azure-waf-review skill (OpenSpec change add-azure-waf-review-agent, PR 1a), on Linux and Windows.
+  # The engine lives in incubating/azure-waf-review/ until the skill exists (PR 3). No install, no network, no credential.
+  # A new job with its own name: it is not a required check and no required context is renamed.
+  azure-waf-review:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 24]
+    defaults:
+      run:
+        working-directory: incubating/azure-waf-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test the azure-waf-review engine
+        run: npm test
+
   # The engine needs no install: its one dependency (yaml) is vendored in scripts/vendor/yaml (OpenSpec change
   # vendor-stacks-engine-yaml), so these jobs do not run `npm ci`. The tests that compare the vendored copy with the npm package
   # skip themselves here (no node_modules) and run in the parity job below. Windows (Node 24) checks the vendor files for CRLF.
