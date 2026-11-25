@@ -6,7 +6,7 @@ import { performance } from "node:perf_hooks";
 import { test } from "node:test";
 import { MAX_SCAN_LINE_CHARS, scanString } from "../scripts/lib/secrets.mjs";
 import { fakeSecret, mulberry32 } from "./helpers.mjs";
-import { DEADLINE_MS, SCAN_TIME_BOUND_MS, measure, scalesFor, workersStartedCount } from "./scan-inputs.mjs";
+import { DEADLINE_MS, SCAN_TIME_BOUND_MS, measure, scalesFor, totalCeiling, workersStartedCount } from "./scan-inputs.mjs";
 
 const SEED = 424242; // fixed: the same cases on every run and machine
 const CASES = 36;
@@ -69,10 +69,18 @@ test(`property: pathological inputs (seed ${SEED}, ${CASES} cases) do not throw,
   }
   const total = performance.now() - started;
   const workers = workersStartedCount() - workersBefore;
-  const ceiling = Math.max(DEADLINE_MS, TOTAL_FACTOR * workers * reference);
+  const ceiling = totalCeiling(workers, reference, TOTAL_FACTOR);
   // numbers only, never an input; `t.diagnostic` is optional so a runtime without it cannot fail the test
   t.diagnostic?.(`timing: workers ${workers}, reference ${reference.toFixed(1)} ms, total ${total.toFixed(0)} ms, ceiling ${ceiling.toFixed(0)} ms, worst scan ${worstScan.toFixed(1)} ms`);
   assert.ok(total < ceiling, `the property test took ${total.toFixed(0)} ms, above its ceiling of ${ceiling.toFixed(0)} ms (${TOTAL_FACTOR} x ${workers} Workers x ${reference.toFixed(1)} ms; initial value)`);
+});
+
+test("property: the total ceiling falls back to DEADLINE_MS when the reference is not finite (0 measurements, NaN)", () => {
+  assert.equal(totalCeiling(0, Infinity, TOTAL_FACTOR), DEADLINE_MS); // no measure() call finished: reference stays Infinity
+  assert.equal(totalCeiling(60, Infinity, TOTAL_FACTOR), DEADLINE_MS);
+  assert.equal(totalCeiling(60, NaN, TOTAL_FACTOR), DEADLINE_MS);
+  assert.equal(totalCeiling(60, 1, TOTAL_FACTOR), DEADLINE_MS); // a small finite reference still gives at least DEADLINE_MS
+  assert.equal(totalCeiling(60, 100, TOTAL_FACTOR), TOTAL_FACTOR * 60 * 100); // a slow runner raises it
 });
 
 test(`property: a planted secret gives the same kinds on one long line as split into short lines (seed ${SEED})`, () => {
