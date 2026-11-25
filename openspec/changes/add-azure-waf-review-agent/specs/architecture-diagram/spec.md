@@ -62,7 +62,7 @@ The generator SHALL map a resource kind to a built-in `img/lib/azure2/...` stenc
 - **THEN** `check` exits 1 and names the cell
 
 #### Scenario: Opens in draw.io
-- **WHEN** the manual test M-6 runs
+- **WHEN** the manual test M-4 runs
 - **THEN** the file opens in draw.io without a repair prompt (a manual check, not part of CI)
 
 ### Requirement: Edit detection

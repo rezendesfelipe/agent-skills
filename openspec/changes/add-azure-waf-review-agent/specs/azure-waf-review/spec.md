@@ -57,33 +57,49 @@ Every catalog check SHALL declare an ordered chain of sources chosen from `colle
 - **THEN** the run completes with the collector and the questionnaire, and the report states that the MCP was not used
 
 ### Requirement: Evidence of collected data
-Every datum a finding rests on SHALL be a line of a JSONL file under `<run>/collected/`, written only by the collector and sealed in `manifest.json` (check ID, catalog SHA-256, query SHA-256, UTC start and end, scope, number of visible subscriptions, rows, truncation flag, file SHA-256, tool versions). The first field of every line SHALL be the ARM resource ID. The skill SHALL map a failing check to evidence of kind `file` of `assessment-report` (at most five offender lines, with the quote copied from the file) so that `assess.mjs verify` checks it. A check that cannot be cited by lines SHALL NOT back a finding.
+Every datum a finding rests on SHALL be a line of a JSONL part under `<run>/collected/`, named `<check-id>.NNN.jsonl`, each part at most 1 MiB, written only by the collector and sealed in `manifest.json`. The assessed root of `assessment-report` SHALL be `<run>/collected/` and every evidence path SHALL be relative to it. The first field of every line SHALL be the ARM resource ID. The skill SHALL map a failing check to evidence of kind `file` of `assessment-report` (at most five offender lines of one part, the quote copied from the file) so that `assess.mjs verify` checks it, and SHALL write the query, the time and the part into the finding text and never into `rationale`, which the schema limits to `impact` and `likelihood`. A check that cannot be cited by lines SHALL NOT back a finding.
 
 #### Scenario: Sealed line verifies
 - **WHEN** `map` produces a finding for a failing check and `assess.mjs verify` runs
 - **THEN** the evidence passes and the finding's confidence is `verified`
 
+#### Scenario: Large result
+- **WHEN** a check has 5,000 violating rows that exceed 1 MiB
+- **THEN** the collector writes several parts, each at most 1 MiB, and `verify` passes on a cited part (the same data in one file fails with `too-large`)
+
 #### Scenario: Tampered file
-- **WHEN** a line of a collected file is edited after collection
+- **WHEN** a line of a collected part is edited after collection
 - **THEN** `seal-check` reports a hash mismatch, the evidence is treated as `drift`, and the finding is demoted to Not verified
 
+#### Scenario: Forged root
+- **WHEN** the model edits `scope.root` of `assessment.json` to a folder that holds a forged line
+- **THEN** `waf.mjs seal-check` and `waf.mjs render` refuse because the real path of `scope.root` is not `<run>/collected`
+
 ### Requirement: Confidence cap for tool output
-The skill SHALL apply this rule when it builds evidence: collector-sealed lines are `file` evidence and may support a finding up to High; a Critical finding requires a passing `reverify` recorded in the finding's rationale; an answer of the Azure MCP typed by the model SHALL be recorded as `statement` evidence with source `azure-mcp:<namespace>/<command>` and the UTC time of the call and SHALL cap the finding at `reported` or `corroborated` (Medium at most); a questionnaire answer SHALL be a `statement` with the answerer's role; a finding with both an MCP answer and a sealed line for the same check and ARM ID takes the sealed line's confidence. The finding text MUST include the check's `doesNotProve` sentence.
+The skill SHALL apply this rule: collector-sealed lines are `file` evidence; an Azure MCP answer typed by the model SHALL be recorded as `statement` evidence with source `azure-mcp:<namespace>/<command>` and the UTC time of the call and SHALL cap the finding at `reported` or `corroborated` (Medium at most, by the existing rules of `assessment-report`); a questionnaire answer SHALL be a `statement` with the answerer's role; a finding with both an MCP answer and a sealed line for the same check and ARM ID takes the sealed line's confidence. A finding whose computed severity is Critical SHALL be refused at render unless, for each check it rests on, `reverify/<check>.json` has `state: match`; this gate SHALL be enforced in code by `waf.mjs cap-check` and by `waf.mjs render`, not by instruction. The finding text MUST include the check's `doesNotProve` sentence. The skill SHALL state as instruction only, in `SKILL.md` and in the method annex, the limits it cannot enforce without changing `assessment-report`: a human who runs `assess.mjs render` or `assess.mjs verify` directly is not gated, the severity of non-Critical findings is not gated, and `review --approve` is not enforced by code against an agent that is not under the guard.
 
 #### Scenario: MCP only
 - **WHEN** a finding is supported only by an MCP answer the model transcribed
 - **THEN** its confidence is `reported` and its severity is at most Medium
 
 #### Scenario: Critical without reverify
-- **WHEN** a sealed finding would be Critical and no passing `reverify` exists
-- **THEN** its severity is capped at High and the report lists it under "Verify first"
+- **WHEN** a sealed finding is Critical and no `reverify/<check>.json` with `match` exists
+- **THEN** `waf.mjs cap-check` and `waf.mjs render` exit 1 and list the finding
+
+#### Scenario: Critical with reverify
+- **WHEN** the user ran `reverify` and the result is `match`
+- **THEN** `waf.mjs render` passes the gate and calls `assess.mjs render --unreviewed`
+
+#### Scenario: Instruction only
+- **WHEN** the skill text is reviewed
+- **THEN** it lists the three controls above as instruction only and promises no enforcement for them
 
 ### Requirement: Re-verification by the user
-The collector SHALL provide `reverify --check <id> [--resource <ARM ID>]`, which re-runs one catalog query with the user's login, compares the result by ARM ID with the sealed lines, and writes `reverify/<id>.json` with the state `match`, `changed`, `gone` or `error` and the UTC time. The verifier of `assessment-report` and the CI SHALL NOT call the network. The agent's guard SHALL deny `reverify`.
+The collector SHALL provide `reverify --check <id> [--resource <ARM ID>]`, which re-runs one catalog query with the user's login, compares the result by ARM ID with the sealed lines and writes `reverify/<id>.json` with `state` `match`, `changed`, `gone` or `error`, the UTC time and the hash of the part compared. The note SHALL live in that file and not in the `assessment.json` schema fields. The verifier of `assessment-report` and the CI SHALL NOT call the network. The guard SHALL deny `reverify` to the agent.
 
 #### Scenario: Reverify match
 - **WHEN** the user runs `reverify` and the resource still violates
-- **THEN** `reverify/<id>.json` records `match` and a Critical finding may keep its severity
+- **THEN** `reverify/<id>.json` records `match`
 
 #### Scenario: CI never calls the tenant
 - **WHEN** the repository's tests run
@@ -114,20 +130,20 @@ The skill SHALL treat every string from the tenant (names, tags, descriptions, p
 - **WHEN** a queried property contains a value that matches the secret scanner
 - **THEN** the written line holds `[redacted:<kind>]` and the manifest counts the redaction
 
-### Requirement: Consent before collection
-Before the first Azure read the skill SHALL show the user the last four characters of the tenant ID, the identity type and role found, the resolved path of `az` and whether an isolated Azure CLI profile is in use, the stage (`nonprod`, `one-prod` or `root-mg`), the number of subscriptions the user expects (typed by the user) next to the number actually read, with their names, the status of the optional MCP, and the statement that data passes through the model provider even when only the collector is used. It SHALL proceed only after an explicit yes, recorded in `run.json` with the time and a hash of the shown text. There SHALL be no flag that skips the consent.
+### Requirement: Consent by the user
+Consent SHALL be produced by the user outside the agent: `waf.mjs consent --stage <stage> --expected-subs <n>` run in the user's terminal SHALL do the first Azure read, show the last four characters of the tenant ID, the identity type and role found, the resolved `az` path and whether an isolated profile is in use, the stage, the typed expected subscription count next to the count read with names, the MCP status and the statement that data passes through the model provider even when only the collector is used, and SHALL write `consent.json` with the SHA-256 of the exact text shown, the stage, the typed and read counts and the UTC time only after an explicit yes. `plan` and `collect` SHALL refuse to run without a valid `consent.json` for the run and SHALL take the stage from it. The guard SHALL deny `consent` to the agent. There SHALL be no flag that skips the consent.
 
-#### Scenario: No consent
-- **WHEN** the user does not answer yes
-- **THEN** no query and no MCP call is made and the run ends with the plan only
+#### Scenario: No consent file
+- **WHEN** the agent runs `plan` or `collect` and `consent.json` is absent
+- **THEN** the command exits 1 and tells the agent to ask the user to run `waf.mjs consent`
 
 #### Scenario: Fewer subscriptions than expected
 - **WHEN** the number of subscriptions read differs from the number the user typed
-- **THEN** the agent stops, reports `scope-incomplete` and asks the user to fix the role assignment
+- **THEN** `consent` reports `scope-incomplete` and does not write a valid file
 
 #### Scenario: Windows launcher inside WSL
 - **WHEN** the resolved `az` is under `/mnt/` or ends in `.exe` or `.cmd` while running inside WSL
-- **THEN** `plan` refuses unless the user types an acknowledgment that is recorded
+- **THEN** `consent` refuses unless the user types an acknowledgment that is recorded
 
 ### Requirement: Report in Brazilian Portuguese
 The report SHALL be produced through `assessment-report` with `--lang pt-BR`, stamped "not human reviewed" when rendered by the agent, with the coverage per pillar in the executive summary and in a separate `coverage.md`. The agent MUST NOT run `review --approve`.
@@ -144,26 +160,33 @@ The report SHALL be produced through `assessment-report` with `--lang pt-BR`, st
 - **THEN** it passes for the skill and the agent
 
 ### Requirement: Synthetic tenant and manual test
-The skill SHALL ship a synthetic tenant "Contoso Exemplo" (two readable subscriptions and one invisible, planted flaws, decoys, a hostile tag, an answer key) and `references/manual-test.md` with the steps M-0 to M-10, what to observe and what may be reported without client data.
+The skill SHALL ship a synthetic tenant "Contoso Exemplo" (two readable subscriptions and one invisible, planted flaws, decoys, a hostile tag, an answer key) and `references/manual-test.md` with the steps M-0 to M-12, what to observe and what may be reported without client data.
 
 #### Scenario: Answer key
 - **WHEN** the fixture run completes
 - **THEN** every planted flaw is found by its check, every decoy is `pass`, and the invisible subscription yields `scope-incomplete`
 
 ### Requirement: Dedicated identity
-The skill SHALL document, and `plan` SHALL check where it can, that the identity is dedicated to the audit and separate from the user's daily account: an isolated Azure CLI profile (`AZURE_CONFIG_DIR` set to an audit-only folder), only the roles Reader and Security Reader, no Owner, Contributor or User Access Administrator, and preferably temporary or PIM-activated access. When the role assignments of the signed-in principal include a role with write actions, `plan` SHALL stop unless the user types an acknowledgment, recorded in `run.json`. The skill MUST NOT assign roles and MUST NOT use "elevate access".
+The skill SHALL document, and `plan` SHALL check where it can, that the identity is dedicated to the audit and separate from the user's daily account: an isolated Azure CLI profile (`AZURE_CONFIG_DIR` set to an audit-only folder), only the roles Reader and Security Reader, no Owner, Contributor or User Access Administrator, and preferably temporary or PIM-activated access. When the role assignments of the signed-in principal include a role with write actions, `consent` and `plan` SHALL stop unless the user types an acknowledgment, recorded in `run.json`. The skill MUST NOT assign roles and MUST NOT use "elevate access".
 
 #### Scenario: Write-capable role found
 - **WHEN** the identity holds Contributor on a subscription
 - **THEN** `plan` stops and names the role
 
 ### Requirement: Staged exposure and production gate
-`plan` SHALL take `--stage nonprod|one-prod|root-mg`, record it, and for the stages `one-prod` and `root-mg` SHALL require typed confirmations that the model provider's retention and terms were checked against the company policy and that a security or compliance acceptance of the deviation from the Azure MCP guidance is recorded (a decision record, for which the skill ships a template), and that the previous stage ran (citing its run folder when present). Assigning roles at the root management group needs someone with Owner or User Access Administrator at that scope, which is the user's responsibility and is stated in the skill.
+`consent` SHALL take `--stage nonprod|one-prod|root-mg` and record it in `consent.json` (the agent cannot pass a stage), and for the stages `one-prod` and `root-mg` SHALL require typed confirmations that the model provider's retention and terms were checked against the company policy and that a security or compliance acceptance of the deviation from the Azure MCP guidance is recorded (a decision record, for which the skill ships a template), and that the previous stage ran (citing its run folder when present). Assigning roles at the root management group needs someone with Owner or User Access Administrator at that scope, which is the user's responsibility and is stated in the skill.
 
 #### Scenario: Skipping a stage
-- **WHEN** `plan --stage root-mg` runs and no earlier stage is recorded
+- **WHEN** `consent --stage root-mg` runs and no earlier stage is recorded
 - **THEN** it asks for a typed acknowledgment that is stored in `run.json`, and the report says the stages were skipped
 
 #### Scenario: Missing acceptance
 - **WHEN** the user does not confirm the retention check and the recorded acceptance for a production stage
 - **THEN** no production query is made
+
+### Requirement: Required controls in the first pull request
+The first pull request of the implementation (or its two sequential parts, 1a and 1b) SHALL contain the production controls: the user-run consent, the stage taken from the consent file, the identity verification, the independent subscription check, `seal-check` with the `scope.root` seal, `cap-check`, the `render` wrapper, `reverify` and `purge`. No run on a real tenant, in any stage, SHALL happen before they are merged.
+
+#### Scenario: Controls present
+- **WHEN** the first pull request is reviewed
+- **THEN** each control has a test that fails without it, including the forged-root and Critical-without-reverify tests
