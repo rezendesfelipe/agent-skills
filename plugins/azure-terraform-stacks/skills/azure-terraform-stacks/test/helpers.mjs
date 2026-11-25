@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, cpSync } from "nod
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import YAML from "yaml";
+import YAML from "../scripts/lib/yaml.mjs";
 import { validateManifest } from "../scripts/lib/manifest.mjs";
 import { generateAll } from "../scripts/lib/generate.mjs";
 

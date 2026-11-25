@@ -1,7 +1,7 @@
 // Loads infra/stacks.yaml, fills defaults and validates it (check-manifest).
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import YAML from "yaml";
+import YAML from "./yaml.mjs";
 import {
   TOKENS, splitInstance, literalName, checkName, suggestStackName, naming,
 } from "./naming.mjs";

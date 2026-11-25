@@ -18,3 +18,8 @@ plugins/assessment-report/skills/assessment-report/schema/** text eol=lf
 plugins/assessment-report/skills/assessment-report/scripts/** text eol=lf
 plugins/assessment-report/skills/assessment-report/templates/** text eol=lf
 plugins/assessment-report/skills/assessment-report/test/*.mjs text eol=lf
+
+# azure-terraform-stacks: the vendored yaml is a byte-for-byte copy of the npm package; no checkout may rewrite its line endings.
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/scripts/vendor/** -text
+# The corpus golden file is compared as data; keep it LF.
+plugins/azure-terraform-stacks/skills/azure-terraform-stacks/test/yaml-corpus/golden.json text eol=lf

@@ -25,7 +25,7 @@ Paths below are relative to this skill's folder (the folder that holds this file
 
 ## Workflow
 
-1. **Install the engine on first use.** If `node_modules/` does not exist in this skill's folder, run `npm ci --omit=dev` there. Node.js 20 or later is required.
+1. **No install step.** Node.js 20 or later is required; the engine's one dependency is vendored in `scripts/vendor/`.
 2. **Look at the repository.** If `infra/stacks.yaml` exists, run `node scripts/stacks.mjs check` first and report the findings. Then offer `add-stack`, fixes in the manifest, or a regeneration. Do not run `scaffold` over existing files without `--force` and the user's confirmation.
 3. **Interview the user** (one question tool call with several questions, or one short message). Ask only what the request does not already answer:
    - CI platform: Azure DevOps, GitHub Actions or both.

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
-import YAML from "yaml";
+import YAML from "./yaml.mjs";
 import { camel, snake, transitiveDeps } from "./manifest.mjs";
 import { stateKey, literalRg } from "./naming.mjs";
 import { generateAll } from "./generate.mjs";
