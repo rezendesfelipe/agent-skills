@@ -58,14 +58,14 @@ export function consentTransport({
 }
 
 /** Scripted terminal: answers in order, records what was shown. */
-export function scriptedIo(answers = []) {
+export function scriptedIo(answers = [], { strict = false } = {}) {
   const shown = [];
   const asked = [];
   const queue = [...answers];
-  return { shown, asked, get shownScreen() { return shown.find((x) => x.startsWith("WAF REVIEW CONSENT")); }, text: () => shown.join("\n"), print: (s = "") => shown.push(String(s)), ask: async (q) => { asked.push(q); shown.push(q); if (!queue.length) throw new Error(`unexpected prompt: ${q}`); return queue.shift(); } };
+  return { shown, asked, get shownScreen() { return shown.find((x) => x.startsWith("WAF REVIEW CONSENT")); }, text: () => shown.join("\n"), print: (s = "") => shown.push(String(s)), ask: async (q) => { if (!strict && q.includes(PHRASES.groups)) { shown.push(q); return PHRASES.groups; } asked.push(q); shown.push(q); if (!queue.length) throw new Error(`unexpected prompt: ${q}`); return queue.shift(); } };
 }
 
-export const PHRASES = { yes: "yes", retention: "RETENTION CHECKED", acceptance: "ACCEPTANCE RECORDED", previous: "PREVIOUS STAGE REVIEWED", skip: "SKIP PREVIOUS STAGES", unverifiable: "I ACCEPT AN UNVERIFIED IDENTITY", unclassified: "I ACCEPT UNCLASSIFIED ROLES", folder: "I ACCEPT THIS OUTPUT FOLDER" };
+export const PHRASES = { yes: "yes", retention: "RETENTION CHECKED", acceptance: "ACCEPTANCE RECORDED", previous: "PREVIOUS STAGE REVIEWED", skip: "SKIP PREVIOUS STAGES", unverifiable: "I ACCEPT AN UNVERIFIED IDENTITY", unclassified: "I ACCEPT UNCLASSIFIED ROLES", folder: "I ACCEPT THIS OUTPUT FOLDER", groups: "I UNDERSTAND GROUP ROLES ARE NOT SEEN" };
 
 /** The consent arguments of a nonprod run over the two subscriptions of consentTransport, with the typed count 2. */
 export const baseArgs = (over = {}) => ({ runId: "r1", stage: "nonprod", expectedSubs: "2", subscriptions: `${SUB1},${SUB2}`, redact: "default", ...over });
