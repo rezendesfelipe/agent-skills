@@ -3,6 +3,7 @@
 // no network, no login. These tests prove the comparison semantics the spec defines, not the shape of a real Resource Graph answer.
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { basename } from "node:path";
 import { join } from "node:path";
 import { test } from "node:test";
 import { loadCatalog } from "../scripts/lib/catalog.mjs";
@@ -215,4 +216,49 @@ test("purge of transcripts: only a folder inside .claude/projects, typed by name
   assert.ok(!existsSync(join(proj, "t.jsonl")));
   assert.ok(existsSync(join(home, ".claude", "projects")), "the projects folder itself stays");
   void jsonl;
+});
+
+// ------------------------------------------------------------------------------------------------ purge, each rule proved alone (disposable folders only)
+test("purge: a transcript folder outside <home>/.claude/projects is refused even when its name is typed right (every folder here is a disposable tmp folder)", async () => {
+  const { purgeRun } = await purgeLib();
+  const { cwd, state } = purgeSetup();
+  const home = tmp("waf-home-");
+  mkdirSync(join(home, ".claude", "projects", "p1"), { recursive: true });
+  const outside = [tmp("waf-else-"), join(home, ".claude"), home, tmp("waf-else2-")];
+  for (const dir of outside) {
+    writeFileSync(join(dir, "keep.txt"), "x");
+    const r = await purgeRun({ cwd, runId: "r1", stateBase: join(state, "waf-review"), transcripts: dir, home, io: scriptedIo(["r1", basename(dir)]) });
+    assert.equal(r.ok, false, dir);
+    assert.match(r.message, /not inside/);
+    assert.ok(existsSync(join(dir, "keep.txt")), "nothing was deleted");
+  }
+  assert.ok(existsSync(join(cwd, "waf-review", "r1", "run.json")), "the run was not deleted either: everything is validated before the first deletion");
+});
+
+test("purge: the projects folder itself is refused; only the folder of one project is accepted", async () => {
+  const { purgeRun } = await purgeLib();
+  const { cwd, state } = purgeSetup();
+  const home = tmp("waf-home-");
+  const projects = join(home, ".claude", "projects");
+  mkdirSync(join(projects, "p1"), { recursive: true });
+  writeFileSync(join(projects, "p1", "t.jsonl"), "x");
+  writeFileSync(join(projects, "other.txt"), "x");
+  const r = await purgeRun({ cwd, runId: "r1", stateBase: join(state, "waf-review"), transcripts: projects, home, io: scriptedIo(["r1", "projects"]) });
+  assert.equal(r.ok, false);
+  assert.match(r.message, /project|root|itself/i);
+  assert.ok(existsSync(join(projects, "p1", "t.jsonl")) && existsSync(join(projects, "other.txt")));
+  assert.ok(existsSync(join(cwd, "waf-review", "r1", "run.json")));
+  const ok = await purgeRun({ cwd, runId: "r1", stateBase: join(state, "waf-review"), transcripts: join(projects, "p1"), home, io: scriptedIo(["r1", "p1"]) });
+  assert.equal(ok.ok, true, ok.message);
+  assert.ok(!existsSync(join(projects, "p1")) && existsSync(join(projects, "other.txt")));
+});
+
+test("purge: a run folder that is a symbolic link to ANOTHER real run inside waf-review/ is refused as a link (the other checks would accept it)", { skip: !posix && "symlinks need privileges on Windows" }, async () => {
+  const { purgeRun } = await purgeLib();
+  const { cwd, state } = purgeSetup();
+  symlinkSync(join(cwd, "waf-review", "other"), join(cwd, "waf-review", "linked"));
+  const r = await purgeRun({ cwd, runId: "linked", stateBase: join(state, "waf-review"), io: scriptedIo(["linked"]) });
+  assert.equal(r.ok, false);
+  assert.match(r.message, /symbolic link/);
+  assert.ok(existsSync(join(cwd, "waf-review", "other", "run.json")));
 });

@@ -38,6 +38,7 @@ export const MUTANTS = [
   ["G01 empty derived set accepted", L("capcheck.mjs"), "if (!derived.size) {", "if (false) {", ["capcheck.test.mjs"]],
   ["G02 Critical compared by exact string", L("capcheck.mjs"), 'export const looksCritical = (s) => /critical/i.test(', 'export const looksCritical = (s) => s === "Critical" || /xx^/i.test(', ["capcheck.test.mjs"]],
   ["G03 any reverify state accepted (the early check only)", L("capcheck.mjs"), '!["match", "partial"].includes(r.state)', "false", ["capcheck.test.mjs"], "each scope branch judges the state again: check needs match, resource needs match or partial"],
+  ["G03c both state rules off (a double mutant: G03 and G03b together)", L("capcheck.mjs"), [['!["match", "partial"].includes(r.state)', "false"], ['else if (r.state !== "match" && r.state !== "partial") refuse(`is ${r.state}`);', ""]], "", ["capcheck.test.mjs"]],
   ["G03b resource-scope state not judged in its branch", L("capcheck.mjs"), 'else if (r.state !== "match" && r.state !== "partial") refuse(`is ${r.state}`);', "", ["capcheck.test.mjs"], "the early check on the state (G03)"],
   ["G04 part hash of the reverify not compared", L("capcheck.mjs"), "if (!recorded || !sealed || recorded.sha256 !== actual || actual !== sealed.sha256) {", "if (false) {", ["capcheck.test.mjs"]],
   ["G05 resource coverage of the cited ARM ids not required", L("capcheck.mjs"), "else if (missing.length) refuse(", "else if (false) refuse(", ["capcheck.test.mjs"]],
@@ -93,10 +94,14 @@ for (const [id, file, from, to, tests, second] of MUTANTS) {
   if (filter.length && !filter.some((x) => id.startsWith(x))) continue;
   const f = join(ENGINE, file);
   const src = readFileSync(f, "utf8");
-  const n = src.split(from).length - 1;
-  if (n !== 1) { results.push({ id, status: `BAD PATCH (${n} matches)` }); continue; }
+  // a patch is [from, to]; a double mutant is a list of them, applied in order (each must match once)
+  const patches = Array.isArray(from) ? from : [[from, to]];
+  let text = src;
+  let badN = 0;
+  for (const [a, b] of patches) { const n = text.split(a).length - 1; if (n !== 1) badN = n || -1; text = text.replace(a, () => b); }
+  if (badN) { results.push({ id, status: `BAD PATCH (${badN} matches)` }); continue; }
   originals.set(f, src);
-  writeFileSync(f, src.replace(from, () => to));
+  writeFileSync(f, text);
   const r = spawnSync(process.execPath, ["--test", ...tests.map((t) => join(ENGINE, "test", t))], { encoding: "utf8" });
   restore();
   results.push({ id, status: r.status === 0 ? "SURVIVED" : "killed", second });

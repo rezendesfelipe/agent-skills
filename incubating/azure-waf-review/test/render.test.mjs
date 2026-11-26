@@ -2,7 +2,7 @@
 // arguments, seal-check again), `assessment.json` required, the summaries sealed, TOCTOU between the gates and the renderer, a forged
 // assess.mjs. Written before the implementation. The renderer is the REAL assess.mjs of assessment-report.
 import assert from "node:assert/strict";
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -223,4 +223,57 @@ test("render in a folder with no assess flow in the run is refused with exit 1 a
   assert.equal(r.code, 1, r.out);
   assert.ok(!existsSync(reportDir(runDir)));
   void tmpdir;
+});
+
+// ------------------------------------------------------------------------------------------------ symbolic links in the run folder
+const posix = process.platform !== "win32";
+const linkTo = (runDir, rel, target) => { const f = join(runDir, rel); renameSync(f, `${f}.real`); symlinkSync(target, f); return f; };
+
+test("render refuses .state/run.json or inventory.json that is a symbolic link: it is neither read nor rewritten through the link", { skip: skip || (!posix && "symlinks need privileges on Windows") }, async () => {
+  for (const rel of [join(".state", "run.json"), "inventory.json"]) {
+    const { runDir } = assessedRun({});
+    const victim = join(tmp("waf-victim-"), "state.json");
+    const bytes = readFileSync(join(runDir, rel));
+    writeFileSync(victim, bytes);
+    linkTo(runDir, rel, victim);
+    const r = await libRender(runDir, {});
+    assert.equal(r.ok, false, rel);
+    assert.match(r.problems.join("\n"), /symbolic link/);
+    assert.deepEqual(readFileSync(victim), bytes, "the target of the link was not written");
+    assert.ok(!existsSync(reportDir(runDir)));
+  }
+});
+
+test("render refuses a .state folder that is a symbolic link", { skip: skip || (!posix && "symlinks need privileges on Windows") }, async () => {
+  const { runDir } = assessedRun({});
+  const victim = tmp("waf-victim-");
+  cpSync(join(runDir, ".state"), victim, { recursive: true });
+  renameSync(join(runDir, ".state"), join(runDir, ".state.real"));
+  symlinkSync(victim, join(runDir, ".state"));
+  const r = await libRender(runDir, {});
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /symbolic link/);
+  assert.ok(!existsSync(reportDir(runDir)));
+});
+
+test("an existing report that is a symbolic link is replaced as a link, never written through, and the new report is a real folder", { skip: skip || (!posix && "symlinks need privileges on Windows") }, async () => {
+  const { runDir } = assessedRun({});
+  const victim = tmp("waf-victim-");
+  writeFileSync(join(victim, "keep.txt"), "x");
+  symlinkSync(victim, join(runDir, "report"));
+  const r = await libRender(runDir, {});
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.ok(!lstatSync(join(runDir, "report")).isSymbolicLink());
+  assert.ok(existsSync(join(runDir, "report", "report.md")));
+  assert.deepEqual(readdirSync(victim), ["keep.txt"], "nothing was written into the link's target");
+});
+
+test("the report is installed by rename: no temporary folder is left in the run folder, and an old report is replaced whole", { skip }, async () => {
+  const { runDir } = assessedRun({});
+  mkdirSync(join(runDir, "report"));
+  writeFileSync(join(runDir, "report", "stale.md"), "old");
+  const r = await libRender(runDir, {});
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.ok(!existsSync(join(runDir, "report", "stale.md")));
+  assert.deepEqual(readdirSync(runDir).filter((n) => /^\.report|\.render|\.tmp/.test(n)), []);
 });

@@ -209,6 +209,62 @@ test("a resource-scope reverify whose state is changed, gone or error is refused
   }
 });
 
+// ------------------------------------------------------------------------------------------------ each redundant rule proved alone
+function manyParts() {
+  const fx = completeFixture();
+  const f = join(fx, "arg", "SE-DEF-002.json");
+  const j = readJson(f);
+  const rows = Array.from({ length: 5000 }, (_, i) => ({ id: `/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Security/assessments/00000000-0000-0000-0000-${String(i).padStart(12, "0")}`, subscriptionId: "00000000-0000-0000-0000-000000000001", displayName: `Recommendation number ${i} with a reasonably long display name to give the line some weight`, severity: "High" }));
+  const pages = [];
+  for (let i = 0; i < rows.length; i += 1000) pages.push({ rows: rows.slice(i, i + 1000), ...(i + 1000 < rows.length ? { $skipToken: `p${i / 1000 + 2}` } : {}) });
+  j.violations.pages = pages;
+  j.evaluated.pages = [{ rows: [{ n: 5200 }] }];
+  writeJson(f, j);
+  return fx;
+}
+function citeFirstPartOnly(fx) {
+  const probe = assessedRun({ fixtures: fx, critical: [], only: ["SE-STG-001"] });
+  const line = readFileSync(join(probe.runDir, "collected", "SE-DEF-002.001.jsonl"), "utf8").split("\n")[0];
+  const hand = {
+    evidence: [{ id: "E-001", kind: "file", path: "SE-DEF-002.001.jsonl", startLine: 1, endLine: 1, quote: line }],
+    findings: [{ id: "F-001", title: "Muitas recomendacoes", statement: "Cita so a primeira parte.", evidence: ["E-001"], controls: [{ framework: "azure-waf", controlId: "SE:10" }], impact: "severe", likelihood: "likely", effort: "M", rationale: { impact: "x", likelihood: "y" } }],
+  };
+  return assessedRun({ fixtures: fx, handFindings: hand, dropMapFindings: true });
+}
+
+test("rule alone: a check-scope reverify that records only the cited part, with the right hash, does not cover the check and is refused", { skip }, async () => {
+  const fx = manyParts();
+  const { cwd, runDir } = citeFirstPartOnly(fx);
+  const rv = await doReverify({ runDir, fx, check: "SE-DEF-002" });
+  assert.equal(rv.state, "match");
+  assert.ok(rv.parts.length >= 2, "the data spans several parts");
+  assert.equal(cap(cwd).code, 0, "the full reverify releases it");
+  editRev(runDir, "SE-DEF-002", (j) => { j.parts = j.parts.slice(0, 1); });
+  const r = cap(cwd);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /does not cover every part/);
+});
+
+test("rule alone: a reverify taken against another catalog than the shipped one is refused although it equals the manifest entry", { skip }, async () => {
+  const { runDir, fx } = assessedRun({ critical: ["SE-STG-001"] });
+  await doReverify({ runDir, fx, check: "SE-STG-001" });
+  const catalog = loadCatalog();
+  assert.equal((await (await import("../scripts/lib/capcheck.mjs")).capCheck({ runDir, catalog })).ok, true);
+  const other = { ...catalog, sha256: "e".repeat(64) };
+  const r = (await import("../scripts/lib/capcheck.mjs")).capCheck({ runDir, catalog: other });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /another catalog/);
+});
+
+test("rule alone: a check-scope reverify with a bad state is refused when the resource branch is not involved, and the reverse for a resource scope", { skip }, async () => {
+  const a = assessedRun({ critical: ["SE-STG-001"] });
+  await doReverify({ runDir: a.runDir, fx: a.fx, check: "SE-STG-001" });
+  editRev(a.runDir, "SE-STG-001", (j) => { j.state = "partial"; });
+  const r = cap(a.cwd);
+  assert.equal(r.code, 1, "scope check needs match, partial is not enough");
+  assert.match(r.out, /not match/);
+});
+
 // ------------------------------------------------------------------------------------------------ the severity string and the map
 test("the Critical string is compared without case, spaces or invisible characters (fail closed)", { skip }, async () => {
   const { runDir } = assessedRun({ critical: ["SE-STG-001"] });
