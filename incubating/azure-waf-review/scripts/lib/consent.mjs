@@ -6,6 +6,7 @@
 // field is seen, but whoever can rewrite the whole file consistently can forge it; the manifest seals its hash after `collect`, and the
 // guard of PR 4 keeps the model from writing it. Residual risk when the hook is inactive.
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { isAllowedAzVector } from "./azread.mjs";
 import { loadCatalog } from "./catalog.mjs";
@@ -25,6 +26,7 @@ export const PHRASES = {
   unverifiable: "I ACCEPT AN UNVERIFIED IDENTITY",
   unclassified: "I ACCEPT UNCLASSIFIED ROLES",
   folder: "I ACCEPT THIS OUTPUT FOLDER",
+  groups: "I UNDERSTAND GROUP ROLES ARE NOT SEEN",
 };
 const TOP_KEYS = new Set(["schema", "runId", "createdAt", "stage", "redact", "queryBudget", "expectedSubs", "readSubs", "tenant", "identity", "az", "profile", "outputFolder", "scope", "accounts", "independent", "acks", "mcp", "textSha256", "storedText", "storedTextSha256"]);
 
@@ -81,15 +83,20 @@ export function parseConsentArgs(a) {
 
 // ---------------------------------------------------------------------------------------------------------------- roles
 /** Splits role assignment rows into read-only, write-capable and unclassified, by role definition GUID (the table is in catalog/consent.json). */
+const GUID_PART = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+/** The one shape of a role definition id this engine reads: [/subscriptions/<guid> or /providers/Microsoft.Management/managementGroups/<id>]/providers/Microsoft.Authorization/roleDefinitions/<guid>. */
+const ROLE_DEF_ID = new RegExp(`^(?:/subscriptions/${GUID_PART}|/providers/Microsoft\\.Management/managementGroups/[A-Za-z0-9._()-]+)?/providers/Microsoft\\.Authorization/roleDefinitions/(${GUID_PART})$`, "i");
 let CONSENT_CATALOG = null;
 /** The consent part of the shipped catalog (queries and role table), loaded and validated once. */
 export const consentCatalog = () => (CONSENT_CATALOG ??= loadCatalog().consent);
 export function classifyRoleAssignments(rows, table = consentCatalog().roles) {
-  const out = { read: [], write: [], other: [] };
+  const out = { read: [], write: [], other: [], invalid: [] };
   const seen = new Set();
   for (const r of rows ?? []) {
-    const last = String(r?.roleDefinitionId ?? "").split("/").pop().toLowerCase();
-    const guid = GUID_RE.test(last) ? last : "";
+    const m = String(r?.roleDefinitionId ?? "").match(ROLE_DEF_ID);
+    // not the canonical form: it is NOT looked up by its last segment (a trailing slash or a query suffix must never hide an Owner as "unclassified")
+    if (!m) { out.invalid.push({ guid: "(unreadable role id)", name: null, scope: screenSafe(r?.scope ?? "", 160) }); continue; }
+    const guid = m[1].toLowerCase();
     const scope = screenSafe(r?.scope ?? "", 160);
     const key = `${guid}|${scope}`;
     if (seen.has(key)) continue;
@@ -103,6 +110,7 @@ export function classifyRoleAssignments(rows, table = consentCatalog().roles) {
 
 // ---------------------------------------------------------------------------------------------------------------- the text
 const need = (c) => ({
+  groupBlind: true,
   retention: c.stage !== "nonprod",
   acceptance: c.stage !== "nonprod",
   previousStage: c.stage !== "nonprod",
@@ -124,7 +132,8 @@ export function buildConsentText(c, names = new Map()) {
   L.push(`Run id: ${c.runId}`);
   L.push(`Time (UTC): ${c.createdAt}`);
   L.push(`Tenant: ...${c.tenant.last4} (last four characters)`);
-  L.push(`Identity: ${c.identity.type}; principal id verified: ${yn(c.identity.principalVerified)}`);
+  L.push(`Identity: ${c.identity.type}; principal id verified: ${yn(c.identity.principalVerified)} (role assignments are looked up by that id only)`);
+  L.push("Role assignments that reach the identity through a GROUP or by INHERITANCE are NOT seen here: an Owner or Contributor granted that way would not appear above. Check the identity's group memberships yourself before you accept.");
   L.push(`Roles found: ${c.identity.roles.length ? c.identity.roles.map((r) => `${r.name ?? r.guid} at ${r.scope}`).join("; ") : "none visible"}`);
   if ((c.identity.unclassified ?? []).length) L.push(`Roles NOT on the read-only list (Reader, Security Reader): ${c.identity.unclassified.join(", ")}`);
   L.push(`az: ${c.az.path} (native launcher, not a Windows executable); ${c.az.version}`);
@@ -145,10 +154,10 @@ export function buildConsentText(c, names = new Map()) {
   L.push(`MCP: ${c.mcp.replace("-", " ")}`);
   L.push("Data passes through the model provider (everything the engine writes into a summary is sent to it as part of the conversation), even when only the collector is used. The collector does not remove this risk; the retention and terms of the provider are yours to check against your company policy.");
   const n = need(c);
-  const req = Object.entries({ retention: n.retention, acceptance: n.acceptance, previousStage: n.previousStage, identityUnverifiable: n.identityUnverifiable, unclassifiedRoles: n.unclassifiedRoles, outputFolder: n.outputFolder }).filter(([, v]) => v).map(([k]) => k);
+  const req = Object.entries({ groupBlind: n.groupBlind, retention: n.retention, acceptance: n.acceptance, previousStage: n.previousStage, identityUnverifiable: n.identityUnverifiable, unclassifiedRoles: n.unclassifiedRoles, outputFolder: n.outputFolder }).filter(([, v]) => v).map(([k]) => k);
   L.push(`Typed confirmations for this stage: ${req.length ? req.join(", ") : "none beyond yes"}`);
   const k = c.acks;
-  L.push(`Confirmations recorded once you type them: retention ${yn(k.retention)}, acceptance ${yn(k.acceptance)}, previous stage ${k.previousStage ? (k.previousStage.skipped ? "skipped" : `reviewed (run ${k.previousStage.run})`) : "not applicable"}, unverified identity ${yn(k.identityUnverifiable)}, unclassified roles ${yn(k.unclassifiedRoles)}, output folder ${yn(k.outputFolder)}`);
+  L.push(`Confirmations recorded once you type them: group and inherited roles not seen ${yn(k.groupBlind)}, retention ${yn(k.retention)}, acceptance ${yn(k.acceptance)}, previous stage ${k.previousStage ? (k.previousStage.skipped ? "skipped" : `reviewed (run ${k.previousStage.run})`) : "not applicable"}${k.previousStage?.stagesSkipped?.length ? `, stages never run: ${k.previousStage.stagesSkipped.join(", ")}` : ""}, unverified identity ${yn(k.identityUnverifiable)}, unclassified roles ${yn(k.unclassifiedRoles)}, output folder ${yn(k.outputFolder)}`);
   return L.join("\n");
 }
 
@@ -223,7 +232,11 @@ export function consentProblems(c, { runId } = {}) {
     if (must) {
       const ps = k.previousStage;
       if (!(ps && typeof ps.reviewed === "boolean" && typeof ps.skipped === "boolean" && ps.reviewed !== ps.skipped && (ps.reviewed ? isStr(ps.run) : ps.run === null))) p.push("the previous-stage confirmation is incomplete");
+      else if (!Array.isArray(ps.stagesSkipped) || ps.stagesSkipped.some((x, i) => !STAGES.includes(x) || STAGES.indexOf(x) >= STAGES.indexOf(c.stage) || (i > 0 && STAGES.indexOf(ps.stagesSkipped[i - 1]) >= STAGES.indexOf(x)))) p.push("stagesSkipped must list earlier stages, in order");
+      else if (ps.skipped && !ps.stagesSkipped.includes(PREVIOUS_STAGE[c.stage])) p.push("a skipped previous stage must be in stagesSkipped");
+      else if (ps.reviewed && ps.stagesSkipped.includes(PREVIOUS_STAGE[c.stage])) p.push("a reviewed previous stage cannot also be skipped");
     } else if (k.previousStage !== null) p.push("previousStage must be null on nonprod");
+    if (k.groupBlind !== true) p.push("the typed confirmation that group and inherited role assignments are not seen is missing");
     for (const key of ["retention", "acceptance", "identityUnverifiable", "unclassifiedRoles", "outputFolder"]) if (typeof k[key] !== "boolean") p.push(`acks.${key} must be true or false`);
   }
   // the text: hash of the stored text, and the stored text derived again from the fields
@@ -253,7 +266,15 @@ export function readConsent(runDir, runId) {
 /** A run of the previous stage in this working folder: a VALID consent.json of that stage and a collected manifest. Most recent first. */
 export function findPreviousStage({ base, stage, exclude }) {
   const want = PREVIOUS_STAGE[stage];
-  if (!want || !existsSync(base)) return null;
+  return want ? findStageRun({ base, want, exclude }) : null;
+}
+/** The stages before `stage` (ascending) for which no valid run was found in this working folder. */
+export function skippedStages({ base, stage, exclude }) {
+  const earlier = STAGES.slice(0, STAGES.indexOf(stage));
+  return earlier.filter((w) => !findStageRun({ base, want: w, exclude }));
+}
+function findStageRun({ base, want, exclude }) {
+  if (!existsSync(base)) return null;
   const found = [];
   for (const name of readdirSync(base)) {
     if (name === exclude) continue;
@@ -294,6 +315,7 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
   const runId = args.runId;
   const base = join(cwd, "waf-review");
   const runDir = join(base, runId);
+  for (const d of [base, runDir]) { try { if (lstatSync(d).isSymbolicLink()) return refuse(1, "symlink", `${d} is a symbolic link: nothing is written through one`); } catch { /* absent */ } }
   if (existsSync(join(runDir, "consent.json")) || existsSync(join(runDir, "run.json"))) return refuse(1, "exists", `${runDir} already has a consent.json or run.json; consent never overwrites. Choose another --run-id.`);
 
   // the platform, before any read
@@ -301,7 +323,7 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
   if (typeof azPath !== "string" || !azPath) return refuse(2, "no-az", "az was not found on PATH (an absolute PATH entry is needed); install the Azure CLI inside this Linux distro");
   const az = classifyAzPath(azPath, { wsl, platform });
   if (!az.ok || /\.(exe|cmd|bat)$/i.test(String(azPath))) return refuse(1, "az-windows-launcher", `the az launcher is refused: ${az.reason ?? `${azPath} is a Windows launcher`}. Install the Azure CLI inside the Linux distro.`);
-  const profile = isolatedProfileProblem({ env, home: env.HOME ?? "", platform });
+  const profile = isolatedProfileProblem({ env, home: env.HOME || homedir(), platform });
   if (profile) return refuse(1, "profile-not-isolated", `the Azure CLI profile is not isolated: ${profile}. Create an audit-only folder, set AZURE_CONFIG_DIR to it, and sign in to it yourself with the dedicated identity.`);
   if (!transport) return refuse(2, "no-az", `az at ${azPath} cannot be started by the production transport`);
   const folderProblem = runBaseProblem(cwdReal ?? safeReal(cwd), { platform });
@@ -377,20 +399,22 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
     scope: { kind: a.stage === "root-mg" ? "managementGroup" : "subscriptions", managementGroup: a.mg, subscriptions: readable, visible: readable.length, expected: a.expected, containers: [...containers.keys()], notCovered, complete },
     accounts: a.redact === "strict" ? accountEntries.map(({ name, ...x }) => { void name; return x; }) : accountEntries,
     independent: { found: containers.size, onlyInAccountList, onlyInContainers },
-    acks: { retention: false, acceptance: false, previousStage: null, identityUnverifiable: false, unclassifiedRoles: false, outputFolder: false },
+    acks: { groupBlind: false, retention: false, acceptance: false, previousStage: null, identityUnverifiable: false, unclassifiedRoles: false, outputFolder: false },
     mcp: "not-used",
   };
   const realNames = new Map(accountEntries.filter((x) => x.name !== undefined).map((x) => [x.id, x.name]));
   const required = need({ ...fields });
   // the screen shows what the acknowledgments are for, so the text is built with the acknowledgments as they will be recorded
   const planned = structuredClone(fields);
-  planned.acks = { retention: required.retention, acceptance: required.acceptance, previousStage: required.previousStage ? { reviewed: false, run: null, skipped: false } : null, identityUnverifiable: required.identityUnverifiable, unclassifiedRoles: required.unclassifiedRoles, outputFolder: required.outputFolder };
+  planned.acks = { groupBlind: true, retention: required.retention, acceptance: required.acceptance, previousStage: required.previousStage ? { reviewed: false, run: null, skipped: false } : null, identityUnverifiable: required.identityUnverifiable, unclassifiedRoles: required.unclassifiedRoles, outputFolder: required.outputFolder };
   let previousRun = null;
-  if (required.previousStage) previousRun = findPreviousStage({ base, stage: a.stage, exclude: runId });
-  const preview = buildConsentText({ ...planned, acks: { ...planned.acks, previousStage: required.previousStage ? { reviewed: Boolean(previousRun), run: previousRun, skipped: !previousRun } : null } }, realNames);
+  let missing = [];
+  if (required.previousStage) { previousRun = findPreviousStage({ base, stage: a.stage, exclude: runId }); missing = skippedStages({ base, stage: a.stage, exclude: runId }); }
+  const preview = buildConsentText({ ...planned, acks: { ...planned.acks, previousStage: required.previousStage ? { reviewed: Boolean(previousRun), run: previousRun, skipped: !previousRun, stagesSkipped: missing } : null } }, realNames);
   io.print(preview);
 
   // refusals that no typed word can override
+  if (roles.invalid.length) return refuse(1, "role-id-invalid", `a role assignment names a role definition id that is not in the canonical form (${roles.invalid.length} of them); the consent will not guess which role it is. Nothing was written.`);
   if (roles.write.length) return refuse(1, "write-role", `the identity holds a write-capable role (${[...new Set(roles.write.map((r) => r.name))].join(", ")}). Use a dedicated identity with only Reader and Security Reader; this engine never accepts an acknowledgment for it.`);
   if (a.expected !== readable.length) {
     io.print(`Result: scope-incomplete: you typed ${a.expected} subscription(s) and ${readable.length} were read. No consent was written. Fix the identity's access or the list, and run consent again.`);
@@ -398,9 +422,11 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
   }
 
   // typed confirmations, in a fixed order; any other word ends the consent and nothing is written
-  const accepted = { outputFolder: false, identityUnverifiable: false, unclassifiedRoles: false, retention: false, acceptance: false };
+  const accepted = { groupBlind: false, outputFolder: false, identityUnverifiable: false, unclassifiedRoles: false, retention: false, acceptance: false };
   const typed = async (phrase, question) => lineOf(await io.ask(`${question}\nType exactly: ${phrase}\n> `)) === phrase;
   const abort = (what, reason = "aborted") => refuse(1, reason, `${what}: the typed answer was not exact. Nothing was written.`);
+  if (!(await typed(PHRASES.groups, "Role assignments that reach this identity through a group or by inheritance are NOT seen by this consent. Did you check the identity's group memberships and inherited assignments yourself?"))) return abort("group and inherited roles", "groups-not-seen");
+  accepted.groupBlind = true;
   if (required.outputFolder) { if (!(await typed(PHRASES.folder, `The run folder would be under a path with a problem (${folderProblem}).`))) return abort("output folder", "folder"); accepted.outputFolder = true; }
   if (required.identityUnverifiable) { if (!(await typed(PHRASES.unverifiable, "The identity's own role assignments could not be verified as read-only."))) return abort("identity", "identity-unverifiable"); accepted.identityUnverifiable = true; }
   if (required.unclassifiedRoles) { if (!(await typed(PHRASES.unclassified, `Roles that are not on the read-only list: ${roles.other.map((r) => r.guid).join(", ")}.`))) return abort("unclassified roles", "unclassified-role"); accepted.unclassifiedRoles = true; }
@@ -412,10 +438,10 @@ export async function runConsent({ args, transport, io, cwd, env = process.env, 
     accepted.acceptance = true;
     if (previousRun) {
       if (!(await typed(PHRASES.previous, `The previous stage (${PREVIOUS_STAGE[a.stage]}) ran in run ${previousRun}. Did you review its report?`))) return abort("previous stage");
-      previousStage = { reviewed: true, run: previousRun, skipped: false };
+      previousStage = { reviewed: true, run: previousRun, skipped: false, stagesSkipped: missing };
     } else {
       if (!(await typed(PHRASES.skip, `No run of the previous stage (${PREVIOUS_STAGE[a.stage]}) was found with a collected manifest. Stages skipped are recorded and the report says so.`))) return abort("previous stage");
-      previousStage = { reviewed: false, run: null, skipped: true };
+      previousStage = { reviewed: false, run: null, skipped: true, stagesSkipped: missing };
     }
   }
   if (lineOf(await io.ask("Write the consent and allow the review to read this scope? Type yes to confirm.\n> ")) !== PHRASES.yes) return abort("consent");

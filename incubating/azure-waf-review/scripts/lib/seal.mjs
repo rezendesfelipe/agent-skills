@@ -124,17 +124,31 @@ function consentBinding({ runDir, run, manifest }) {
   if (run.fixtures === true) {
     if (hasFile) p.push("this is a fixtures run but the folder holds a consent.json: fixtures and production never mix");
     if (manifest.consent) p.push("this is a fixtures run but the manifest records a consent");
+    if ((manifest.stagesSkipped ?? []).length || (run.stagesSkipped ?? []).length) p.push("a fixtures run has no skipped stages");
     return p;
   }
   const rc = readConsent(runDir, run.runId);
+  p.push(...runConsentProblems({ run, rc }));
+  if (rc.consent && manifest.consent?.sha256 !== rc.sha256) p.push("consent.json differs from the one sealed in the manifest (it was edited after collect, or the manifest has no consent hash)");
+  if (rc.consent && stableStringify(manifest.stagesSkipped ?? []) !== stableStringify(rc.consent.acks?.previousStage?.stagesSkipped ?? [])) p.push("the manifest's skipped stages differ from the consent's");
+  return p;
+}
+
+/**
+ * run.json against consent.json: the consent is valid and is the one sealed in run.json, and the scope, stage, redaction, budget and skipped
+ * stages of run.json are the consent's. collect and reverify call this BEFORE any query, so an edited run.json never reaches Azure.
+ * @param {{run: object, rc: {consent: object|null, sha256: string|null, problems: string[]}}} o
+ */
+export function runConsentProblems({ run, rc }) {
+  const p = [];
   for (const m of rc.problems) p.push(`consent.json: ${m}`);
   if (!rc.consent) return p;
   if (run.consent?.sha256 !== rc.sha256) p.push("consent.json differs from the one sealed in run.json (it was edited after plan, or run.json has no consent hash)");
-  if (manifest.consent?.sha256 !== rc.sha256) p.push("consent.json differs from the one sealed in the manifest (it was edited after collect, or the manifest has no consent hash)");
   if (stableStringify(pick(run.scope)) !== stableStringify(pick(rc.consent.scope))) p.push("run.json scope differs from the scope of consent.json: the scope must come from the consent");
   if (run.stage !== rc.consent.stage) p.push(`run.json stage ${JSON.stringify(run.stage)} differs from the consent's ${JSON.stringify(rc.consent.stage)}`);
   if (run.redact !== rc.consent.redact) p.push("run.json redact differs from the consent's");
   if (run.queryBudget !== rc.consent.queryBudget) p.push("run.json queryBudget differs from the consent's");
+  if (stableStringify(run.stagesSkipped ?? []) !== stableStringify(rc.consent.acks?.previousStage?.stagesSkipped ?? [])) p.push("run.json stagesSkipped differs from the consent's: a skipped stage cannot be hidden");
   return p;
 }
 

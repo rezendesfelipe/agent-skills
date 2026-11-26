@@ -1,6 +1,6 @@
 // Platform rules: the `az` launcher inside WSL and on Windows, constant arguments for a Windows shell, the run folder base.
 import { accessSync, constants as fsConstants, realpathSync, statSync } from "node:fs";
-import { release } from "node:os";
+import { homedir, release } from "node:os";
 import path from "node:path";
 
 export const isWsl = ({ env = process.env, rel = release() } = {}) => Boolean(env.WSL_DISTRO_NAME) || /microsoft/i.test(rel);
@@ -53,6 +53,7 @@ export function resolveAz({ pathEnv = process.env.PATH ?? "", platform = process
 /** Why the Azure CLI profile is not isolated, or null. An isolated profile is an existing folder named by AZURE_CONFIG_DIR that is neither the default ~/.azure nor the home folder (or a parent of it). */
 export function isolatedProfileProblem({ env = process.env, home = env.HOME ?? "", platform = process.platform } = {}) {
   const lib = libOf(platform);
+  home = home || homedir();
   const dir = env.AZURE_CONFIG_DIR;
   if (!dir) return "AZURE_CONFIG_DIR is not set, so az would use the default profile (~/.azure) of your daily account";
   if (!lib.isAbsolute(dir)) return "AZURE_CONFIG_DIR must be an absolute path";

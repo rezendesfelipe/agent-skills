@@ -19,9 +19,9 @@ import { reverifyCheck } from "./lib/reverify.mjs";
 import { hasTerminal, terminalIo } from "./lib/tty.mjs";
 import { makeAliaser, sanitizeString } from "./lib/redact.mjs";
 import { buildCoverage, buildMap, buildQuestionnaire, buildSummaries, coverageMarkdown, effectiveStates, readAnswers, readManifest } from "./lib/reports.mjs";
-import { sealCheck } from "./lib/seal.mjs";
+import { runConsentProblems, sealCheck } from "./lib/seal.mjs";
 import { createAzTransport, createFixtureTransport } from "./lib/transport.mjs";
-import { UsageError, checkRunId, runSha, sha256, writeFileAtomic, writeJsonFile } from "./lib/util.mjs";
+import { UsageError, assertNotLink, checkRunId, runSha, sha256, writeFileAtomic, writeJsonFile } from "./lib/util.mjs";
 
 const HELP = `waf.mjs ${ENGINE_VERSION}: deterministic collector for the Azure Well-Architected review (read-only)
 
@@ -122,7 +122,7 @@ async function productionContext(runDir, runId) {
   const wsl = isWsl();
   const cl = classifyAzPath(found, { wsl, platform: process.platform });
   if (!cl.ok) throw new Refusal(`az launcher refused: ${cl.reason}`);
-  const prof = isolatedProfileProblem({ env: process.env, home: process.env.HOME ?? homedir(), platform: process.platform });
+  const prof = isolatedProfileProblem({ env: process.env, home: process.env.HOME || homedir(), platform: process.platform });
   if (prof) throw new Refusal(`the Azure CLI profile is not isolated: ${prof}`);
   if (resolvePath(process.env.AZURE_CONFIG_DIR) !== resolvePath(c.profile.dir)) throw new Refusal("AZURE_CONFIG_DIR is not the profile the user consented to");
   const folder = runBaseProblem(safeReal(process.cwd()), { platform: process.platform });
@@ -179,6 +179,7 @@ async function cmdPlan(args) {
     ctx = await productionContext(runDir, id);
     transport = ctx.transport;
   }
+  assertNotLink(base);
   const problem = runBaseProblem(realpathSync(process.cwd()), { platform: process.platform });
   if (problem && !(ctx && ctx.consent.acks.outputFolder === true)) throw new Refusal(`Refused: ${problem}. The user gives a typed acknowledgment for it at consent; there is no other way.`);
   let pillars = PILLARS;
@@ -211,7 +212,7 @@ async function cmdPlan(args) {
   if (!existsSync(join(base, ".gitignore"))) writeFileSync(join(base, ".gitignore"), "*\n", { mode: 0o600 });
   const run = {
     schema: "waf-run/1", runId: id, createdAt: new Date().toISOString(), engineVersion: ENGINE_VERSION, fixtures: !ctx,
-    ...(ctx ? { stage: ctx.consent.stage, consent: { sha256: ctx.consentSha, textSha256: ctx.consent.textSha256, stage: ctx.consent.stage } } : {}),
+    ...(ctx ? { stage: ctx.consent.stage, stagesSkipped: ctx.consent.acks.previousStage?.stagesSkipped ?? [], consent: { sha256: ctx.consentSha, textSha256: ctx.consent.textSha256, stage: ctx.consent.stage } } : {}),
     catalog: { version: catalog.version, sha256: catalog.sha256 }, pillars, redact, queryBudget: ctx ? ctx.consent.queryBudget : 6000,
     scope: { kind: ctx ? ctx.consent.scope.kind : "subscriptions", managementGroup, ...scope },
   };
@@ -255,6 +256,9 @@ async function cmdCollect(args) {
     transport = fixtureTransport(args);
   } else {
     if (!existsSync(join(runDir, "consent.json"))) throw new Refusal(`collect refused: ${runDir} has no consent.json. A real tenant needs one produced by the USER (\`waf.mjs consent\`, in their own terminal); without --fixtures nothing runs.`);
+    // run.json against the consent BEFORE anything is asked of Azure (productionContext starts az)
+    const early = runConsentProblems({ run: loadRun(runDir), rc: readConsent(runDir, runId) });
+    if (early.length) throw new Refusal(`run.json no longer matches the consent; nothing was asked of Azure:\n${early.map((m) => `  - ${m}`).join("\n")}\nAsk the user to run consent again and plan a new run.`);
     ctx = await productionContext(runDir, runId);
     transport = ctx.transport;
   }
@@ -276,7 +280,7 @@ async function cmdCollect(args) {
   try {
   r = await runCollect({
     runDir, catalog, transport, scope: { kind: "subscriptions", subscriptions: run.scope.subscriptions, visible: run.scope.visible, expected: run.scope.expected, complete: run.scope.complete },
-    pillars, only: args.check ? [args.check] : null, resume: Boolean(args.resume), redact: { mode: run.redact, runId: run.runId }, runSha256: runSha(run), consentSha256: ctx?.consentSha ?? null, queryBudget: run.queryBudget,
+    pillars, only: args.check ? [args.check] : null, resume: Boolean(args.resume), redact: { mode: run.redact, runId: run.runId }, runSha256: runSha(run), consentSha256: ctx?.consentSha ?? null, stagesSkipped: run.stagesSkipped ?? [], queryBudget: run.queryBudget,
     sleep: (ms) => new Promise((res) => setTimeout(res, ms)), aliaser, azVersion: ctx ? ctx.azVersion : "fixture", fixtures: !ctx,
   });
   } finally { rmSync(lock, { force: true }); }
@@ -320,7 +324,7 @@ function statusJson(s) {
   const checks = Object.fromEntries([...s.states].map(([id, v]) => [id, v.label]));
   const notVerified = {};
   for (const v of s.states.values()) if (v.state === "not-verified") notVerified[v.reason] = (notVerified[v.reason] ?? 0) + 1;
-  const o = { runId: s.run.runId, pillars: s.run.pillars, stage: s.run.stage ?? null, fixtures: s.run.fixtures !== false, engineVersion: ENGINE_VERSION, catalogVersion: s.catalog.version, mcpUsed: false, humanReviewed: false, checks, notVerified, findings: null, confidence: null, severity: null, severityNote: "assessment.json does not exist yet", reportRendered: existsSync(join(s.runDir, "report", "report.md")) };
+  const o = { runId: s.run.runId, pillars: s.run.pillars, stage: s.run.stage ?? null, stagesSkipped: s.run.stagesSkipped ?? [], fixtures: s.run.fixtures !== false, engineVersion: ENGINE_VERSION, catalogVersion: s.catalog.version, mcpUsed: false, humanReviewed: false, checks, notVerified, findings: null, confidence: null, severity: null, severityNote: "assessment.json does not exist yet", reportRendered: existsSync(join(s.runDir, "report", "report.md")) };
   const apath = join(s.runDir, "assessment.json");
   if (!existsSync(apath)) return o;
   let buf;
@@ -423,7 +427,12 @@ async function cmdReverify(args) {
   const catalog = loadCatalog();
   let transport;
   if (run.fixtures !== false) { if (!args.fixtures) throw new UsageError("this is a fixtures run: pass --fixtures <dir>"); transport = fixtureTransport(args); }
-  else { if (args.fixtures) throw new Refusal("a production run is never reverified from fixtures"); transport = (await productionContext(runDir, id)).transport; }
+  else {
+    if (args.fixtures) throw new Refusal("a production run is never reverified from fixtures");
+    const early = runConsentProblems({ run, rc: readConsent(runDir, id) });
+    if (early.length) throw new Refusal(`run.json no longer matches the consent; nothing was asked of Azure:\n${early.map((m) => `  - ${m}`).join("\n")}`);
+    transport = (await productionContext(runDir, id)).transport;
+  }
   const rec = await reverifyCheck({ runDir, catalog, transport, checkId: args.check, resources: args.resource ?? [], sleep: (ms) => new Promise((res) => setTimeout(res, ms)), aliaser: aliaserFor(run) });
   out(`reverify ${args.check}: ${rec.state} (scope ${rec.scope}, ${rec.covered.length} ARM id(s) compared) written to reverify/${args.check}.json`);
   if (rec.state !== "match") process.exitCode = 1;
@@ -433,7 +442,7 @@ async function cmdPurge(args) {
   needTerminal("purge");
   const io = terminalIo();
   try {
-    const r = await purgeRun({ cwd: process.cwd(), runId: checkRunId(args.run, "--run"), stateBase: stateBase(), io, transcripts: args.transcripts ?? null, home: process.env.HOME ?? homedir() });
+    const r = await purgeRun({ cwd: process.cwd(), runId: checkRunId(args.run, "--run"), stateBase: stateBase(), io, transcripts: args.transcripts ?? null, home: process.env.HOME || homedir() });
     out(r.ok ? `purge: ${r.message}` : `purge refused: ${r.message}`);
     if (!r.ok) process.exitCode = 1;
   } finally { io.close(); }

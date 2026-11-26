@@ -263,7 +263,7 @@ export function partsValid(collectedDir, entry) {
  * Runs the checks of the chosen pillars. `only` limits it to ids; `resume` skips checks whose entry is still valid.
  * Writes collected/manifest.json after every check, so an interrupted run resumes.
  */
-export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, runSha256 = null, consentSha256 = null, queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
+export async function runCollect({ runDir, catalog, transport, scope, pillars = PILLARS, only = null, resume = false, redact, runSha256 = null, consentSha256 = null, stagesSkipped = [], queryBudget = 6000, sleep, now = () => new Date().toISOString(), aliaser = null, azVersion = "unknown", fixtures = false }) {
   const collectedDir = join(runDir, "collected");
   for (const sub of scope.subscriptions ?? []) if (!GUID_RE.test(sub)) throw new UsageError(`subscription id ${JSON.stringify(String(sub).slice(0, 60))} is not a GUID`);
   mkdirSync(collectedDir, { recursive: true, mode: 0o700 });
@@ -283,7 +283,7 @@ export async function runCollect({ runDir, catalog, transport, scope, pillars = 
     if (manifest.redact !== redact.mode) throw new Error(`the manifest was written with redact=${manifest.redact} and this run says redact=${redact.mode}; refusing to reuse it`);
     if (runSha256 && manifest.run?.sha256 !== runSha256) throw new Error("run.json changed since the manifest was written (the run hash differs); refusing to reuse the sealed checks. Plan a new run.");
   }
-  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, run: { sha256: runSha256 }, consent: consentSha256 ? { sha256: consentSha256 } : null, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
+  manifest ??= { schema: "waf-manifest/1", runId: redact.runId, run: { sha256: runSha256 }, consent: consentSha256 ? { sha256: consentSha256 } : null, stagesSkipped, engineVersion: ENGINE_VERSION, azVersion, redact: redact.mode, fixtures, catalog: { version: catalog.version, sha256: catalog.sha256 }, checks: {} };
   manifest.generatedAt = now();
   const budget = { remaining: queryBudget, used: 0 };
   const todo = catalog.checks.filter((c) => pillars.includes(c.pillar) && (!only || only.includes(c.id)));

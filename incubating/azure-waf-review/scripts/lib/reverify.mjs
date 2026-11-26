@@ -7,7 +7,8 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fetchViolations } from "./collect.mjs";
 import { projectRow } from "./redact.mjs";
-import { PART_FILE } from "./seal.mjs";
+import { readConsent } from "./consent.mjs";
+import { PART_FILE, runConsentProblems } from "./seal.mjs";
 import { UsageError, sha256, stableStringify, writeJsonFile } from "./util.mjs";
 
 const ARM_ID = /^\/[\x21-\x7e]{1,498}$/;
@@ -22,6 +23,11 @@ export async function reverifyCheck({ runDir, catalog, transport, checkId, resou
   const entry = manifest.checks?.[checkId];
   if (!entry || entry.state !== "fail") throw new Error(`${checkId} did not fail in this run (state ${entry?.state ?? "not run"}): there is nothing to reverify`);
   if (entry.catalogSha256 !== catalog.sha256) throw new Error("the catalog changed since collect; plan and collect a new run");
+  if (run.fixtures === false) {
+    // a production run: run.json must still be what the user consented to, BEFORE anything is asked of Azure
+    const bad = runConsentProblems({ run, rc: readConsent(runDir, run.runId) });
+    if (bad.length) throw new Error(`run.json no longer matches the consent, so nothing was asked of Azure:\n${bad.map((m) => `  - ${m}`).join("\n")}`);
+  }
   if (run.redact === "strict" && !aliaser) throw new UsageError("this run used --redact strict: the alias file of the user's state directory is needed to compare aliased lines");
   // the sealed lines, after checking them against the manifest (a changed part is seal-check's finding, not a comparison)
   const sealed = [];
@@ -44,7 +50,7 @@ export async function reverifyCheck({ runDir, catalog, transport, checkId, resou
   const save = (rec) => { mkdirSync(join(runDir, "reverify"), { recursive: true, mode: 0o700 }); writeJsonFile(join(runDir, "reverify", `${checkId}.json`), rec); return rec; };
 
   const qscope = { kind: "subscriptions", subscriptions: run.scope.subscriptions, visible: run.scope.visible, expected: run.scope.expected, complete: run.scope.complete };
-  const got = await fetchViolations({ check, transport, scope: qscope, sleep, budget: { remaining: 400, used: 0 } });
+  const got = await fetchViolations({ check, transport, scope: qscope, sleep, budget: { remaining: run.queryBudget, used: 0 } });
   if (got.error) return save({ ...base, state: "error", covered: [], error: { class: got.error.class ?? got.reason, status: got.error.status ?? null, reason: got.reason } });
   const fresh = new Map();
   for (const raw of got.rows) {

@@ -338,7 +338,7 @@ test("promotion to one-prod and root-mg asks for typed confirmations in order; a
   assert.equal(c.stage, "one-prod");
   assert.equal(c.acks.retention, true);
   assert.equal(c.acks.acceptance, true);
-  assert.deepEqual(c.acks.previousStage, { reviewed: false, run: null, skipped: true });
+  assert.deepEqual(c.acks.previousStage, { reviewed: false, run: null, skipped: true, stagesSkipped: ["nonprod"] });
 });
 
 test("a typed CRLF line ending from a Windows terminal does not defeat an exact answer, and nothing else is trimmed", async () => {
@@ -360,7 +360,7 @@ test("a previous stage that ran is looked up and cited; none found means a skip 
   const ok = await go({ ctx, args: baseArgs({ runId: "p1", stage: "one-prod", expectedSubs: "1", subscriptions: SUB1 }), transport: consentTransport({ accounts: [sub(SUB1, "prod")] }), answers: [PHRASES.retention, PHRASES.acceptance, PHRASES.previous, PHRASES.yes] });
   assert.equal(ok.r.ok, true, ok.r.message);
   assert.match(ok.io.text(), /np1/);
-  assert.deepEqual(readConsentFile(ok.file).acks.previousStage, { reviewed: true, run: "np1", skipped: false });
+  assert.deepEqual(readConsentFile(ok.file).acks.previousStage, { reviewed: true, run: "np1", skipped: false, stagesSkipped: [] });
   // root-mg after only a nonprod run: one-prod was skipped
   const root = await go({ ctx, args: { runId: "rm1", stage: "root-mg", expectedSubs: "2", managementGroup: "mg-root", redact: "default" }, answers: [PHRASES.retention, PHRASES.acceptance, PHRASES.previous, PHRASES.yes] });
   assert.equal(root.r.ok, false, "one-prod never ran, so only the skip phrase is offered");

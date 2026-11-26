@@ -239,12 +239,12 @@ export function kqlProblems(query, depth = 0) {
  */
 function isnullProblems(query, blank) {
   const stringy = new Set(STD_COLUMNS.map((c) => c.toLowerCase()));
-  for (const m of blank.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:(?:tolower|tostring)\s*\(|'|(?:id|name|subscriptionId|resourceGroup|location)\b(?!\s*\())/g)) stringy.add(m[1].toLowerCase());
+  for (const m of blank.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:(?:tolower|toupper|tostring|strcat|trim)\s*\(|'|(?:id|name|subscriptionId|resourceGroup|location)\b(?!\s*\())/g)) stringy.add(m[1].toLowerCase());
   const p = [];
   const why = "isnull() of a string is always false in Kusto (an empty or unmatched string is empty, not null): use isempty()";
   // every isnull( ... ) with its balanced argument: it must be a PLAIN dotted path that is not a known string column or alias.
   // Anything else (a call, parentheses, an operator, a bracket) is refused: the validator cannot tell what type it yields.
-  for (const m of blank.matchAll(/\bisnull\s*\(/gi)) {
+  for (const m of blank.matchAll(/\bisnull\s*\(|\bisnotnull\s*\(/gi)) {
     let depth = 1;
     let i = m.index + m[0].length;
     const start = i;
