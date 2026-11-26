@@ -39,7 +39,8 @@ export async function purgeRun({ cwd, runId, stateBase, io, transcripts = null, 
     let okInside = false;
     try { const rp = real(projects); const rt = real(t); okInside = rt === rp || rt.startsWith(rp + sep); } catch { okInside = false; }
     if (!okInside) return { ok: false, message: `${t} is not inside ${projects || "<home>/.claude/projects"}: purge deletes transcripts of Claude Code only there` };
-    tdir = { path: t, real: real(t), isRoot: real(t) === real(projects) };
+    if (real(t) === real(projects)) return { ok: false, message: `${t} is the projects folder itself (the root of all transcripts): name the folder of one project inside it` };
+    tdir = { path: t, real: real(t) };
   }
 
   const typed = lastLine(await io.ask(`This deletes the run folder ${runDir} and its alias file${tdir ? ` and the transcripts in ${tdir.path}` : ""}. It cannot be undone.\nType the run id to confirm: `));
@@ -56,8 +57,7 @@ export async function purgeRun({ cwd, runId, stateBase, io, transcripts = null, 
   }
   if (tdir) {
     removed.transcripts = countFiles(tdir.real);
-    if (tdir.isRoot) for (const e of readdirSync(tdir.real)) rmSync(join(tdir.real, e), { recursive: true, force: true });
-    else rmSync(tdir.real, { recursive: true, force: true });
+    rmSync(tdir.real, { recursive: true, force: true });
   }
   return { ok: true, message: `deleted ${removed.run} file(s) of the run, ${removed.aliases} alias file(s) and ${removed.transcripts} transcript file(s)`, removed };
 }

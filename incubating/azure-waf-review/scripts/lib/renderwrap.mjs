@@ -6,14 +6,14 @@
 // and of the manifest equal to the snapshot's) and only then are the report and the new assess state moved into the run folder.
 // A change in the window is refused and nothing is installed. A change that is undone before the second check cannot affect the report
 // (it came from the snapshot) and is not detected; that is by design.
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { capCheckAndWrite } from "./capcheck.mjs";
 import { sealCheck } from "./seal.mjs";
-import { sha256 } from "./util.mjs";
+import { sha256, writeFileAtomic } from "./util.mjs";
 
 /**
  * The renderer of assessment-report, found only by walking up from THIS file (never from the working folder, the run folder or an
@@ -35,6 +35,8 @@ export function locateAssess(from = dirname(fileURLToPath(import.meta.url))) {
 }
 
 const keep = (env, names) => Object.fromEntries(names.filter((n) => env[n] !== undefined).map((n) => [n, env[n]]));
+/** lstat: a symbolic link is never followed, for a read or for a rewrite. null when absent. */
+const kind = (f) => { try { const st = lstatSync(f); return st.isSymbolicLink() ? "link" : st.isDirectory() ? "dir" : st.isFile() ? "file" : "other"; } catch { return null; } };
 const fileSha = (f) => { try { return sha256(readFileSync(f)); } catch { return null; } };
 
 /** @returns {Promise<{ok: boolean, code: number, problems: string[], output: string, trace: string[]}>} */
@@ -47,6 +49,11 @@ export async function runRender({ runDir, catalog, hooks = {}, now = () => new D
   const assess = locateAssess();
   if (!assess) return fail("the renderer of assessment-report was not found next to this skill (plugins/assessment-report); install that plugin");
   const statePath = join(runDir, ".state", "run.json");
+  for (const [f, want] of [[join(runDir, ".state"), "dir"], [statePath, "file"], [join(runDir, "inventory.json"), "file"], [apath, "file"]]) {
+    const k = kind(f);
+    if (k === "link") return fail(`${f} is a symbolic link: the render never reads or rewrites through one. Nothing was rendered.`);
+    if (k !== null && k !== want) return fail(`${f} is not a regular ${want === "dir" ? "folder" : "file"}. Nothing was rendered.`);
+  }
   if (!existsSync(statePath)) return fail("the assess.mjs flow has no state in this run folder (.state/run.json): run init, verify, classify, check and write the summary first");
 
   const snapshot = readFileSync(apath);
@@ -90,9 +97,19 @@ export async function runRender({ runDir, catalog, hooks = {}, now = () => new D
     if (!existsSync(join(staging, "report", "report.md"))) problems.push("assess.mjs render did not produce report/report.md");
     if (problems.length) return { ok: false, code: 1, problems, output, trace };
 
-    rmSync(join(runDir, "report"), { recursive: true, force: true });
-    cpSync(join(staging, "report"), join(runDir, "report"), { recursive: true });
-    writeFileSync(statePath, readFileSync(join(staging, ".state", "run.json")), { mode: 0o600 });
+    // install by rename: copy next to the target, then swap. An old report (or a link in its place) is removed as it is, never written through.
+    const fresh = mkdtempSync(join(runDir, ".report-new-"));
+    const old = join(runDir, `.report-old-${process.pid}`);
+    try {
+      cpSync(join(staging, "report"), join(fresh, "report"), { recursive: true });
+      if (kind(join(runDir, "report")) !== null) renameSync(join(runDir, "report"), old);
+      renameSync(join(fresh, "report"), join(runDir, "report"));
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+      rmSync(old, { recursive: true, force: true });
+    }
+    if (kind(statePath) !== "file") return { ok: false, code: 1, problems: [".state/run.json is no longer a regular file: the new state was not written"], output, trace };
+    writeFileAtomic(statePath, readFileSync(join(staging, ".state", "run.json")));
     return { ok: true, code: 0, problems: [], output, trace };
   } finally {
     rmSync(staging, { recursive: true, force: true });
