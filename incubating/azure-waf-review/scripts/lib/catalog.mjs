@@ -137,6 +137,23 @@ export function validateCatalog(checks, { wafIds }) {
   return p;
 }
 
+/** The two consent reads and the role table: the queries pass the same KQL allowlist, the roles are GUIDs, nothing is both read-only and write-capable. */
+export function consentCatalogProblems(consent) {
+  const p = [];
+  const ids = (consent?.checks ?? []).map((c) => c.id).sort().join(",");
+  if (ids !== "CONSENT-ROLES,CONSENT-SUBS") p.push(`checks must be exactly CONSENT-SUBS and CONSENT-ROLES (found ${ids || "none"})`);
+  for (const c of consent?.checks ?? []) {
+    const q = String(c.query ?? "").replace(c.placeholder ?? "\u0000", "00000000-0000-0000-0000-000000000000");
+    for (const m of kqlProblems(q)) p.push(`${c.id}: ${m}`);
+    if (c.placeholder && (c.query.match(new RegExp(c.placeholder.replace(/[{}]/g, "\\$&"), "g")) ?? []).length !== 1) p.push(`${c.id}: the placeholder must appear exactly once`);
+  }
+  const gl = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  for (const kind of ["read", "write"]) for (const [g, name] of Object.entries(consent?.roles?.[kind] ?? {})) if (!gl.test(g) || !isStr(name)) p.push(`roles.${kind}: ${g} is not a lower-case GUID with a name`);
+  for (const g of Object.keys(consent?.roles?.read ?? {})) if (g in (consent?.roles?.write ?? {})) p.push(`role ${g} is both read-only and write-capable`);
+  if (!Object.keys(consent?.roles?.read ?? {}).length) p.push("roles.read is empty");
+  return p;
+}
+
 const readJsonFile = (f) => JSON.parse(readFileSync(f, "utf8").replace(/^\uFEFF/, ""));
 
 /** Loads and validates the catalog; throws with every problem, each naming its entry. */
@@ -144,6 +161,7 @@ export function loadCatalog(dir = CATALOG_DIR) {
   const index = readJsonFile(join(dir, "index.json"));
   const ids = readJsonFile(join(dir, "waf-ids.json"));
   const azRead = readJsonFile(join(dir, "az-read.json"));
+  const consent = readJsonFile(join(dir, "consent.json"));
   const wafIds = new Map();
   for (const [pillar, list] of Object.entries(ids.checklists)) for (const [id, title] of Object.entries(list.ids)) wafIds.set(id, { pillar, title });
   const checks = [];
@@ -159,9 +177,10 @@ export function loadCatalog(dir = CATALOG_DIR) {
     }
   }
   for (const m of validateCatalog(checks, { wafIds })) problems.push(m);
+  for (const m of consentCatalogProblems(consent)) problems.push(`consent.json: ${m}`);
   if (problems.length) throw new Error(`catalog is invalid (${problems.length} problem(s)):\n${problems.map((m) => `  - ${m}`).join("\n")}`);
-  const sha = sha256(stableStringify({ version: index.catalogVersion, checks, wafIds: ids, azRead, scalarPaths: SCALAR }));
-  return { version: index.catalogVersion, sha256: sha, checks, wafIds, azRead: azRead.vectors };
+  const sha = sha256(stableStringify({ version: index.catalogVersion, checks, wafIds: ids, azRead, scalarPaths: SCALAR, consent }));
+  return { version: index.catalogVersion, sha256: sha, checks, wafIds, azRead: azRead.vectors, consent };
 }
 
 /** Sha-256 of a check's query text (used in the manifest and recomputed by seal-check). */

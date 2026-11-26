@@ -239,11 +239,21 @@ export function kqlProblems(query, depth = 0) {
  */
 function isnullProblems(query, blank) {
   const stringy = new Set(STD_COLUMNS.map((c) => c.toLowerCase()));
-  for (const m of blank.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:(?:tolower|tostring)\s*\(|'|(?:id|name|subscriptionId|resourceGroup|location)\b(?!\s*\())/g)) stringy.add(m[1].toLowerCase());
+  for (const m of blank.matchAll(/\b([A-Za-z_]\w*)\s*=\s*(?:(?:tolower|toupper|tostring|strcat|trim)\s*\(|'|(?:id|name|subscriptionId|resourceGroup|location)\b(?!\s*\())/g)) stringy.add(m[1].toLowerCase());
   const p = [];
   const why = "isnull() of a string is always false in Kusto (an empty or unmatched string is empty, not null): use isempty()";
-  for (const m of blank.matchAll(/\bisnull\s*\(\s*([A-Za-z_]\w*)\s*\)/gi)) if (stringy.has(m[1].toLowerCase())) p.push(`${why}: isnull(${m[1]})`);
-  if (/\bisnull\s*\(\s*(?:tostring|tolower)\s*\(/i.test(blank)) p.push(`${why}: isnull over a conversion`);
+  // every isnull( ... ) with its balanced argument: it must be a PLAIN dotted path that is not a known string column or alias.
+  // Anything else (a call, parentheses, an operator, a bracket) is refused: the validator cannot tell what type it yields.
+  for (const m of blank.matchAll(/\bisnull\s*\(|\bisnotnull\s*\(/gi)) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    const start = i;
+    for (; i < blank.length && depth > 0; i++) { if (blank[i] === "(") depth++; else if (blank[i] === ")") depth--; }
+    const inner = depth === 0 ? blank.slice(start, i - 1).trim() : null;
+    if (inner === null) { p.push("isnull( is not closed"); continue; }
+    if (!/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(inner)) p.push(`isnull() takes a plain property path, not "${inner.slice(0, 30)}": ${why}`);
+    else if (stringy.has(inner.toLowerCase())) p.push(`${why}: isnull(${inner})`);
+  }
   void query;
   return p;
 }
